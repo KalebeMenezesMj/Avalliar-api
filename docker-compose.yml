@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: avalliar-postgres
+    environment:
+      POSTGRES_DB: avalliar
+      POSTGRES_USER: avalliar
+      POSTGRES_PASSWORD: avalliar
+    ports:
+      - "5432:5432"
+    volumes:
+      - avalliar_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avalliar -d avalliar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: avalliar-api
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: avalliar
+      DB_USER: avalliar
+      DB_PASSWORD: avalliar
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  avalliar_pgdata:
