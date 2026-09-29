@@ -18,7 +18,6 @@ O Avalliar automatiza o fluxo operacional de avaliação imobiliária:
 6. **Pesquisa** anúncios imobiliários para obter amostras comparáveis;
 7. **Gera** e entrega laudos de avaliação.
 
-> Documentação acadêmica completa de origem: [`Avalliar - Documentação.docx`](Avalliar%20-%20Documentação.docx)
 > Modelo de dados completo: [`schema.sql`](schema.sql)
 
 ---
