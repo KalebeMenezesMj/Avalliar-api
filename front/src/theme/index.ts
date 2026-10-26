@@ -5,7 +5,14 @@ export const colors = {
   background: '#F5F5F5',
   surface: '#FFFFFF',
   text: '#1E1E1E',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
+  inputBackground: '#F0F2F5',
+  inputBorder: '#E2E8F0',
+  placeholder: '#94A3B8',
   textOnPrimary: '#FFFFFF',
+  error: '#DC2626',
+  success: '#16A34A',
 };
 
 export const fonts = {
@@ -27,4 +34,6 @@ export const spacing = {
 export const radius = {
   sm: 4,
   md: 8,
+  lg: 12,
+  full: 9999,
 };
