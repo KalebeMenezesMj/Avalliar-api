@@ -26,8 +26,12 @@ ml/
 ├── fields.py        # campos canônicos + exemplos de treino (rótulo → campo)
 ├── templates.py     # templates, mapa de células e fingerprint
 ├── train.py         # treina os dois modelos (salva em models/)
-├── fill.py          # reconhece + preenche um arquivo (CLI)
+├── fill.py          # reconhece + preenche um arquivo (CLI) + extrai de um laudo
 ├── derive.py        # aprende o mapa de células a partir de laudos preenchidos
+├── test_roundtrip.py  # teste de ida e volta (nível de célula)
+├── test_fields.py     # teste por campo (ML de verdade: entender -> extrair -> posicionar)
+├── test_recognizer.py # teste do reconhecedor (inclui generalização)
+├── test_v25_consistency.py # consistência do mapa de células do V25
 ├── demo.py          # demo ponta a ponta
 ├── data/templates/  # planilhas de modelo (gitignored)
 ├── data/output/     # planilhas preenchidas (gitignored)
@@ -65,6 +69,61 @@ O demo:
 2. reconhece os dois templates de exemplo;
 3. preenche ambos com dados de exemplo e salva em `data/output/`;
 4. mostra o mapeador generalizando para rótulos nunca vistos no treino.
+
+## Testes
+
+Quatro testes de validação, rodando sobre **laudos reais** (a pasta `2025/` do
+ambiente da equipe):
+
+```bash
+python test_roundtrip.py 30   # nível de célula
+python test_fields.py 30      # nível de campo (ML)
+python test_recognizer.py 30  # reconhecimento + generalização
+python test_v25_consistency.py
+```
+
+**`test_roundtrip.py`** — extrai todas as células de entrada de um laudo pronto,
+preenche o template em branco e compara célula a célula. Valida a mecânica de
+escrita e a **estabilidade do layout** (as posições das células são idênticas em
+todos os laudos).
+
+**`test_fields.py`** — o teste que realmente exercita o ML: o mapeador
+**entende os rótulos** do laudo (`CLIENTE`, `N° DA PROPOSTA`, `ESTADO:`…),
+extrai o valor de cada campo e o coloca na célula do template. Compara com o
+laudo original. Aqui a extração é restrita à aba onde o campo é escrito, o que
+desambigua rótulos repetidos (ex.: `UF` existe como cabeçalho da tabela R8N e
+como campo do laudo).
+
+**`test_recognizer.py`** — cada laudo deve ser identificado como V22. Separa os
+laudos **vistos** no treino dos **não vistos** (generalização real).
+
+**`test_v25_consistency.py`** — não temos laudo V25 preenchido, mas as fórmulas
+das outras abas referenciam exatamente as células de entrada de
+`DADOS DO IMÓVEL`. O teste confere que o mapa aponta para essas células e que
+nenhuma ficou de fora (foi assim que se descobriu que a coluna de valores é a
+**C**, e não a D).
+
+### Resultados
+
+| Teste | Resultado |
+|---|---|
+| Round-trip (30 laudos, todas as células de entrada) | **6620/6620 — 100%** |
+| Por campo (30 laudos × 9 campos) | **270/270 — 100%** |
+| Reconhecedor (30 laudos) | **30/30 — 100%** |
+| Reconhecedor em laudos **não vistos** no treino | **10/10 — 100%** |
+| Consistência do mapa V25 | **31/31 — 100%** |
+
+## Extrair dados de um laudo
+
+`fill.extract(template_id, caminho_do_laudo)` devolve `{campo: valor}` — a
+"informação recebida" no formato canônico, pronta para ser gravada em outro
+template:
+
+```python
+import fill
+dados = fill.extract("v22_unidades_isoladas", "laudo_preenchido.xlsx")
+# {'cliente': 'ITAÚ', 'numero_proposta': 10035612, 'uf': 'São Paulo', ...}
+```
 
 ## Aprender o mapa de células (derive.py)
 

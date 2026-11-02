@@ -6,12 +6,15 @@ reais encontrados nas planilhas de homogeneização (V22 e V25).
 """
 
 CANONICAL_FIELDS = [
-    "cliente", "numero_proposta", "tipo_laudo", "engenheiro_responsavel",
+    "cliente", "numero_proposta", "tipo_laudo", "metodologia", "fam_evolutivo",
+    "engenheiro_responsavel", "responsavel_avaliacao", "data_laudo",
     "matricula", "tipologia", "unidade", "andar", "bloco_torre",
     "empreendimento", "tipo_endereco", "endereco", "numero", "bairro",
     "cidade", "uf", "cep", "latitude", "longitude",
-    "area_privativa", "valor_avaliacao", "estado_conservacao",
-    "idade_aparente", "vida_util", "dormitorios", "vagas",
+    "area_privativa", "area_comum", "area_total", "area_equivalente",
+    "fracao_ideal", "valor_avaliacao", "estado_conservacao",
+    "idade_aparente", "vida_util", "dormitorios", "suites", "banheiros", "vagas",
+    "trata_se_pv",
 ]
 
 # Pares (rótulo encontrado na planilha, campo canônico) usados para treinar o
@@ -33,6 +36,17 @@ TRAINING_PAIRS = [
     ("TIPO DE LAUDO", "tipo_laudo"),
     ("TIPO DE LAUDO:", "tipo_laudo"),
     ("TIPO DE AVALIAÇÃO", "tipo_laudo"),
+    # metodologia
+    ("MÉTODOLOGIA:", "metodologia"),
+    ("MÉTODO EVOLUTIVO", "metodologia"),
+    ("Metodologia", "metodologia"),
+    # fam_evolutivo
+    ("FAM (Evolutivo)", "fam_evolutivo"),
+    ("FAM", "fam_evolutivo"),
+    # data_laudo
+    ("DATA:", "data_laudo"),
+    ("DATA DO LAUDO", "data_laudo"),
+    ("DATA", "data_laudo"),
     # engenheiro_responsavel
     ("Engº Responsável", "engenheiro_responsavel"),
     ("ENGENHEIRO RESPONSÁVEL", "engenheiro_responsavel"),
@@ -76,6 +90,7 @@ TRAINING_PAIRS = [
     ("Bairro", "bairro"),
     # cidade
     ("CIDADE", "cidade"),
+    ("CIDADE:", "cidade"),
     ("Cidade", "cidade"),
     ("Município", "cidade"),
     # uf
@@ -83,6 +98,7 @@ TRAINING_PAIRS = [
     ("UF:", "uf"),
     ("Estado", "uf"),
     ("ESTADO", "uf"),
+    ("ESTADO:", "uf"),
     # cep
     ("CEP", "cep"),
     ("CEP:", "cep"),
@@ -125,4 +141,29 @@ TRAINING_PAIRS = [
     ("Nº VAGAS", "vagas"),
     ("VAGAS", "vagas"),
     ("Vagas de garagem", "vagas"),
+    # suites
+    ("NÚMERO DE SUÍTES", "suites"),
+    ("SUÍTES", "suites"),
+    # banheiros
+    ("NÚMERO DE BANHEIROS", "banheiros"),
+    ("Nº BANHEIROS", "banheiros"),
+    ("BANHEIROS", "banheiros"),
+    # area_comum
+    ("ÁREA COMUM (m²):", "area_comum"),
+    ("ÁREA COMUM", "area_comum"),
+    # area_total
+    ("ÁREA TOTAL (m²):", "area_total"),
+    ("ÁREA TOTAL", "area_total"),
+    # area_equivalente
+    ("Área útil/equivalente m²:", "area_equivalente"),
+    ("ÁREA ÚTIL/EQUIVALENTE", "area_equivalente"),
+    # fracao_ideal
+    ("FRAÇÃO IDEAL:", "fracao_ideal"),
+    ("FRAÇÃO IDEAL", "fracao_ideal"),
+    # trata_se_pv
+    ("TRATA-SE DE PV?", "trata_se_pv"),
+    ("TRATA-SE DE PV", "trata_se_pv"),
+    # responsavel_avaliacao
+    ("Engº/Arqtº Responsável pela Avaliação.", "responsavel_avaliacao"),
+    ("RESPONSÁVEL PELA AVALIAÇÃO", "responsavel_avaliacao"),
 ]

@@ -22,21 +22,12 @@ CONFIDENCE = 0.6
 
 
 def _is_label(mapper, text):
-    p = mapper.predict_proba([templates.normalize(text)])[0]
-    return max(p) >= CONFIDENCE
+    return filler.is_label(mapper, text, CONFIDENCE)
 
 
 def _find_value_cell(ws, cell, mapper, max_offset=3):
-    """Procura a célula de valor: primeira célula não-vazia à direita do rótulo
-    que não seja ela própria um outro rótulo."""
-    for off in range(1, max_offset + 1):
-        v = ws.cell(row=cell.row, column=cell.column + off)
-        if v.value in (None, ""):
-            continue
-        if isinstance(v.value, str) and _is_label(mapper, v.value):
-            continue
-        return v
-    return None
+    """Procura a célula de valor do rótulo (heurística compartilhada com fill.py)."""
+    return filler.find_value_cell(ws, cell, mapper, CONFIDENCE)
 
 
 def derive(filled_paths):
