@@ -27,7 +27,9 @@ ml/
 ├── templates.py     # templates, mapa de células e fingerprint
 ├── train.py         # treina os dois modelos (salva em models/)
 ├── fill.py          # reconhece + preenche um arquivo (CLI) + extrai de um laudo
+├── layout.py        # APRENDE o layout da planilha a partir de laudos preenchidos
 ├── derive.py        # aprende o mapa de células a partir de laudos preenchidos
+├── test_learn.py      # teste: aprende com N laudos e preenche os outros
 ├── test_roundtrip.py  # teste de ida e volta (nível de célula)
 ├── test_fields.py     # teste por campo (ML de verdade: entender -> extrair -> posicionar)
 ├── test_recognizer.py # teste do reconhecedor (inclui generalização)
@@ -124,6 +126,39 @@ import fill
 dados = fill.extract("v22_unidades_isoladas", "laudo_preenchido.xlsx")
 # {'cliente': 'ITAÚ', 'numero_proposta': 10035612, 'uf': 'São Paulo', ...}
 ```
+
+## Aprender o layout da planilha (layout.py)
+
+Esta é a peça que **elimina o mapa de células decorado**. Em vez de alguém
+mapear "cliente → P6" à mão, o sistema aprende olhando laudos preenchidos:
+
+1. **Descobre as células de entrada** — diff determinístico entre o template em
+   branco e o laudo preenchido (nada de chute);
+2. **Nomeia cada célula** — o ML classifica o rótulo vizinho (`CLIENTE`,
+   `ESTADO:`, `N° DA PROPOSTA`…) e descobre a que campo canônico pertence;
+3. **Consolida** por votação entre vários laudos e grava o layout.
+
+```bash
+python test_learn.py   # aprende com N laudos e preenche os outros
+```
+
+**Por que isso importa:** para um cliente novo, basta entregar **um laudo
+preenchido por tipologia** e o sistema passa a preencher os demais sozinho.
+
+Resultados (V22, laudos reais da pasta `2025/`):
+
+| Laudos de referência | Células descobertas | Acerto ao preencher os outros |
+|---|---|---|
+| 1 | 221 | **97,3%** |
+| 3 | 225 | **98,2%** |
+| 5 | 231 | **99,5%** |
+| **24 (uma por tipologia)** | 264 | **99,9%** |
+
+O que faltava para os 100% eram **campos condicionais** — o `C50='ESQUINA'`
+(só em imóvel de esquina) e o `G58`, que não aparecem em nenhum dos laudos de
+referência. Por isso a referência precisa ser **diversa** (uma por tipologia) e
+não os primeiros N da lista: com 24 tipologias, 7 dos 8 laudos testados saíram
+**100%** e os 2 misses foram exatamente esses campos condicionais.
 
 ## Aprender o mapa de células (derive.py)
 
