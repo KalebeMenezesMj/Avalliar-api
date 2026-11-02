@@ -1,0 +1,22 @@
+{
+  "numero_proposta": "10099999",
+  "cliente": "Banco Exemplo S.A.",
+  "tipo_laudo": "LAUDO MANUAL INTERNO",
+  "matricula": "123456",
+  "tipologia": "Apartamento",
+  "unidade": "102",
+  "andar": "11º",
+  "bloco_torre": "B",
+  "empreendimento": "Residencial Mar Azul",
+  "tipo_endereco": "Rua",
+  "endereco": "Av. dos Pescadores",
+  "numero": "1500",
+  "bairro": "Boqueirão",
+  "cidade": "Praia Grande",
+  "uf": "SP",
+  "cep": "11700-000",
+  "latitude": -24.0071,
+  "longitude": -46.4125,
+  "area_privativa": 68.5,
+  "engenheiro_responsavel": "Eng. Sara Menezes"
+}
