@@ -56,15 +56,18 @@ docker compose down
 |---|---|---|
 | `admin@avalliar.com` | `admin123` | ADMIN |
 | `avaliador@avalliar.com` | `avaliar123` | AVALIADOR |
+| `gestor@avalliar.com` | `gestor123` | GESTOR |
+| `vistoriador@avalliar.com` | `vistoriador123` | VISTORIADOR |
+| `operacional@avalliar.com` | `operacional123` | OPERACIONAL |
 
-## Autenticação
+## Autenticação (opcional)
 
-A API usa **JWT Bearer**. Fluxo:
+A API possui autenticação **JWT**, mas ela é **opcional**: todos os endpoints podem ser acessados sem token.
+
+Para testar o fluxo de login (disponível, porém não obrigatório):
 
 1. `POST /api/auth/login` com `{ "email": "...", "senha": "..." }` → retorna um `token`;
-2. Envie o token no header `Authorization: Bearer <token>` nas demais requisições.
-
-No Swagger UI, clique em **Authorize** e cole o token.
+2. Se desejar, envie o token no header `Authorization: Bearer <token>`.
 
 ## Endpoints
 
@@ -73,13 +76,10 @@ No Swagger UI, clique em **Authorize** e cole o token.
 | POST | `/api/auth/register` | Registrar usuário | público |
 | POST | `/api/auth/login` | Autenticar | público |
 | GET | `/health` | Health check | público |
-| GET | `/api/clientes` | Listar clientes | autenticado |
-| POST | `/api/clientes` | Cadastrar cliente | autenticado |
-| PUT | `/api/clientes/{id}` | Atualizar cliente | autenticado |
-| DELETE | `/api/clientes/{id}` | Excluir cliente | ADMIN |
-| GET/POST/PUT | `/api/imoveis` | CRUD de imóveis | autenticado (DELETE: ADMIN) |
-| GET/POST/PUT | `/api/vistoriadores` | CRUD de vistoriadores | autenticado (DELETE: ADMIN) |
-| GET/POST/PUT | `/api/ordens-servico` | CRUD de OS | autenticado (DELETE: ADMIN) |
+| GET/POST/PUT/DELETE | `/api/clientes` | CRUD de clientes | público |
+| GET/POST/PUT/DELETE | `/api/imoveis` | CRUD de imóveis | público |
+| GET/POST/PUT/DELETE | `/api/vistoriadores` | CRUD de vistoriadores | público |
+| GET/POST/PUT/DELETE | `/api/ordens-servico` | CRUD de OS | público |
 
 ## Estrutura do código
 
@@ -100,5 +100,5 @@ src/main/java/com/avalliar/api/
 ## Observações
 
 - As tabelas são criadas automaticamente pelo Hibernate (`ddl-auto: update`).
-- Dados de exemplo (clientes, imóveis, vistoriadores e uma OS) são inseridos no primeiro boot via `DataSeeder`.
+- Dados de exemplo (5 usuários, 6 clientes, 8 imóveis, 5 vistoriadores e 10 OS) são inseridos no primeiro boot via `DataSeeder`.
 - O `schema.sql` completo do produto final está na raiz do repositório, como referência de evolução.
