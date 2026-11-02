@@ -25,7 +25,7 @@ public class Cliente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 18)
+    @Column(length = 18)
     private String cnpj;
 
     @Column(name = "razao_social", nullable = false)
@@ -33,4 +33,14 @@ public class Cliente {
 
     @Column(name = "sla_padrao_horas")
     private Integer slaPadraoHoras;
+
+    @Column(name = "nome_contato")
+    private String nomeContato;
+
+    private String email;
+
+    private String telefone;
+
+    @Builder.Default
+    private Boolean ativo = true;
 }

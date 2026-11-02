@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record ClienteRequest(
-        @NotBlank(message = "CNPJ é obrigatório")
         @Size(max = 18, message = "CNPJ deve ter no máximo 18 caracteres")
         String cnpj,
 
@@ -13,6 +12,14 @@ public record ClienteRequest(
         String razaoSocial,
 
         @Positive(message = "SLA deve ser maior que zero")
-        Integer slaPadraoHoras
+        Integer slaPadraoHoras,
+
+        String nomeContato,
+
+        String email,
+
+        String telefone,
+
+        Boolean ativo
 ) {
 }

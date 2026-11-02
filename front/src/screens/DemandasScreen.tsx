@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -20,18 +20,9 @@ import {
 import { colors, fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
+import { demandaService, EmpresaDemanda, StatusEmpresa } from '../services/demandaService';
 
-export type StatusEmpresa = 'SEM_PENDENCIAS' | 'COM_PENDENCIAS' | 'EM_ABERTO';
-
-export interface EmpresaDemanda {
-  id: string;
-  nome: string;
-  status: StatusEmpresa;
-  quantidadePendentes: number;
-  totalDemandas: number;
-  descricao: string;
-  contato: string;
-}
+export type { StatusEmpresa, EmpresaDemanda };
 
 const EMPRESAS_DEMANDAS: EmpresaDemanda[] = [
   {
@@ -103,9 +94,24 @@ export default function DemandasScreen({
   const userEmail = currentUser?.email || 'linux.silva@fatec.sp.gov.br';
   const userRole = currentUser?.role || 'GESTOR';
 
+  const [empresas, setEmpresas] = useState<EmpresaDemanda[]>(EMPRESAS_DEMANDAS);
+
+  // Carregar dinamicamente todas as empresas (base + banco de dados + novas) com pendências reais
+  useEffect(() => {
+    let mounted = true;
+    demandaService.listarEmpresas().then((lista) => {
+      if (mounted && lista && lista.length > 0) {
+        setEmpresas(lista);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Filtragem dinâmica de empresas por busca e por status
   const empresasFiltradas = useMemo(() => {
-    return EMPRESAS_DEMANDAS.filter((empresa) => {
+    return empresas.filter((empresa) => {
       const matchBusca =
         empresa.nome.toLowerCase().includes(busca.toLowerCase()) ||
         empresa.descricao.toLowerCase().includes(busca.toLowerCase());
@@ -115,7 +121,7 @@ export default function DemandasScreen({
 
       return matchBusca && matchStatus;
     });
-  }, [busca, filtroStatus]);
+  }, [empresas, busca, filtroStatus]);
 
   // Retorna os estilos visuais de cada card baseado no status solicitado:
   // Verde: sem pendências | Azul: tarefas pendentes | Cinza: demandas em aberto

@@ -12,9 +12,11 @@ import {
 import HomeScreen, { NavigationTarget } from './src/screens/HomeScreen';
 import DemandasScreen, { EmpresaDemanda } from './src/screens/DemandasScreen';
 import EmpresaDemandasScreen from './src/screens/EmpresaDemandasScreen';
+import UsuariosScreen from './src/screens/UsuariosScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
+import NovaDemandaScreen from './src/screens/NovaDemandaScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import { TabType } from './src/components/BottomNavigation';
 import { AuthResponse } from './src/services/authService';
@@ -129,13 +131,13 @@ export default function App() {
       )}
 
       {currentScreen === 'nova-demanda' && (
-        <PlaceholderScreen
-          title="Nova Demanda"
-          description="Inicie aqui o cadastro e abertura de uma nova demanda de vistoria de imóvel (locação, entrada, saída ou construtora)."
-          iconName="assignment-add"
-          onBack={() => handleNavigate('home')}
+        <NovaDemandaScreen
+          currentUser={currentUser}
+          onBack={() => handleNavigate('demandas')}
+          onSuccess={() => handleNavigate('demandas')}
           onNavigateTab={handleTabSelect}
-          activeTab={activeTab}
+          onLogout={handleLogout}
+          activeTab="demandas"
         />
       )}
 
@@ -189,12 +191,11 @@ export default function App() {
       )}
 
       {currentScreen === 'usuarios' && (
-        <PlaceholderScreen
-          title="Gestão de Equipe"
-          description="Administre os vistoriadores e operadores cadastrados no sistema, permissões e alocação de demandas."
-          iconName="people"
+        <UsuariosScreen
+          currentUser={currentUser}
           onBack={() => handleNavigate('home')}
           onNavigateTab={handleTabSelect}
+          onLogout={handleLogout}
           activeTab={activeTab}
         />
       )}
@@ -216,7 +217,8 @@ export default function App() {
           currentScreen === 'home' ||
           currentScreen === 'demandas' ||
           currentScreen === 'listar-demandas' ||
-          currentScreen === 'empresa-demandas'
+          currentScreen === 'empresa-demandas' ||
+          currentScreen === 'usuarios'
             ? 'light'
             : 'dark'
         }

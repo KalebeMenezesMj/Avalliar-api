@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -21,18 +21,10 @@ import { colors, fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { EmpresaDemanda } from './DemandasScreen';
+import { userService, UsuarioDTO } from '../services/userService';
+import { demandaService, TarefaDemanda, Urgencia } from '../services/demandaService';
 
-export type Urgencia = 'ALTA' | 'MEDIA' | 'BAIXA';
-
-export interface TarefaDemanda {
-  id: string;
-  titulo: string;
-  responsavel: string;
-  urgencia: Urgencia;
-  dataCriacao: string;
-  concluida: boolean;
-  imovelReferencia?: string;
-}
+export type { Urgencia, TarefaDemanda };
 
 // Dados mockados iniciais por empresa
 const DEMANDAS_POR_EMPRESA: Record<string, TarefaDemanda[]> = {
@@ -159,10 +151,14 @@ export default function EmpresaDemandasScreen({
   onLogout,
   activeTab = 'demandas',
 }: EmpresaDemandasScreenProps) {
-  // Lista de tarefas da empresa com estado interativo de conclusão
-  const [tarefas, setTarefas] = useState<TarefaDemanda[]>(
-    DEMANDAS_POR_EMPRESA[empresa.id] || DEMANDAS_POR_EMPRESA['2']
+  // Lista de tarefas da empresa com estado interativo de conclusão sincronizado via demandaService
+  const [tarefas, setTarefas] = useState<TarefaDemanda[]>(() =>
+    demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome)
   );
+
+  useEffect(() => {
+    setTarefas(demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome));
+  }, [empresa.id, empresa.nome]);
   const [busca, setBusca] = useState('');
   const [filtroUrgencia, setFiltroUrgencia] = useState<'TODAS' | Urgencia>('TODAS');
   const [novaDemandaModal, setNovaDemandaModal] = useState(false);
@@ -170,10 +166,65 @@ export default function EmpresaDemandasScreen({
   const [novoResponsavel, setNovoResponsavel] = useState('Ubuntu Gonçalves');
   const [novaUrgencia, setNovaUrgencia] = useState<Urgencia>('ALTA');
 
+  // Estado para lista de funcionários cadastrados e controle do dropdown
+  const [funcionarios, setFuncionarios] = useState<UsuarioDTO[]>([]);
+  const [dropdownResponsavelAberto, setDropdownResponsavelAberto] = useState(false);
+
   const userName = currentUser?.nome || 'Linux da Silva';
+
+  // Buscar funcionários reais cadastrados no backend
+  useEffect(() => {
+    let mounted = true;
+    userService
+      .listarFuncionarios()
+      .then((data) => {
+        if (mounted && data && data.length > 0) {
+          setFuncionarios(data);
+          if (!novoResponsavel) {
+            setNovoResponsavel(data[0].nome);
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback garantido
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Lista consolidada de funcionários (dados da API + padrão)
+  const listaFuncionarios = useMemo(() => {
+    const fallback: UsuarioDTO[] = [
+      { id: '1', nome: 'Ubuntu Gonçalves', email: 'ubuntu@avalliar.com.br', cargo: 'Encarregado de Vistoria', role: 'VISTORIADOR' },
+      { id: '2', nome: 'Linux da Silva', email: 'linux.silva@fatec.sp.gov.br', cargo: 'Engenheiro Civil', role: 'GESTOR' },
+      { id: '3', nome: 'Debian Silva', email: 'debian@avalliar.com.br', cargo: 'Vistoriador de Imóveis', role: 'VISTORIADOR' },
+      { id: '4', nome: 'Fedora Lima', email: 'fedora@avalliar.com.br', cargo: 'Analista de Laudos', role: 'OPERACIONAL' },
+    ];
+    if (funcionarios.length > 0) {
+      // Mescla garantindo unicidade por nome
+      const nomes = new Set<string>();
+      const combinada: UsuarioDTO[] = [];
+      funcionarios.forEach((f) => {
+        if (!nomes.has(f.nome)) {
+          nomes.add(f.nome);
+          combinada.push(f);
+        }
+      });
+      fallback.forEach((f) => {
+        if (!nomes.has(f.nome)) {
+          nomes.add(f.nome);
+          combinada.push(f);
+        }
+      });
+      return combinada;
+    }
+    return fallback;
+  }, [funcionarios]);
 
   // Toggle do status da demanda (Pendente <-> Concluída)
   const handleToggleConcluida = (tarefaId: string) => {
+    demandaService.toggleDemandaConcluida(empresa.id, empresa.nome, tarefaId);
     setTarefas((prev) =>
       prev.map((item) =>
         item.id === tarefaId ? { ...item, concluida: !item.concluida } : item
@@ -185,18 +236,20 @@ export default function EmpresaDemandasScreen({
   const handleCriarDemanda = () => {
     if (!novoTitulo.trim()) return;
 
-    const nova: TarefaDemanda = {
-      id: `task-${Date.now()}`,
+    const respFinal =
+      novoResponsavel.trim() || listaFuncionarios[0]?.nome || 'Ubuntu Gonçalves';
+
+    const nova = demandaService.adicionarDemanda({
+      empresaId: empresa.id,
+      empresaNome: empresa.nome,
       titulo: novoTitulo.trim(),
-      responsavel: novoResponsavel.trim() || 'Ubuntu Gonçalves',
+      responsavel: respFinal,
       urgencia: novaUrgencia,
-      dataCriacao: 'Agora mesmo',
-      concluida: false,
-      imovelReferencia: empresa.nome,
-    };
+    });
 
     setTarefas((prev) => [nova, ...prev]);
     setNovoTitulo('');
+    setDropdownResponsavelAberto(false);
     setNovaDemandaModal(false);
   };
 
@@ -534,14 +587,82 @@ export default function EmpresaDemandasScreen({
               onChangeText={setNovoTitulo}
             />
 
-            <Text style={styles.inputLabel}>Responsável Atribuído</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Nome do vistoriador"
-              placeholderTextColor="#9CA3AF"
-              value={novoResponsavel}
-              onChangeText={setNovoResponsavel}
-            />
+            <Text style={styles.inputLabel}>Responsável Atribuído (Vistoriador / Equipe)</Text>
+            {/* Caixa de Seleção Dinâmica para Responsável */}
+            <Pressable
+              style={styles.dropdownSelector}
+              onPress={() => setDropdownResponsavelAberto(!dropdownResponsavelAberto)}
+              accessibilityRole="button"
+              accessibilityLabel="Selecionar responsável atribuído"
+            >
+              <View style={styles.dropdownSelectorLeft}>
+                <Ionicons name="person-circle-outline" size={20} color="#C61010" />
+                <Text style={styles.dropdownSelectorText} numberOfLines={1}>
+                  {novoResponsavel || 'Selecione um funcionário...'}
+                </Text>
+              </View>
+              <Ionicons
+                name={dropdownResponsavelAberto ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color="#64748B"
+              />
+            </Pressable>
+
+            {dropdownResponsavelAberto && (
+              <View style={styles.dropdownListContainer}>
+                <ScrollView
+                  style={styles.dropdownScroll}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                >
+                  {listaFuncionarios.map((func) => {
+                    const isSelected = novoResponsavel === func.nome;
+                    return (
+                      <Pressable
+                        key={func.id || func.nome}
+                        style={[
+                          styles.dropdownItem,
+                          isSelected && styles.dropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setNovoResponsavel(func.nome);
+                          setDropdownResponsavelAberto(false);
+                        }}
+                      >
+                        <View style={styles.dropdownItemLeft}>
+                          <View style={styles.dropdownAvatarBadge}>
+                            <Text style={styles.dropdownAvatarText}>
+                              {func.nome.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                isSelected && styles.dropdownItemTextActive,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {func.nome}
+                            </Text>
+                            <Text style={styles.dropdownItemSubtext} numberOfLines={1}>
+                              {func.cargo || func.role || 'Funcionário • Vistoriador'}
+                            </Text>
+                          </View>
+                        </View>
+                        {isSelected && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={18}
+                            color="#C61010"
+                          />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
 
             <Text style={styles.inputLabel}>Nível de Urgência</Text>
             <View style={styles.urgencySelectRow}>
@@ -1076,5 +1197,101 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 14,
     color: '#FFFFFF',
+  },
+
+  /* Dropdown de Responsável Atribuído */
+  dropdownSelector: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dropdownSelectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  dropdownSelectorText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: '#1E1E1E',
+  },
+  dropdownListContainer: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    marginTop: 6,
+    maxHeight: 180,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+      },
+    }),
+  },
+  dropdownScroll: {
+    maxHeight: 180,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  dropdownItemActive: {
+    backgroundColor: '#FEF2F2',
+  },
+  dropdownItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  dropdownAvatarBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownAvatarText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: '#C61010',
+  },
+  dropdownItemText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12.5,
+    color: '#334155',
+  },
+  dropdownItemTextActive: {
+    color: '#C61010',
+    fontFamily: fonts.bold,
+  },
+  dropdownItemSubtext: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
   },
 });
