@@ -10,6 +10,8 @@ import {
 } from '@expo-google-fonts/poppins';
 
 import HomeScreen, { NavigationTarget } from './src/screens/HomeScreen';
+import DemandasScreen, { EmpresaDemanda } from './src/screens/DemandasScreen';
+import EmpresaDemandasScreen from './src/screens/EmpresaDemandasScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -22,7 +24,9 @@ type CurrentScreen =
   | 'welcome'
   | 'login'
   | 'register'
+  | 'dashboard'
   | 'demandas'
+  | 'empresa-demandas'
   | 'tarefas'
   | 'painel'
   | 'configuracoes'
@@ -48,6 +52,7 @@ export default function App() {
 
   const [currentScreen, setCurrentScreen] = useState<CurrentScreen>('home');
   const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [empresaAtiva, setEmpresaAtiva] = useState<EmpresaDemanda | null>(null);
 
   if (!fontsLoaded) return null;
 
@@ -135,12 +140,28 @@ export default function App() {
       )}
 
       {(currentScreen === 'listar-demandas' || currentScreen === 'demandas') && (
-        <PlaceholderScreen
-          title="Demandas & Vistorias"
-          description="Consulte e gerencie todas as avaliações e laudos imobiliários em andamento com filtros por endereço, código do imóvel e status."
-          iconName="view-list"
+        <DemandasScreen
+          currentUser={currentUser}
           onBack={() => handleNavigate('home')}
+          onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
           onNavigateTab={handleTabSelect}
+          onSelectEmpresa={(empresa) => {
+            setEmpresaAtiva(empresa);
+            setCurrentScreen('empresa-demandas');
+          }}
+          onLogout={handleLogout}
+          activeTab="demandas"
+        />
+      )}
+
+      {currentScreen === 'empresa-demandas' && empresaAtiva && (
+        <EmpresaDemandasScreen
+          empresa={empresaAtiva}
+          currentUser={currentUser}
+          onBack={() => setCurrentScreen('demandas')}
+          onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
+          onNavigateTab={handleTabSelect}
+          onLogout={handleLogout}
           activeTab="demandas"
         />
       )}
@@ -189,8 +210,17 @@ export default function App() {
         />
       )}
 
-      {/* Barra de status clara para header vermelho da Home, escura para outras */}
-      <StatusBar style={currentScreen === 'home' ? 'light' : 'dark'} />
+      {/* Barra de status clara para telas com header vermelho, escura para outras */}
+      <StatusBar
+        style={
+          currentScreen === 'home' ||
+          currentScreen === 'demandas' ||
+          currentScreen === 'listar-demandas' ||
+          currentScreen === 'empresa-demandas'
+            ? 'light'
+            : 'dark'
+        }
+      />
     </SafeAreaProvider>
   );
 }

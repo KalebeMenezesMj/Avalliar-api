@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-export type TabType = 'demandas' | 'painel' | 'home' | 'tarefas' | 'configuracoes';
+export type TabType = 'dashboard' | 'painel' | 'home' | 'demandas' | 'tarefas' | 'configuracoes';
 
 interface BottomNavigationProps {
   activeTab: TabType;
@@ -22,13 +22,14 @@ interface NavItemConfig {
   renderIcon: (color: string, size: number) => React.ReactNode;
 }
 
-// 5 Abas com a Home no centro (conforme o protótipo) e os novos ícones intuitivos
+// 5 Abas com a ordem idêntica ao protótipo do Figma:
+// 1. Dashboard (Grade) | 2. Painel (Gráfico) | 3. Home (Centro) | 4. Demandas (Prancheta) | 5. Ajustes (Engrenagem)
 const NAV_ITEMS: NavItemConfig[] = [
   {
-    key: 'demandas',
-    label: 'Demandas',
+    key: 'dashboard',
+    label: 'Dashboard',
     renderIcon: (color, size) => (
-      <MaterialCommunityIcons name="file-document-outline" size={size} color={color} />
+      <MaterialCommunityIcons name="view-grid-outline" size={size} color={color} />
     ),
   },
   {
@@ -46,10 +47,10 @@ const NAV_ITEMS: NavItemConfig[] = [
     ),
   },
   {
-    key: 'tarefas',
-    label: 'Tarefas',
+    key: 'demandas',
+    label: 'Demandas',
     renderIcon: (color, size) => (
-      <Ionicons name="calendar-outline" size={size} color={color} />
+      <MaterialCommunityIcons name="clipboard-text-outline" size={size} color={color} />
     ),
   },
   {
