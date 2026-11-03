@@ -102,3 +102,18 @@ def preencher(req: PreencherRequest):
         }
     finally:
         os.unlink(out)
+
+
+@app.get("/consultar")
+def consultar(q: str, k: int = 5):
+    """Consulta o acervo (tabelas de referência + laudos) com BM25 e fonte."""
+    import rag
+
+    resultados = rag.search(q, k)
+    return {
+        "consulta": q,
+        "resultados": [
+            {"texto": c["texto"], "fonte": c["fonte"], "score": round(float(s), 2)}
+            for c, s in resultados
+        ],
+    }

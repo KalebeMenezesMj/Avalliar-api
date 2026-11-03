@@ -154,6 +154,22 @@ curl -X POST http://localhost:8000/preencher \
 
 A API Java chama esse serviço em `POST /api/laudos/preencher` (ver `../back/`).
 
+## RAG leve (BM25 offline)
+
+Consulta o acervo — tabelas de referência (**CUB/R8N por estado/competência**)
+e **laudos anteriores** — e devolve os trechos mais relevantes **com a fonte**.
+
+```bash
+python rag.py --build                       # (re)constrói o corpus (87 chunks)
+python rag.py "qual o R8N de Sao Paulo"      # consulta com fonte
+python rag.py "casa Praia Grande"
+```
+
+Também disponível como endpoint do serviço: `GET /consultar?q=...`.
+
+A fonte aponta o arquivo/aba/célula de onde o dado veio (ex.:
+`V22 · XXX - Dados Laudo!F66:H66`), o que permite conferir a origem da resposta.
+
 ## Aprender o layout da planilha (layout.py)
 
 Esta é a peça que **elimina o mapa de células decorado**. Em vez de alguém
