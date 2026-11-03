@@ -127,6 +127,33 @@ dados = fill.extract("v22_unidades_isoladas", "laudo_preenchido.xlsx")
 # {'cliente': 'ITAÚ', 'numero_proposta': 10035612, 'uf': 'São Paulo', ...}
 ```
 
+## Serviço FastAPI (integração com a API Java)
+
+O módulo é exposto como um serviço HTTP que a API Spring Boot consome:
+
+```bash
+cd ml
+python train.py                          # treina os modelos (uma vez)
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+| Método | Rota | Entrada | Saída |
+|---|---|---|---|
+| GET | `/health` | — | status + templates disponíveis |
+| POST | `/reconhecer` | upload de arquivo | `{template_id}` |
+| POST | `/extrair?template_id=` | upload de laudo | `{campos: {...}}` |
+| POST | `/preencher` | `{template_id, dados}` | planilha em `conteudo_base64` |
+
+Exemplo:
+
+```bash
+curl -X POST http://localhost:8000/preencher \
+  -H "Content-Type: application/json" \
+  -d '{"template_id":"v25_unidades_padronizadas","dados":{"cliente":"Banco Exemplo S.A.","area_privativa":68.5}}'
+```
+
+A API Java chama esse serviço em `POST /api/laudos/preencher` (ver `../back/`).
+
 ## Aprender o layout da planilha (layout.py)
 
 Esta é a peça que **elimina o mapa de células decorado**. Em vez de alguém

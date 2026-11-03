@@ -80,6 +80,31 @@ Para testar o fluxo de login (disponível, porém não obrigatório):
 | GET/POST/PUT/DELETE | `/api/imoveis` | CRUD de imóveis | público |
 | GET/POST/PUT/DELETE | `/api/vistoriadores` | CRUD de vistoriadores | público |
 | GET/POST/PUT/DELETE | `/api/ordens-servico` | CRUD de OS | público |
+| POST | `/api/laudos/preencher` | Preenche planilha de homogeneização via ML | público |
+
+## Módulo de ML (integração)
+
+O endpoint `/api/laudos/preencher` encaminha os dados para o **serviço de ML em
+Python** (FastAPI, no diretório [`../ml/`](../ml/)) e devolve a planilha
+preenchida em base64.
+
+```json
+// POST /api/laudos/preencher
+{
+  "templateId": "v25_unidades_padronizadas",
+  "dados": { "cliente": "Banco Exemplo S.A.", "area_privativa": 68.5 }
+}
+```
+
+Para isso funcionar, o serviço de ML precisa estar de pé:
+
+```bash
+cd ml
+python train.py                          # treina os modelos (uma vez)
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+A URL do serviço é configurável via `app.ml.url` (default `http://localhost:8000`).
 
 ## Estrutura do código
 

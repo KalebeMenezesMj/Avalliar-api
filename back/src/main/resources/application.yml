@@ -23,6 +23,8 @@ app:
   jwt:
     secret: ${JWT_SECRET:avalliar-api-jwt-secret-key-2026-muito-segura-trocar-em-producao-0123456789abcdef}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  ml:
+    url: ${ML_URL:http://localhost:8000}
 
 springdoc:
   api-docs:
