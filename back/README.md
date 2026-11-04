@@ -80,7 +80,12 @@ Para testar o fluxo de login (disponível, porém não obrigatório):
 | GET/POST/PUT/DELETE | `/api/imoveis` | CRUD de imóveis | público |
 | GET/POST/PUT/DELETE | `/api/vistoriadores` | CRUD de vistoriadores | público |
 | GET/POST/PUT/DELETE | `/api/ordens-servico` | CRUD de OS | público |
+| GET/POST/PUT/DELETE | `/api/laudos` | CRUD de laudos | público |
 | POST | `/api/laudos/preencher` | Preenche planilha de homogeneização via ML | público |
+| GET/POST/PUT/DELETE | `/api/vistorias` | CRUD de vistorias | público |
+| GET/POST/PUT/DELETE | `/api/amostras` | CRUD de amostras de mercado | público |
+| GET/POST/PUT/DELETE | `/api/templates-planilha` | CRUD de templates de planilha | público |
+| GET/POST | `/api/eventos-os` | Histórico de movimentações das OS | público |
 
 ## Módulo de ML (integração)
 

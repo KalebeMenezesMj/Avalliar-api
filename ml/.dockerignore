@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+models/
+data/output/
+data/rag/
+data/*.txt

@@ -16,6 +16,14 @@ services:
       timeout: 5s
       retries: 10
 
+  ml:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: avalliar-ml
+    ports:
+      - "8000:8000"
+
   api:
     build:
       context: ./back
@@ -27,11 +35,14 @@ services:
       DB_NAME: avalliar
       DB_USER: avalliar
       DB_PASSWORD: avalliar
+      ML_URL: http://ml:8000
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      ml:
+        condition: service_started
 
 volumes:
   avalliar_pgdata:
