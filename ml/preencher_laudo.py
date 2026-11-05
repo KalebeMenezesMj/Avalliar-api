@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import openpyxl
+import requests
 
 import selecao
 import vivareal
@@ -46,12 +47,15 @@ MAPA_AMOSTRA = {
     15: ("terreno", None),       # área do terreno (parsed da descrição)
     16: ("frente", None),        # frente efetiva (parsed da descrição)
     17: ("area", None),          # área útil ≈ área equivalente
+    18: ("idade", None),         # idade aparente (do modelo de visão)
+    19: (None, 3),               # estado de conservação (default "bom")
     37: (None, "Rua"),           # tipo endereço (fixo)
     38: ("endereco", None),
     39: ("numero", None),
     42: ("bairro", None),
     43: ("contato", None),
     44: ("telefone", None),
+    45: ("cep", None),           # CEP (via viacep, best-effort)
     46: ("latitude_dms", None),
     47: ("longitude_dms", None),
     48: ("cidade", None),
@@ -94,7 +98,53 @@ def derivar(amostra):
     a.setdefault("frente", p.get("frente"))
     titulo = (a.get("titulo") or "").lower()
     a["pavimentos"] = 2 if "sobrado" in titulo else 1
+    a.setdefault("cep", buscar_cep(a.get("uf"), a.get("cidade"), a.get("endereco")))
+    a.setdefault("idade", estimar_idade(a.get("imagem_url")))
     return a
+
+
+def buscar_cep(uf, cidade, logradouro):
+    """CEP por endereço (viacep) — best-effort."""
+    if not (uf and cidade and logradouro):
+        return None
+    try:
+        url = (f"https://viacep.com.br/ws/{uf}/{cidade}/{logradouro}/json/")
+        r = requests.get(url, timeout=10)
+        dados = r.json()
+        if isinstance(dados, list) and dados and dados[0].get("cep"):
+            return dados[0]["cep"]
+    except Exception:
+        pass
+    return None
+
+
+def estimar_idade(imagem_url):
+    """Baixa a foto do anúncio e estima a idade aparente com o modelo de visão."""
+    modelo_path = os.path.join("models", "idade_model.joblib")
+    if not imagem_url or not os.path.exists(modelo_path):
+        return None
+    try:
+        r = requests.get(imagem_url, timeout=15,
+                         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        if r.status_code != 200:
+            return None
+        import tempfile
+
+        import joblib
+        from treinar_idade import extrair_features
+
+        fd, tmp = tempfile.mkstemp(suffix=".webp")
+        os.close(fd)
+        with open(tmp, "wb") as f:
+            f.write(r.content)
+        feat = extrair_features(tmp)
+        os.unlink(tmp)
+        if feat is None:
+            return None
+        modelo = joblib.load(modelo_path)
+        return round(float(modelo.predict([feat])[0]))
+    except Exception:
+        return None
 
 
 def decimal_dms(dec, is_lat):
@@ -175,7 +225,9 @@ def main():
               f"{a['banheiros']}ban {a.get('vagas') or '-'}v | {a['bairro']} | R$ {a['_valor_m2']}/m²")
 
     print("\n=== CAMPOS AINDA NÃO PREENCHIDOS ===")
-    nao = ["idade aparente", "estado de conservação", "CEP", "nº da foto"]
+    nao = ["nº da foto (vazio, como combinado)",
+           "terreno/frente (só quando a descrição menciona)",
+           "CEP (best-effort via viacep)"]
     for c in nao:
         print(f"  - {c}")
 

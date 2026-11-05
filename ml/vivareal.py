@@ -111,6 +111,11 @@ def _normalizar(listing):
     if not isinstance(phones, list):
         phones = []
 
+    medias = listing.get("medias") or {}
+    images = medias.get("images") or []
+    primeira = images[0] if images else {}
+    imagem_url = _resolver_imagem(primeira.get("dangerousSrc"), primeira.get("alt") or "")
+
     return {
         "id": listing.get("id"),
         "url": listing.get("href"),
@@ -132,7 +137,19 @@ def _normalizar(listing):
         "contato": advertiser.get("name"),
         "telefone": phones[0] if phones else None,
         "descricao": listing.get("description"),
+        "imagem_url": imagem_url,
     }
+
+
+def _resolver_imagem(template, alt):
+    """Resolve o template de imagem do CDN (seção 14 da doc)."""
+    if not template:
+        return None
+    slug = re.sub(r"[^a-z0-9]+", "-", alt.lower()).strip("-")[:60] or "imovel"
+    return (template.replace("{description}", slug)
+                     .replace("{action}", "crop")
+                     .replace("{width}", "800")
+                     .replace("{height}", "600"))
 
 
 def buscar(uf, cidade, tipo, bairro=None, pagina=1, **filtros):
