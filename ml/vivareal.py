@@ -103,6 +103,13 @@ def _normalizar(listing):
     prices = listing.get("prices") or {}
     sale = prices.get("sale") or {}
     address = listing.get("address") or {}
+    coords = address.get("coordinates") or {}
+    if not isinstance(coords, dict):
+        coords = {}
+    advertiser = listing.get("advertiser") or {}
+    phones = advertiser.get("phoneNumbers") or []
+    if not isinstance(phones, list):
+        phones = []
 
     return {
         "id": listing.get("id"),
@@ -111,12 +118,20 @@ def _normalizar(listing):
         "preco": sale.get("value"),
         "area": areas[0] if areas else None,
         "quartos": (amenities.get("bedrooms") or [None])[0],
+        "suites": (amenities.get("suites") or [None])[0],
         "banheiros": (amenities.get("bathrooms") or [None])[0],
         "vagas": (amenities.get("parkingSpaces") or [None])[0],
         "tipo": "apartamento" if listing.get("unitType") == "APARTMENT" else "casa",
         "cidade": address.get("city"),
         "uf": address.get("stateAcronym"),
         "bairro": address.get("neighborhood"),
+        "endereco": address.get("street"),
+        "numero": address.get("streetNumber"),
+        "latitude": coords.get("latitude"),
+        "longitude": coords.get("longitude"),
+        "contato": advertiser.get("name"),
+        "telefone": phones[0] if phones else None,
+        "descricao": listing.get("description"),
     }
 
 
