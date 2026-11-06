@@ -20,6 +20,7 @@ import WelcomeScreen from './src/screens/WelcomeScreen';
 import NovaDemandaScreen from './src/screens/NovaDemandaScreen';
 import PainelScreen from './src/screens/PainelScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import { TabType } from './src/components/BottomNavigation';
 import { AuthResponse } from './src/services/authService';
 
@@ -35,6 +36,7 @@ type CurrentScreen =
   | 'tarefas'
   | 'painel'
   | 'configuracoes'
+  | 'settings'
   | 'nova-demanda'
   | 'listar-demandas'
   | 'usuarios';
@@ -223,13 +225,10 @@ export default function App() {
       )}
 
       {currentScreen === 'configuracoes' && (
-        <PlaceholderScreen
-          title="Configurações"
-          description="Ajuste suas preferências de conta, notificações, temas e segurança da plataforma."
-          iconName="settings"
+        <SettingsScreen
           onBack={() => handleNavigate('home')}
-          onNavigateTab={handleTabSelect}
-          activeTab="configuracoes"
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
       )}
 
