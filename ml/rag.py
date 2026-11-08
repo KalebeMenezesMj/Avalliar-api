@@ -104,6 +104,44 @@ def search(query, k=5):
     return [(chunks[i], scores[i]) for i in ranked if scores[i] > 0]
 
 
+def responder(query, k=4):
+    """Resposta em texto: usa um LLM (Claude) se houver chave; senão, extrativa."""
+    resultados = search(query, k)
+    if not resultados:
+        return "Não encontrei nada no acervo sobre isso."
+
+    contexto = "\n".join(f"- {c['texto']} [fonte: {c['fonte']}]" for c, _ in resultados)
+    via_llm = _llm(query, contexto)
+    if via_llm:
+        return via_llm
+    return _resposta_extrativa(resultados)
+
+
+def _llm(query, contexto):
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    try:
+        import anthropic
+        client = anthropic.Anthropic()
+        msg = client.messages.create(
+            model="claude-sonnet-5",
+            max_tokens=300,
+            messages=[{"role": "user",
+                       "content": f"Responda a pergunta usando APENAS o contexto abaixo, "
+                                  f"citando a fonte.\n\nContexto:\n{contexto}\n\nPergunta: {query}"}],
+        )
+        return msg.content[0].text
+    except Exception:
+        return None
+
+
+def _resposta_extrativa(resultados):
+    linhas = [f"- {c['texto']}" for c, _ in resultados[:3]]
+    fontes = [c['fonte'] for c, _ in resultados[:3]]
+    return ("Resposta extrativa (sem LLM configurado):\n" + "\n".join(linhas)
+            + "\n\nFontes:\n" + "\n".join(f"  - {f}" for f in fontes))
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("--build", "-b"):
         n = len(build_corpus())

@@ -2,7 +2,7 @@ spring:
   application:
     name: avalliar-api
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:avalliar}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:avalliar}?sslmode=${DB_SSLMODE:disable}
     username: ${DB_USER:avalliar}
     password: ${DB_PASSWORD:avalliar}
   jpa:
