@@ -6,9 +6,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-# Treina os modelos na imagem (reconhecedor com os 2 templates + mapeador com os
-# exemplos de treino em fields.py). Não depende dos laudos da pasta 2025/.
-RUN python train.py
 
 EXPOSE 8000
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Treina no startup (com as env vars do banco já disponíveis) e sobe o serviço.
+# Os templates (data/templates/) são baixados do Blob Storage no startup do app.
+CMD ["sh", "-c", "python train.py && uvicorn app:app --host 0.0.0.0 --port 8000"]

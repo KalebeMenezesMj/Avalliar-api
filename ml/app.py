@@ -33,6 +33,35 @@ TEMPLATE_FILES = {
     "v25_unidades_padronizadas": "Homogeneização_unidades padronizadas_2026_V25.xlsm",
 }
 
+
+def _blob_url(blob, filename):
+    """Monta a URL de download do arquivo no Blob (aceita SAS token na env)."""
+    if "?" in blob:
+        base, sas = blob.split("?", 1)
+        return f"{base.rstrip('/')}/{filename}?{sas}"
+    return f"{blob.rstrip('/')}/{filename}"
+
+
+def baixar_templates():
+    """Baixa os templates do Blob Storage (env TEMPLATES_BLOB) se faltarem localmente."""
+    import urllib.request
+    blob = os.getenv("TEMPLATES_BLOB")
+    if not blob:
+        return
+    os.makedirs(TEMPLATES_DIR, exist_ok=True)
+    for filename in TEMPLATE_FILES.values():
+        dest = os.path.join(TEMPLATES_DIR, filename)
+        if os.path.exists(dest):
+            continue
+        try:
+            urllib.request.urlretrieve(_blob_url(blob, filename), dest)
+            print(f"  [ok] template {filename} baixado do Blob")
+        except Exception as e:
+            print(f"  [aviso] não baixou {filename}: {e}")
+
+
+baixar_templates()
+
 app = FastAPI(title="Avalliar ML", version="1.0.0")
 
 
