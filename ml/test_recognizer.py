@@ -11,15 +11,15 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import fill as filler
-import train
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 ESPERADO = "v22_unidades_isoladas"
+FILLED_GLOB = r"C:/Users/Kalebe/Desktop/2025/*/Concluidos/*/*-Homo-*.xlsx"
 
 
 def main():
-    files = sorted(glob.glob(train.FILLED_GLOB))[:N]
-    vistos = {p for p, _ in train.collect_recognizer_examples()}
+    files = sorted(glob.glob(FILLED_GLOB))[:N]
+    vistos = set()  # com o treino no banco, não há distinção local de "visto"
 
     ok = n = 0
     ok_held = n_held = 0

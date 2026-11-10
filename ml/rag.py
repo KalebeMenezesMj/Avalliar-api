@@ -87,12 +87,43 @@ def build_corpus():
     return chunks
 
 
+def get_db_engine():
+    """Conexão SQLAlchemy com o PostgreSQL (env vars, igual ao train.py)."""
+    from sqlalchemy import create_engine
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "avalliar-db")
+    db_user = os.getenv("DB_USER", "avalliar")
+    db_password = os.getenv("DB_PASSWORD", "")
+    db_sslmode = os.getenv("DB_SSLMODE", "require")
+    url = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode={db_sslmode}"
+    return create_engine(url)
+
+
+def load_corpus_from_db():
+    """Lê os chunks do acervo do PostgreSQL (ml_data.rag_chunks)."""
+    try:
+        import pandas as pd
+        engine = get_db_engine()
+        df = pd.read_sql("SELECT texto, fonte, tipo FROM ml_data.rag_chunks", con=engine)
+        return [{"texto": r.texto, "fonte": r.fonte, "tipo": r.tipo} for r in df.itertuples()]
+    except Exception as e:
+        print(f"  [aviso] RAG: banco indisponível ({e}); usando fallback local")
+        return None
+
+
 def load_corpus():
+    # 1. tenta o banco (produção/container)
+    from_db = load_corpus_from_db()
+    if from_db:
+        return from_db
+    # 2. fallback: cache local
     path = os.path.join(CACHE_DIR, "corpus.json")
-    if not os.path.exists(path):
-        return build_corpus()
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    # 3. fallback final: gera do template local
+    return build_corpus()
 
 
 def search(query, k=5):

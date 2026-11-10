@@ -19,11 +19,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import openpyxl
 
 import layout as layout_mod
-import train
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BLANK = os.path.join(BASE_DIR, "data", "templates",
                      "Homogeneização_Unidades Isoladas_2025_V22.xlsx")
+FILLED_GLOB = r"C:/Users/Kalebe/Desktop/2025/*/Concluidos/*/*-Homo-*.xlsx"
 
 
 def values_equal(a, b):
@@ -94,7 +94,7 @@ def referencias_diversas(laudos):
 
 
 def main():
-    laudos = sorted(glob.glob(train.FILLED_GLOB))
+    laudos = sorted(glob.glob(FILLED_GLOB))
     print(f"Total de laudos disponíveis: {len(laudos)}")
 
     for n_refs in (1, 3, 5):

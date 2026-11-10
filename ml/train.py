@@ -24,7 +24,7 @@ def get_db_engine():
     db_password = os.getenv("DB_PASSWORD", "")
     db_sslmode = os.getenv("DB_SSLMODE", "require")
     
-    connection_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode={db_sslmode}"
+    connection_url = f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode={db_sslmode}"
     return create_engine(connection_url)
 
 
