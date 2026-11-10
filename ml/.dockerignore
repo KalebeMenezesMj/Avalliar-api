@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
 models/
-data/output/
-data/rag/
-data/*.txt
+# data/ tem os templates do cliente e caches: nada disso entra na imagem
+# (os templates são baixados do Blob privado no startup)
+data/
