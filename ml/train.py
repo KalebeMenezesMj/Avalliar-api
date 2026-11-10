@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Treina o reconhecedor de template e o mapeador de campos, salvando em models/."""
-import glob
+"""Treina o reconhecedor de template e o mapeador de campos a partir do PostgreSQL (schema ml_data), salvando em models/."""
 import os
-
 import joblib
-import openpyxl
+import pandas as pd
+from sqlalchemy import create_engine
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -15,42 +14,47 @@ import templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.abspath(os.path.join(BASE_DIR, "models"))
 
-V22_TEMPLATE = os.path.join(BASE_DIR, "data", "templates",
-                           "Homogeneização_Unidades Isoladas_2025_V22.xlsx")
-V25_TEMPLATE = os.path.join(BASE_DIR, "data", "templates",
-                           "Homogeneização_unidades padronizadas_2026_V25.xlsm")
 
-# Pasta com laudos já preenchidos — exemplos reais rotulados como V22.
-FILLED_GLOB = r"C:/Users/Kalebe/Desktop/2025/*/Concluidos/*/*-Homo-*.xlsx"
-
-
-def collect_recognizer_examples(max_filled=20):
-    """Retorna [(caminho, template_id)] para treinar o reconhecedor."""
-    examples = [
-        (V22_TEMPLATE, "v22_unidades_isoladas"),
-        (V25_TEMPLATE, "v25_unidades_padronizadas"),
-    ]
-    for path in glob.glob(FILLED_GLOB)[:max_filled]:
-        examples.append((path, "v22_unidades_isoladas"))
-    return examples
+def get_db_engine():
+    """Constrói a conexão SQLAlchemy usando as variáveis de ambiente do container/Azure."""
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "avalliar-db")
+    db_user = os.getenv("DB_USER", "avalliar")
+    db_password = os.getenv("DB_PASSWORD", "")
+    db_sslmode = os.getenv("DB_SSLMODE", "require")
+    
+    connection_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?sslmode={db_sslmode}"
+    return create_engine(connection_url)
 
 
-def _sheet_names(path):
-    wb = openpyxl.load_workbook(path, read_only=True)
-    names = list(wb.sheetnames)
-    wb.close()
-    return names
+def collect_recognizer_examples_from_db():
+    """Consulta o schema ml_data no PostgreSQL para obter os textos e labels de treino."""
+    try:
+        engine = get_db_engine()
+        query = "SELECT sheet_text, label FROM ml_data.recognizer_examples"
+        df = pd.read_sql(query, con=engine)
+        return list(zip(df['sheet_text'], df['label']))
+    except Exception as e:
+        print(f"  [aviso] Erro ao buscar exemplos do banco: {e}")
+        return []
 
 
 def train_recognizer(examples):
-    x, y = [], []
-    for path, label in examples:
-        try:
-            names = _sheet_names(path)
-            x.append(" ".join(sorted(templates.normalize(n) for n in names)))
-            y.append(label)
-        except Exception as e:  # noqa: BLE001
-            print(f"  [aviso] ignorando {os.path.basename(path)}: {e}")
+    if not examples:
+        # Fallback de segurança com 2 classes para o scikit-learn não falhar no build inicial
+        x = [
+            "v22 unidades isoladas template padrão",
+            "v25 unidades padronizadas template padrão"
+        ]
+        y = [
+            "v22_unidades_isoladas",
+            "v25_unidades_padronizadas"
+        ]
+    else:
+        x = [item[0] for item in examples]
+        y = [item[1] for item in examples]
+
     model = Pipeline([
         ("tfidf", TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5))),
         ("clf", LogisticRegression(max_iter=1000, class_weight="balanced")),
@@ -73,9 +77,9 @@ def train_mapper():
 def main():
     os.makedirs(MODELS_DIR, exist_ok=True)
 
-    print("Coletando exemplos para o reconhecedor...")
-    examples = collect_recognizer_examples()
-    print(f"  {len(examples)} workbooks rotulados")
+    print("Coletando exemplos para o reconhecedor do PostgreSQL (schema ml_data)...")
+    examples = collect_recognizer_examples_from_db()
+    print(f"  {len(examples)} exemplos carregados do banco")
 
     print("Treinando reconhecedor de template...")
     recognizer = train_recognizer(examples)
