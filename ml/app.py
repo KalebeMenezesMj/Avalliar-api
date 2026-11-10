@@ -36,6 +36,8 @@ TEMPLATE_FILES = {
 
 def _blob_url(blob, filename):
     """Monta a URL de download do arquivo no Blob (aceita SAS token na env)."""
+    from urllib.parse import quote
+    filename = quote(filename)  # nomes têm acentos/espaços
     if "?" in blob:
         base, sas = blob.split("?", 1)
         return f"{base.rstrip('/')}/{filename}?{sas}"
