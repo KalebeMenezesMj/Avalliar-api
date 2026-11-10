@@ -15,10 +15,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import joblib
 import numpy as np
 import openpyxl
-from PIL import Image
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupKFold
+
+from idade import extrair_features  # mesma função usada em produção
 
 LAUDOS = r"C:/Users/Kalebe/Desktop/2025/*/Concluidos/*/*-Homo-*.xlsx"
 
@@ -37,7 +38,7 @@ def extrair_idades(wb_path):
 
 
 def montar_dataset():
-    """Pares (caminho_da_imagem, idade_aparente) a partir das imagens em Amostras/."""
+    """Triplas (caminho_da_imagem, idade_aparente, laudo) a partir das imagens em Amostras/."""
     pares = []
     for wb_path in sorted(glob.glob(LAUDOS)):
         d = os.path.dirname(wb_path)
@@ -55,56 +56,40 @@ def montar_dataset():
                 continue
             idx = int(m.group(1))
             if idx in idades:
-                pares.append((os.path.join(amostras_dir, f), idades[idx]))
+                pares.append((os.path.join(amostras_dir, f), idades[idx], d))
     return pares
-
-
-def extrair_features(path):
-    try:
-        img = Image.open(path).convert("RGB").resize((64, 64))
-    except Exception:
-        return None
-    a = np.asarray(img).astype(np.float32)
-
-    medias = a.mean(axis=(0, 1))
-    desvios = a.std(axis=(0, 1))
-    hists = []
-    for c in range(3):
-        hist, _ = np.histogram(a[:, :, c], bins=8, range=(0, 255))
-        hists.append(hist / (64 * 64))
-    gx = np.abs(np.diff(a, axis=1)).mean()  # densidade de borda
-    gy = np.abs(np.diff(a, axis=0)).mean()
-
-    return np.concatenate([medias, desvios, *hists, [gx, gy]])
 
 
 def main():
     pares = montar_dataset()
-    print(f"Dataset: {len(pares)} pares (imagem -> idade aparente)")
+    print(f"Dataset: {len(pares)} fotos (imagem -> idade aparente)")
 
-    X, y = [], []
-    for p, idade in pares:
+    X, y, grupos = [], [], []
+    for p, idade, laudo in pares:
         feat = extrair_features(p)
         if feat is not None:
             X.append(feat)
             y.append(idade)
+            grupos.append(laudo)
     X = np.array(X)
     y = np.array(y)
-    print(f"Usáveis: {len(X)}  (idade mín={y.min()}, máx={y.max()}, média={y.mean():.1f})")
+    grupos = np.array(grupos)
+    print(f"Usáveis: {len(X)} fotos de {len(set(grupos))} laudos "
+          f"(idade mín={y.min()}, máx={y.max()}, média={y.mean():.1f})")
 
-    Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Validação cruzada POR LAUDO: fotos do mesmo imóvel nunca ficam no treino e no teste.
+    mae_cv, mae_base = [], []
+    for tr, te in GroupKFold(n_splits=5).split(X, y, grupos):
+        m = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1).fit(X[tr], y[tr])
+        mae_cv.append(mean_absolute_error(y[te], m.predict(X[te])))
+        mae_base.append(mean_absolute_error(y[te], np.full(len(te), y[tr].mean())))
+    mae, base = float(np.mean(mae_cv)), float(np.mean(mae_base))
+    print(f"\nErro médio (validação cruzada por laudo, 5 partes): {mae:.1f} anos")
+    print(f"Baseline (prever sempre a média):                 {base:.1f} anos")
+    print(f"Melhoria vs baseline: {(base - mae) / base * 100:+.1f}%")
 
-    model = RandomForestRegressor(n_estimators=300, random_state=42)
-    model.fit(Xtr, ytr)
-    pred = model.predict(Xte)
-    mae = mean_absolute_error(yte, pred)
-
-    baseline = mean_absolute_error(yte, np.full_like(yte, ytr.mean()))
-
-    print(f"\nMAE do modelo: {mae:.1f} anos")
-    print(f"Baseline (prever a média): {baseline:.1f} anos")
-    print(f"Melhoria vs baseline: {(baseline - mae) / baseline * 100:+.1f}%")
-
+    # Modelo final: treinado com todos os dados.
+    model = RandomForestRegressor(n_estimators=300, random_state=42, n_jobs=-1).fit(X, y)
     os.makedirs("models", exist_ok=True)
     joblib.dump(model, "models/idade_model.joblib")
     print("Modelo salvo em models/idade_model.joblib")

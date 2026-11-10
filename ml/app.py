@@ -12,13 +12,14 @@ Endpoints:
     POST /preencher  -> {template_id, dados} -> planilha preenchida em base64
 """
 import base64
+import hmac
 import os
 import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel
 
 import fill as filler
@@ -44,20 +45,27 @@ def _blob_url(blob, filename):
     return f"{blob.rstrip('/')}/{filename}"
 
 
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+# modelos que não são treinados no container (precisam das fotos dos laudos): vêm do Blob
+ARTEFATOS = {"idade_model.joblib": MODELS_DIR}
+
+
 def baixar_templates():
-    """Baixa os templates do Blob Storage (env TEMPLATES_BLOB) se faltarem localmente."""
+    """Baixa os templates e os modelos prontos do Blob (env TEMPLATES_BLOB) se faltarem localmente."""
     import urllib.request
     blob = os.getenv("TEMPLATES_BLOB")
     if not blob:
         return
     os.makedirs(TEMPLATES_DIR, exist_ok=True)
-    for filename in TEMPLATE_FILES.values():
-        dest = os.path.join(TEMPLATES_DIR, filename)
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    alvos = [(f, TEMPLATES_DIR) for f in TEMPLATE_FILES.values()] + list(ARTEFATOS.items())
+    for filename, pasta in alvos:
+        dest = os.path.join(pasta, filename)
         if os.path.exists(dest):
             continue
         try:
             urllib.request.urlretrieve(_blob_url(blob, filename), dest)
-            print(f"  [ok] template {filename} baixado do Blob")
+            print(f"  [ok] {filename} baixado do Blob")
         except Exception as e:
             print(f"  [aviso] não baixou {filename}: {e}")
 
@@ -84,7 +92,9 @@ def _salvar_upload(upload: UploadFile) -> str:
 
 @app.get("/health")
 def health():
-    return {"status": "UP", "service": "avalliar-ml", "templates": list(TEMPLATE_FILES)}
+    import idade
+    return {"status": "UP", "service": "avalliar-ml", "templates": list(TEMPLATE_FILES),
+            "idade_aparente": idade.disponivel()}
 
 
 @app.post("/reconhecer")
@@ -133,6 +143,50 @@ def preencher(req: PreencherRequest):
         }
     finally:
         os.unlink(out)
+
+
+@app.post("/idade")
+def idade_aparente(file: UploadFile = File(...)):
+    """Estima a idade aparente (anos) do imóvel a partir de uma foto."""
+    import idade
+
+    if not idade.disponivel():
+        raise HTTPException(503, "Modelo de idade aparente indisponível (idade_model.joblib não carregado).")
+    anos = idade.prever(file.file.read())
+    if anos is None:
+        raise HTTPException(400, "Não foi possível ler a imagem enviada.")
+    return {"idade_aparente_anos": round(anos, 1), "arquivo": file.filename}
+
+
+@app.post("/retreinar")
+def retreinar(forcar: bool = False, x_token: str = Header(default=None)):
+    """Retreina com os dados atuais do banco e só promove o modelo se não piorar.
+
+    Protegido por token: defina RETRAIN_TOKEN no ambiente e envie `X-Token`.
+    """
+    import retreino
+
+    esperado = os.getenv("RETRAIN_TOKEN")
+    if not esperado:
+        raise HTTPException(503, "Retreino desabilitado: defina RETRAIN_TOKEN no ambiente.")
+    if not x_token or not hmac.compare_digest(x_token, esperado):
+        raise HTTPException(403, "Token inválido.")
+    resultado = retreino.executar(forcar)
+    if not resultado.get("ok"):
+        raise HTTPException(409, resultado.get("motivo"))
+    return resultado
+
+
+@app.get("/metricas")
+def metricas(n: int = 5):
+    """Histórico das últimas avaliações no conjunto reservado."""
+    import json
+
+    caminho = os.path.join(MODELS_DIR, "metricas.json")
+    if not os.path.exists(caminho):
+        return {"historico": []}
+    with open(caminho, encoding="utf-8") as fh:
+        return {"historico": json.load(fh)[-n:]}
 
 
 @app.get("/consultar")

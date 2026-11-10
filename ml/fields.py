@@ -166,4 +166,9 @@ TRAINING_PAIRS = [
     # responsavel_avaliacao
     ("Engº/Arqtº Responsável pela Avaliação.", "responsavel_avaliacao"),
     ("RESPONSÁVEL PELA AVALIAÇÃO", "responsavel_avaliacao"),
+    # rótulos reais encontrados nos 77 laudos V25 de 2025 (coluna B de 'DADOS DO IMÓVEL')
+    ("ÁREA PRIVATIVA DE APARTAMENTO:", "area_privativa"),
+    ("ESTADO DE CONSERVAÇÃO:", "estado_conservacao"),
+    ("Nº DE VAGAS", "vagas"),
+    ("NÚMERO DE DORMITÓRIOS", "dormitorios"),
 ]

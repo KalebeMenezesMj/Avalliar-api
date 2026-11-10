@@ -18,10 +18,16 @@ def load_mapper():
     return joblib.load(os.path.join(MODELS_DIR, "mapper.joblib"))
 
 
+NENHUM = "__nenhum__"  # classe do mapeador: "este texto não é rótulo de campo"
+
+
 def is_label(mapper, text, confidence=0.6):
     """O texto é reconhecido como rótulo de campo pelo mapeador?"""
+    if text.strip().startswith("="):  # fórmula nunca é rótulo
+        return False
     proba = mapper.predict_proba([templates.normalize(text)])[0]
-    return max(proba) >= confidence
+    i = proba.argmax()
+    return mapper.classes_[i] != NENHUM and proba[i] >= confidence
 
 
 def find_value_cell(ws, cell, mapper, confidence=0.6):
@@ -85,25 +91,44 @@ def extract(template_id, filled_path, mapper=None, confidence=0.6):
     cell_map = templates.CELL_MAP.get(template_id, {})
     wb = openpyxl.load_workbook(filled_path, data_only=False)
     data = {}
+
+    por_aba = {}
     for field, (target_sheet, _) in cell_map.items():
-        if target_sheet not in wb.sheetnames:
+        por_aba.setdefault(target_sheet, []).append(field)
+
+    for sheet, campos in por_aba.items():
+        if sheet not in wb.sheetnames:
             continue
-        ws = wb[target_sheet]
-        for row in ws.iter_rows():
-            found = False
-            for cell in row:
-                if not (isinstance(cell.value, str) and cell.value.strip()):
-                    continue
-                if mapper.predict([templates.normalize(cell.value)])[0] != field:
-                    continue
-                value_cell = find_value_cell(ws, cell, mapper, confidence)
-                if value_cell is None:
-                    continue
-                data[field] = value_cell.value
-                found = True
-                break
-            if found:
-                break
+        ws = wb[sheet]
+        # candidatos: células de texto (nunca fórmulas), classificadas em lote
+        cells = [c for row in ws.iter_rows() for c in row
+                 if isinstance(c.value, str) and c.value.strip()
+                 and not c.value.strip().startswith("=")]
+        if not cells:
+            continue
+        proba = mapper.predict_proba([templates.normalize(c.value) for c in cells])
+        classes = list(mapper.classes_)
+        for field in campos:
+            if field not in classes:
+                continue
+            j = classes.index(field)
+            # candidatos (a classe prevista é o campo); a confiança só desempata
+            # quando a diferença é relevante — rótulos repetidos valem o primeiro
+            # na ordem de leitura (linha, coluna), como no laudo.
+            cand = [i for i in range(len(cells))
+                    if proba[i][j] >= 0.35 and classes[int(proba[i].argmax())] == field]
+            if not cand:
+                continue
+            melhor = max(proba[i][j] for i in cand)
+            ordem = sorted((i for i in cand if proba[i][j] >= melhor - 0.05),
+                           key=lambda i: (cells[i].row, cells[i].column))
+            ordem += sorted((i for i in cand if proba[i][j] < melhor - 0.05),
+                            key=lambda i: -proba[i][j])
+            for i in ordem:
+                value_cell = find_value_cell(ws, cells[i], mapper, confidence)
+                if value_cell is not None:
+                    data[field] = value_cell.value
+                    break
     wb.close()
     return data
 

@@ -63,9 +63,21 @@ def train_recognizer(examples):
     return model
 
 
-def train_mapper():
-    x = [templates.normalize(rotulo) for rotulo, _ in fields.TRAINING_PAIRS]
-    y = [campo for _, campo in fields.TRAINING_PAIRS]
+def collect_mapper_examples_from_db():
+    """Exemplos extras do mapeador (ml_data.mapper_examples): textos que NÃO são rótulos."""
+    try:
+        df = pd.read_sql("SELECT rotulo, campo FROM ml_data.mapper_examples", con=get_db_engine())
+        return list(zip(df["rotulo"], df["campo"]))
+    except Exception as e:
+        print(f"  [aviso] Sem exemplos extras do mapeador no banco: {e}")
+        return []
+
+
+def train_mapper(extras=None):
+    """Mapeia texto de célula -> campo canônico (ou '__nenhum__' se não for rótulo)."""
+    pares = list(fields.TRAINING_PAIRS) + list(extras or [])
+    x = [templates.normalize(rotulo) for rotulo, _ in pares]
+    y = [campo for _, campo in pares]
     model = Pipeline([
         ("tfidf", TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5))),
         ("clf", LogisticRegression(max_iter=1000, C=10)),
@@ -74,8 +86,9 @@ def train_mapper():
     return model
 
 
-def main():
-    os.makedirs(MODELS_DIR, exist_ok=True)
+def treinar(models_dir):
+    """Treina os dois modelos a partir do banco e salva em `models_dir`."""
+    os.makedirs(models_dir, exist_ok=True)
 
     print("Coletando exemplos para o reconhecedor do PostgreSQL (schema ml_data)...")
     examples = collect_recognizer_examples_from_db()
@@ -83,13 +96,30 @@ def main():
 
     print("Treinando reconhecedor de template...")
     recognizer = train_recognizer(examples)
-    joblib.dump(recognizer, os.path.join(MODELS_DIR, "recognizer.joblib"))
+    joblib.dump(recognizer, os.path.join(models_dir, "recognizer.joblib"))
 
-    print("Treinando mapeador de campos (rótulo -> campo canônico)...")
-    mapper = train_mapper()
-    joblib.dump(mapper, os.path.join(MODELS_DIR, "mapper.joblib"))
+    extras = collect_mapper_examples_from_db()
+    print(f"Treinando mapeador de campos (rótulo -> campo canônico) com {len(extras)} exemplos extras...")
+    mapper = train_mapper(extras)
+    joblib.dump(mapper, os.path.join(models_dir, "mapper.joblib"))
 
-    print(f"Modelos salvos em {MODELS_DIR}")
+    print(f"Modelos salvos em {models_dir}")
+    return recognizer, mapper
+
+
+def main():
+    treinar(MODELS_DIR)
+
+    # Mede no conjunto reservado e guarda no histórico (não derruba o startup se falhar).
+    try:
+        import avaliar
+        engine = get_db_engine()
+        metricas = avaliar.avaliar_diretorio(MODELS_DIR, engine)
+        avaliar.registrar(metricas, "startup", True, engine)
+        print(f"Avaliação no conjunto reservado: nota {avaliar.nota(metricas)} "
+              f"(reconhecedor {metricas['reconhecedor'].get('acuracia')})")
+    except Exception as e:
+        print(f"  [aviso] avaliação não registrada: {e}")
 
 
 if __name__ == "__main__":

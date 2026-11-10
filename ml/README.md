@@ -236,3 +236,16 @@ com os rótulos reais das planilhas: `cliente`, `numero_proposta`, `tipo_laudo`,
 - Refinar o `derive.py`: filtrar apenas abas de entrada e melhorar a detecção da
   célula de valor, para auto-derivar o mapa completo sem depender do decorado;
 - Expor o módulo como um pequeno serviço (FastAPI) consumido pela API Spring Boot.
+
+
+## Treino, avaliação e retreino (atualizado)
+
+**Dados.** `python dataset.py` lê os laudos reais (`LAUDOS_DIR`, padrão `2025/`), separa **20% para avaliação** (por hash da proposta, então o mesmo imóvel nunca fica nos dois lados) e grava no banco (`ml_data.recognizer_examples`, `mapper_examples`, `eval_examples`). Classes do reconhecedor: `v22_unidades_isoladas`, `v25_unidades_padronizadas`, `desconhecido`. O mapeador também aprende uma classe `__nenhum__` (texto que não é rótulo).
+
+**Avaliação.** `python avaliar.py [--extracao] [--salvar]` mede no conjunto reservado. `python test_avaliacao.py --extracao` falha se algum piso for violado. O treino no startup também registra a nota em `models/metricas.json` e em `ml_data.model_runs`.
+
+**Retreino sem reconstruir a imagem.** `POST /retreinar` (header `X-Token`, valor da env `RETRAIN_TOKEN`) treina um candidato, compara com o modelo em uso no conjunto reservado e **só promove se não piorar**. `GET /metricas?n=5` mostra o histórico.
+
+**Idade aparente.** `POST /idade` (upload de foto) devolve `{"idade_aparente_anos": ...}`. Usa o modelo leve (`idade.py`, sem PyTorch) baixado do Blob no startup. Erro médio 4,2 anos em validação cruzada por laudo.
+
+Resultados no conjunto reservado (49 laudos que nunca entram no treino): reconhecedor 100%, mapeador rejeita 99,6% dos não-rótulos, extração 647/647 sem campos inventados (antes: 94,7% e 61 inventados).
