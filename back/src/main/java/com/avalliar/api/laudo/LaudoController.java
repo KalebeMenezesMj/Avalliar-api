@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,6 +37,26 @@ public class LaudoController {
     @Operation(summary = "Preenche uma planilha de homogeneização via ML")
     public Map<String, Object> preencher(@Valid @RequestBody PreencherLaudoRequest request) {
         return mlClientService.preencher(request.templateId(), request.dados());
+    }
+
+    @GetMapping("/ml/health")
+    @Operation(summary = "Verifica status e modelos carregados no serviço de ML")
+    public Map<String, Object> mlHealth() {
+        return mlClientService.health();
+    }
+
+    @GetMapping("/ml/metricas")
+    @Operation(summary = "Retorna histórico de métricas de avaliação do ML")
+    public Map<String, Object> mlMetricas(@RequestParam(defaultValue = "5") int n) {
+        return mlClientService.metricas(n);
+    }
+
+    @GetMapping("/ml/consultar")
+    @Operation(summary = "Consulta o acervo técnico (RAG BM25: CUB/R8N e laudos anteriores)")
+    public Map<String, Object> mlConsultar(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "5") int k) {
+        return mlClientService.consultar(q, k);
     }
 
     @GetMapping

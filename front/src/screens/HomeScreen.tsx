@@ -20,6 +20,7 @@ import {
 import { colors, fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
+import { demandaService } from '../services/demandaService';
 
 export type NavigationTarget =
   | 'home'
@@ -93,6 +94,8 @@ export default function HomeScreen({
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [notifModalVisible, setNotifModalVisible] = useState(false);
   const [botModalVisible, setBotModalVisible] = useState(false);
+
+  const metricasHome = demandaService.obterMetricasDashboard();
 
   const userName = currentUser?.nome || 'Linux da Silva';
   const userEmail = currentUser?.email || 'linux.silva@fatec.sp.gov.br';
@@ -182,13 +185,20 @@ export default function HomeScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Banner com Degradê e Gráfico Resumo Minimalista */}
-        <View style={styles.bannerContainer}>
+        {/* 2. Banner com Degradê e Gráfico Resumo Minimalista (Integrado às Demandas) */}
+        <Pressable
+          style={styles.bannerContainer}
+          onPress={() => onNavigate('painel')}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir painel de métricas e machine learning"
+        >
           <View style={styles.bannerHeader}>
             <Text style={styles.bannerTitle}>
               Suas vistorias{' '}
-              <Text style={styles.bannerHighlight}>cresceram 37%</Text>
-              {'\n'}neste mês!
+              <Text style={styles.bannerHighlight}>
+                {metricasHome.taxaConclusao}% concluídas
+              </Text>
+              {'\n'}neste ciclo!
             </Text>
           </View>
 
@@ -201,9 +211,13 @@ export default function HomeScreen({
               <View style={styles.performanceInfo}>
                 <View style={styles.pillBadge}>
                   <MaterialIcons name="trending-up" size={15} color="#FFFFFF" />
-                  <Text style={styles.pillBadgeText}>+37%</Text>
+                  <Text style={styles.pillBadgeText}>
+                    +{metricasHome.crescimentoPercentual}%
+                  </Text>
                 </View>
-                <Text style={styles.performanceSub}>85 vistorias concluídas</Text>
+                <Text style={styles.performanceSub}>
+                  {metricasHome.demandasConcluidas} de {metricasHome.totalDemandas} demandas concluídas • {metricasHome.arquivosResumo.total} arquivos
+                </Text>
               </View>
 
               <View style={styles.capsuleBars}>
@@ -233,7 +247,7 @@ export default function HomeScreen({
               <View style={styles.stripeLine} />
             </View>
           </LinearGradient>
-        </View>
+        </Pressable>
 
         {/* 3. Grade 2x2 com os 4 Cards de Ações Rápidas */}
         <View style={styles.cardsGrid}>

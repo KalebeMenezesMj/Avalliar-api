@@ -8,171 +8,162 @@ import {
   Platform,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Ionicons,
   MaterialCommunityIcons,
-  MaterialIcons,
   Feather,
 } from '@expo/vector-icons';
 
-import { colors, fonts, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { EmpresaDemanda } from './DemandasScreen';
 import { userService, UsuarioDTO } from '../services/userService';
-import { demandaService, TarefaDemanda, Urgencia } from '../services/demandaService';
+import {
+  demandaService,
+  TarefaDemanda,
+  Urgencia,
+  ArquivoAnexo,
+  CategoriaArquivo,
+} from '../services/demandaService';
+import { mlService } from '../services/mlService';
+import FileViewerModal, {
+  visualizarArquivoDemanda,
+  baixarArquivoDemanda,
+  selecionarArquivoDoDispositivo,
+  enviarArquivoParaServidor,
+  ArquivoDispositivoSelecionado,
+} from '../components/FileViewerModal';
 
 export type { Urgencia, TarefaDemanda };
-
-// Dados mockados iniciais por empresa
-const DEMANDAS_POR_EMPRESA: Record<string, TarefaDemanda[]> = {
-  // Constructor Hub (conforme o protótipo do Figma)
-  '2': [
-    {
-      id: 'ch-1',
-      titulo: 'Mandar as anotações para o setor de Engenharia e guardar os dados na planilha.',
-      responsavel: 'Ubuntu Gonçalves',
-      urgencia: 'ALTA',
-      dataCriacao: 'Hoje, 09:30',
-      concluida: false,
-      imovelReferencia: 'Obra Central • Bloco A',
-    },
-    {
-      id: 'ch-2',
-      titulo: 'Fazer a vistoria do Apartamento 505 do Residencial Apollo.',
-      responsavel: 'Ubuntu Gonçalves',
-      urgencia: 'ALTA',
-      dataCriacao: 'Hoje, 11:00',
-      concluida: true,
-      imovelReferencia: 'Apto 505 • Res. Apollo',
-    },
-    {
-      id: 'ch-3',
-      titulo: 'Laudo fotográfico da cobertura duplex e checagem de sacada.',
-      responsavel: 'Debian Silva',
-      urgencia: 'MEDIA',
-      dataCriacao: 'Ontem',
-      concluida: false,
-      imovelReferencia: 'Cobertura 120 • Res. Apollo',
-    },
-    {
-      id: 'ch-4',
-      titulo: 'Checagem de umidade e medição no subsolo 2.',
-      responsavel: 'Linux da Silva',
-      urgencia: 'BAIXA',
-      dataCriacao: '28/Out',
-      concluida: false,
-      imovelReferencia: 'Garagem Subsolo 2',
-    },
-  ],
-  // Doors LTDA
-  '1': [
-    {
-      id: 'd-1',
-      titulo: 'Vistoria de saída no galpão logístico e checagem de portões.',
-      responsavel: 'Ubuntu Gonçalves',
-      urgencia: 'MEDIA',
-      dataCriacao: '29/Out',
-      concluida: true,
-      imovelReferencia: 'Galpão 04 • Rod. Anhanguera',
-    },
-    {
-      id: 'd-2',
-      titulo: 'Conferência de laudos de entrega de chaves da construtora.',
-      responsavel: 'Linux da Silva',
-      urgencia: 'BAIXA',
-      dataCriacao: '27/Out',
-      concluida: true,
-      imovelReferencia: 'Edifício Central Park',
-    },
-  ],
-  // Clozeyes Imóveis
-  '3': [
-    {
-      id: 'cz-1',
-      titulo: 'Vistoria de entrada na Casa Térrea e laudo fotográfico completo.',
-      responsavel: 'Ubuntu Gonçalves',
-      urgencia: 'ALTA',
-      dataCriacao: 'Hoje, 08:00',
-      concluida: false,
-      imovelReferencia: 'Casa Térrea • Cond. Araucárias',
-    },
-    {
-      id: 'cz-2',
-      titulo: 'Vistoria de saída da Sala Comercial 402 e conferência de pintura.',
-      responsavel: 'Debian Silva',
-      urgencia: 'MEDIA',
-      dataCriacao: 'Hoje, 10:30',
-      concluida: false,
-      imovelReferencia: 'Sala 402 • Centro Plaza',
-    },
-  ],
-  // Default / Prime Imobiliária
-  '4': [
-    {
-      id: 'pi-1',
-      titulo: 'Conferência de laudo de desocupação e teste de instalações elétricas.',
-      responsavel: 'Ubuntu Gonçalves',
-      urgencia: 'ALTA',
-      dataCriacao: 'Hoje, 08:30',
-      concluida: false,
-      imovelReferencia: 'Apto 84 • Ed. Vila Mariana',
-    },
-    {
-      id: 'pi-2',
-      titulo: 'Vistoria periódica de locação comercial.',
-      responsavel: 'Linux da Silva',
-      urgencia: 'MEDIA',
-      dataCriacao: 'Ontem',
-      concluida: false,
-      imovelReferencia: 'Loja 02 • Shopping Norte',
-    },
-  ],
-};
 
 interface EmpresaDemandasScreenProps {
   empresa: EmpresaDemanda;
   currentUser?: AuthResponse | { nome?: string; email?: string; role?: string } | null;
   onBack: () => void;
   onNavigateToNovaDemanda: () => void;
+  onSelectDemanda?: (demanda: TarefaDemanda) => void;
   onNavigateTab: (tab: TabType) => void;
   onLogout?: () => void;
   activeTab?: TabType;
 }
 
+const SUGESTOES_ARQUIVOS_EMPRESA: Array<{
+  nome: string;
+  categoria: CategoriaArquivo;
+  tamanho: string;
+  desc: string;
+}> = [
+  {
+    nome: 'Homogeneização_Unidades Isoladas_2025_V22.xlsx',
+    categoria: 'PLANILHA',
+    tamanho: '645 KB',
+    desc: 'Planilha de Homogeneização • Template V22 (ML)',
+  },
+  {
+    nome: 'Homogeneização_unidades padronizadas_2026_V25.xlsm',
+    categoria: 'PLANILHA',
+    tamanho: '890 KB',
+    desc: 'Planilha de Homogeneização • Template V25 (ML)',
+  },
+  {
+    nome: 'Relatorio_Vistoria_Tecnica_Mensal.pdf',
+    categoria: 'RELATORIO',
+    tamanho: '2.4 MB',
+    desc: 'Relatório executivo de vistorias da empresa',
+  },
+  {
+    nome: 'Laudo_Vistoria_Cautelar_Imovel.pdf',
+    categoria: 'VISTORIA',
+    tamanho: '3.1 MB',
+    desc: 'Documento de vistoria técnica e fotos de campo',
+  },
+  {
+    nome: 'Doc_Matricula_e_Planta_Imovel.pdf',
+    categoria: 'DOCUMENTO',
+    tamanho: '1.4 MB',
+    desc: 'Documento Técnico • Matrícula e Croqui',
+  },
+];
+
 export default function EmpresaDemandasScreen({
   empresa,
   currentUser,
   onBack,
-  onNavigateToNovaDemanda,
+  onSelectDemanda,
   onNavigateTab,
-  onLogout,
   activeTab = 'demandas',
 }: EmpresaDemandasScreenProps) {
-  // Lista de tarefas da empresa com estado interativo de conclusão sincronizado via demandaService
   const [tarefas, setTarefas] = useState<TarefaDemanda[]>(() =>
     demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome)
+  );
+  const [arquivosDaEmpresa, setArquivosDaEmpresa] = useState<ArquivoAnexo[]>(() =>
+    demandaService.obterArquivosDaEmpresa(empresa.id, empresa.nome)
   );
 
   useEffect(() => {
     setTarefas(demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome));
+    setArquivosDaEmpresa(demandaService.obterArquivosDaEmpresa(empresa.id, empresa.nome));
   }, [empresa.id, empresa.nome]);
+
   const [busca, setBusca] = useState('');
   const [filtroUrgencia, setFiltroUrgencia] = useState<'TODAS' | Urgencia>('TODAS');
+  const [filtroCatArquivo, setFiltroCatArquivo] = useState<'TODOS' | CategoriaArquivo>('TODOS');
+
   const [novaDemandaModal, setNovaDemandaModal] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
   const [novoResponsavel, setNovoResponsavel] = useState('Ubuntu Gonçalves');
   const [novaUrgencia, setNovaUrgencia] = useState<Urgencia>('ALTA');
+  const [arquivosNovaDemanda, setArquivosNovaDemanda] = useState<
+    Array<{
+      nome: string;
+      categoria: CategoriaArquivo;
+      tamanho: string;
+      webFile?: any;
+      uriLocal?: string;
+      mimeType?: string;
+      selecionado?: ArquivoDispositivoSelecionado;
+    }>
+  >([]);
 
-  // Estado para lista de funcionários cadastrados e controle do dropdown
+  // Modal de inserção de arquivos:
+  // - Quando `tarefaAlvoArquivo` está preenchido -> insere dentro daquela demanda específica (documentos e planilhas)
+  // - Quando `modalArquivoEmpresaAberto` é true e `tarefaAlvoArquivo` é null -> insere no acervo geral da empresa (relatórios, documentos de vistorias, planilhas, etc.)
+  const [tarefaAlvoArquivo, setTarefaAlvoArquivo] = useState<TarefaDemanda | null>(null);
+  const [dropdownTarefaDestinoAberto, setDropdownTarefaDestinoAberto] = useState(false);
+  const [modalArquivoEmpresaAberto, setModalArquivoEmpresaAberto] = useState(false);
+  const [nomeNovoArquivo, setNomeNovoArquivo] = useState('');
+  const [categoriaNovoArquivo, setCategoriaNovoArquivo] = useState<CategoriaArquivo>('PLANILHA');
+  const [webFileSelecionado, setWebFileSelecionado] = useState<any>(null);
+  const [tamanhoWebFile, setTamanhoWebFile] = useState<string>('');
+  const [arquivoDispositivoSelecionado, setArquivoDispositivoSelecionado] =
+    useState<ArquivoDispositivoSelecionado | null>(null);
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+  const [processandoMlId, setProcessandoMlId] = useState<string | null>(null);
+  const [arquivoVisualizando, setArquivoVisualizando] = useState<ArquivoAnexo | null>(null);
+  const [demandaContextoVisualizacao, setDemandaContextoVisualizacao] =
+    useState<TarefaDemanda | null>(null);
+  const [toastDownload, setToastDownload] = useState<string | null>(null);
+  const [feedbackMl, setFeedbackMl] = useState<{
+    visivel: boolean;
+    titulo: string;
+    detalhe: string;
+    campos?: Record<string, string | number>;
+  } | null>(null);
+
   const [funcionarios, setFuncionarios] = useState<UsuarioDTO[]>([]);
   const [dropdownResponsavelAberto, setDropdownResponsavelAberto] = useState(false);
 
   const userName = currentUser?.nome || 'Linux da Silva';
 
-  // Buscar funcionários reais cadastrados no backend
+  const recarregarTudoDaEmpresa = () => {
+    setTarefas(demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome));
+    setArquivosDaEmpresa(demandaService.obterArquivosDaEmpresa(empresa.id, empresa.nome));
+  };
+
   useEffect(() => {
     let mounted = true;
     userService
@@ -185,15 +176,12 @@ export default function EmpresaDemandasScreen({
           }
         }
       })
-      .catch(() => {
-        // Fallback garantido
-      });
+      .catch(() => {});
     return () => {
       mounted = false;
     };
   }, []);
 
-  // Lista consolidada de funcionários (dados da API + padrão)
   const listaFuncionarios = useMemo(() => {
     const fallback: UsuarioDTO[] = [
       { id: '1', nome: 'Ubuntu Gonçalves', email: 'ubuntu@avalliar.com.br', cargo: 'Encarregado de Vistoria', role: 'VISTORIADOR' },
@@ -202,7 +190,6 @@ export default function EmpresaDemandasScreen({
       { id: '4', nome: 'Fedora Lima', email: 'fedora@avalliar.com.br', cargo: 'Analista de Laudos', role: 'OPERACIONAL' },
     ];
     if (funcionarios.length > 0) {
-      // Mescla garantindo unicidade por nome
       const nomes = new Set<string>();
       const combinada: UsuarioDTO[] = [];
       funcionarios.forEach((f) => {
@@ -222,18 +209,176 @@ export default function EmpresaDemandasScreen({
     return fallback;
   }, [funcionarios]);
 
-  // Toggle do status da demanda (Pendente <-> Concluída)
   const handleToggleConcluida = (tarefaId: string) => {
     demandaService.toggleDemandaConcluida(empresa.id, empresa.nome, tarefaId);
-    setTarefas((prev) =>
-      prev.map((item) =>
-        item.id === tarefaId ? { ...item, concluida: !item.concluida } : item
-      )
-    );
+    recarregarTudoDaEmpresa();
   };
 
-  // Cadastrar nova demanda rápida para a empresa
-  const handleCriarDemanda = () => {
+  const handleEscolherArquivoDispositivo = async (paraNovaDemanda = false) => {
+    const selecionado = await selecionarArquivoDoDispositivo(categoriaNovoArquivo);
+    if (!selecionado) return;
+
+    if (paraNovaDemanda) {
+      setArquivosNovaDemanda((prev) => [
+        ...prev,
+        {
+          nome: selecionado.nome,
+          categoria: selecionado.categoria,
+          tamanho: selecionado.tamanho,
+          webFile: selecionado.webFile,
+          uriLocal: selecionado.uri,
+          mimeType: selecionado.mimeType,
+          selecionado,
+        },
+      ]);
+    } else {
+      setNomeNovoArquivo(selecionado.nome);
+      setCategoriaNovoArquivo(selecionado.categoria);
+      setWebFileSelecionado(selecionado.webFile || null);
+      setTamanhoWebFile(selecionado.tamanho);
+      setArquivoDispositivoSelecionado(selecionado);
+    }
+  };
+
+  // Salva o arquivo: se houver `tarefaAlvoArquivo`, salva dentro da demanda específica; caso contrário, salva no acervo geral da empresa
+  const handleSalvarArquivo = async () => {
+    if (!nomeNovoArquivo.trim() || enviandoArquivo) return;
+
+    setEnviandoArquivo(true);
+    try {
+      let novoArq: ArquivoAnexo;
+
+      if (tarefaAlvoArquivo) {
+        novoArq = demandaService.adicionarArquivoNaDemanda({
+          empresaId: empresa.id,
+          empresaNome: empresa.nome,
+          tarefaId: tarefaAlvoArquivo.id,
+          nomeArquivo: nomeNovoArquivo.trim(),
+          categoria: categoriaNovoArquivo,
+          tamanho: tamanhoWebFile || arquivoDispositivoSelecionado?.tamanho || undefined,
+          autor: userName,
+          webFile: webFileSelecionado,
+          uriLocal: arquivoDispositivoSelecionado?.uri,
+          mimeType: arquivoDispositivoSelecionado?.mimeType,
+        });
+      } else {
+        novoArq = demandaService.adicionarArquivoEmpresa({
+          empresaId: empresa.id,
+          empresaNome: empresa.nome,
+          nomeArquivo: nomeNovoArquivo.trim(),
+          categoria: categoriaNovoArquivo,
+          tamanho: tamanhoWebFile || arquivoDispositivoSelecionado?.tamanho || undefined,
+          autor: userName,
+          webFile: webFileSelecionado,
+          uriLocal: arquivoDispositivoSelecionado?.uri,
+          mimeType: arquivoDispositivoSelecionado?.mimeType,
+        });
+      }
+
+      await enviarArquivoParaServidor(novoArq, arquivoDispositivoSelecionado || undefined);
+
+      recarregarTudoDaEmpresa();
+      setNomeNovoArquivo('');
+      setWebFileSelecionado(null);
+      setTamanhoWebFile('');
+      setArquivoDispositivoSelecionado(null);
+      setDropdownTarefaDestinoAberto(false);
+      setTarefaAlvoArquivo(null);
+      setModalArquivoEmpresaAberto(false);
+      setToastDownload(
+        tarefaAlvoArquivo
+          ? `Arquivo enviado para a tarefa "${tarefaAlvoArquivo.titulo}"!`
+          : `Arquivo enviado para o acervo de ${empresa.nome}!`
+      );
+      setTimeout(() => setToastDownload(null), 3200);
+    } finally {
+      setEnviandoArquivo(false);
+    }
+  };
+
+  const handleRemoverArquivoDaDemanda = (tarefaId: string, arquivoId: string) => {
+    demandaService.removerArquivoDaDemanda(empresa.id, empresa.nome, tarefaId, arquivoId);
+    recarregarTudoDaEmpresa();
+  };
+
+  const handleRemoverArquivoDaEmpresa = (arquivoId: string) => {
+    demandaService.removerArquivoEmpresa(empresa.id, empresa.nome, arquivoId);
+    recarregarTudoDaEmpresa();
+  };
+
+  const handleProcessarPlanilhaMl = async (
+    arq: ArquivoAnexo,
+    imovelReferencia?: string
+  ) => {
+    setProcessandoMlId(arq.id);
+    try {
+      const rec = await mlService.reconhecerPlanilha(arq.nome, arq.webFile);
+      const ext = await mlService.extrairCamposLaudo(
+        rec.template_id,
+        arq.nome,
+        empresa.nome,
+        imovelReferencia,
+        arq.webFile
+      );
+      const preenchido = await mlService.preencherPlanilha(rec.template_id, ext.campos);
+
+      demandaService.atualizarStatusMlArquivo(
+        arq.id,
+        'PREENCHIDA_ML',
+        rec.template_id,
+        ext.campos,
+        preenchido.conteudo_base64
+      );
+      recarregarTudoDaEmpresa();
+
+      setFeedbackMl({
+        visivel: true,
+        titulo: 'Planilha Processada via ML!',
+        detalhe: `Template reconhecido: ${rec.template_nome} (${Math.round(
+          rec.confianca * 100
+        )}% de confiança). ${preenchido.campos_preenchidos} células mapeadas e preenchidas automaticamente.`,
+        campos: ext.campos,
+      });
+    } finally {
+      setProcessandoMlId(null);
+    }
+  };
+
+  const handleAbrirVisualizador = async (
+    arq: ArquivoAnexo,
+    tarefaContexto?: TarefaDemanda
+  ) => {
+    const msg = await visualizarArquivoDemanda(
+      arq,
+      empresa.nome,
+      tarefaContexto?.titulo,
+      tarefaContexto?.imovelReferencia,
+      tarefaContexto?.responsavel
+    );
+    setToastDownload(msg);
+    setTimeout(() => {
+      setToastDownload(null);
+    }, 3200);
+  };
+
+  const handleBaixarArquivoRapido = async (
+    arq: ArquivoAnexo,
+    tarefaContexto?: TarefaDemanda
+  ) => {
+    const msg = await baixarArquivoDemanda(
+      arq,
+      empresa.nome,
+      tarefaContexto?.titulo,
+      tarefaContexto?.imovelReferencia,
+      tarefaContexto?.responsavel
+    );
+    setToastDownload(msg);
+    setTimeout(() => {
+      setToastDownload(null);
+    }, 3200);
+  };
+
+  const handleCriarDemanda = async () => {
     if (!novoTitulo.trim()) return;
 
     const respFinal =
@@ -247,20 +392,35 @@ export default function EmpresaDemandasScreen({
       urgencia: novaUrgencia,
     });
 
-    setTarefas((prev) => [nova, ...prev]);
+    for (const arq of arquivosNovaDemanda) {
+      const novoArq = demandaService.adicionarArquivoNaDemanda({
+        empresaId: empresa.id,
+        empresaNome: empresa.nome,
+        tarefaId: nova.id,
+        nomeArquivo: arq.nome,
+        categoria: arq.categoria,
+        tamanho: arq.tamanho,
+        autor: userName,
+        webFile: arq.webFile,
+        uriLocal: arq.uriLocal,
+        mimeType: arq.mimeType,
+      });
+      await enviarArquivoParaServidor(novoArq, arq.selecionado);
+    }
+
+    recarregarTudoDaEmpresa();
     setNovoTitulo('');
+    setArquivosNovaDemanda([]);
     setDropdownResponsavelAberto(false);
     setNovaDemandaModal(false);
   };
 
-  // ENFILEIRAMENTO INTELIGENTE:
-  // 1. Demandas pendentes no topo (ordenadas por urgência: ALTA -> MEDIA -> BAIXA)
-  // 2. Demandas concluídas jogadas para o final da tela!
   const tarefasProcessadas = useMemo(() => {
     const filtradas = tarefas.filter((t) => {
       const matchBusca =
         t.titulo.toLowerCase().includes(busca.toLowerCase()) ||
-        t.responsavel.toLowerCase().includes(busca.toLowerCase());
+        t.responsavel.toLowerCase().includes(busca.toLowerCase()) ||
+        (t.arquivos || []).some((a) => a.nome.toLowerCase().includes(busca.toLowerCase()));
       const matchUrgencia =
         filtroUrgencia === 'TODAS' || t.urgencia === filtroUrgencia;
 
@@ -270,7 +430,6 @@ export default function EmpresaDemandasScreen({
     const pendentes = filtradas.filter((t) => !t.concluida);
     const concluidas = filtradas.filter((t) => t.concluida);
 
-    // Ordem de urgência para as pendentes
     const pesoUrgencia: Record<Urgencia, number> = {
       ALTA: 3,
       MEDIA: 2,
@@ -279,7 +438,6 @@ export default function EmpresaDemandasScreen({
 
     pendentes.sort((a, b) => pesoUrgencia[b.urgencia] - pesoUrgencia[a.urgencia]);
 
-    // Retorna pendentes primeiro e concluídas no final
     return {
       pendentes,
       concluidas,
@@ -287,18 +445,26 @@ export default function EmpresaDemandasScreen({
     };
   }, [tarefas, busca, filtroUrgencia]);
 
-  // Cor do card da empresa no banner superior
+  const arquivosEmpresaFiltrados = useMemo(() => {
+    return arquivosDaEmpresa.filter((arq) => {
+      const matchCat =
+        filtroCatArquivo === 'TODOS' || arq.categoria === filtroCatArquivo;
+      const matchBusca =
+        !busca.trim() ||
+        arq.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        (arq.tarefaTitulo || '').toLowerCase().includes(busca.toLowerCase());
+      return matchCat && matchBusca;
+    });
+  }, [arquivosDaEmpresa, filtroCatArquivo, busca]);
+
   const getBannerColor = () => {
-    switch (empresa.status) {
-      case 'SEM_PENDENCIAS':
-        return '#388E3C';
-      case 'COM_PENDENCIAS':
-        return '#3B68C4';
-      case 'EM_ABERTO':
-        return '#3F3F46';
-      default:
-        return '#3B68C4';
+    if (tarefas.length > 0 && tarefasProcessadas.pendentes.length === 0) {
+      return '#388E3C';
     }
+    if (tarefasProcessadas.pendentes.length > 0) {
+      return '#3B68C4';
+    }
+    return '#3F3F46';
   };
 
   const getUrgenciaBadge = (urgencia: Urgencia) => {
@@ -310,6 +476,227 @@ export default function EmpresaDemandasScreen({
       case 'BAIXA':
         return { label: 'Normal', bg: '#F1F5F9', text: '#64748B' };
     }
+  };
+
+  const getCategoriaBadgeStyle = (cat: CategoriaArquivo) => {
+    switch (cat) {
+      case 'RELATORIO':
+        return {
+          label: 'Relatório',
+          bg: '#FEE2E2',
+          text: '#C61010',
+          icon: 'file-chart-outline' as const,
+        };
+      case 'VISTORIA':
+        return {
+          label: 'Doc. Vistoria',
+          bg: '#FEF3C7',
+          text: '#B45309',
+          icon: 'clipboard-check-outline' as const,
+        };
+      case 'PLANILHA':
+        return {
+          label: 'Planilha ML',
+          bg: '#DCFCE7',
+          text: '#15803D',
+          icon: 'microsoft-excel' as const,
+        };
+      case 'DOCUMENTO':
+      default:
+        return {
+          label: 'Documento',
+          bg: '#DBEAFE',
+          text: '#1D4ED8',
+          icon: 'file-document-outline' as const,
+        };
+    }
+  };
+
+  // Renderiza a seção de arquivos (Documentos e Planilhas) dentro de cada card de demanda da empresa
+  const renderArquivosDaDemanda = (item: TarefaDemanda) => {
+    const arquivos = item.arquivos || [];
+
+    return (
+      <View style={styles.demandFilesContainer}>
+        <View style={styles.demandFilesHeader}>
+          <Pressable
+            style={styles.demandFilesHeaderLeft}
+            onPress={() => onSelectDemanda && onSelectDemanda(item)}
+          >
+            <MaterialCommunityIcons
+              name="folder-open-outline"
+              size={15}
+              color="#475569"
+            />
+            <Text style={styles.demandFilesTitle} numberOfLines={1}>
+              Arquivos ({arquivos.length})
+            </Text>
+          </Pressable>
+
+          <View style={styles.demandFilesHeaderActions}>
+            <Pressable
+              style={styles.attachFileMiniBtn}
+              onPress={() => {
+                setTarefaAlvoArquivo(item);
+                setDropdownTarefaDestinoAberto(false);
+                setCategoriaNovoArquivo('VISTORIA');
+                setNomeNovoArquivo('');
+                setWebFileSelecionado(null);
+                setTamanhoWebFile('');
+                setArquivoDispositivoSelecionado(null);
+                setModalArquivoEmpresaAberto(true);
+              }}
+            >
+              <Ionicons name="attach" size={13} color="#C61010" />
+              <Text style={styles.attachFileMiniBtnText}>Anexar</Text>
+            </Pressable>
+
+            {onSelectDemanda && (
+              <Pressable
+                style={[styles.attachFileMiniBtn, { backgroundColor: '#1E293B' }]}
+                onPress={() => onSelectDemanda(item)}
+              >
+                <Text style={[styles.attachFileMiniBtnText, { color: '#FFFFFF' }]}>
+                  Abrir
+                </Text>
+                <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        {arquivos.length > 0 && (
+          <View style={styles.filesList}>
+            {arquivos.map((arq) => {
+              const isPlanilha =
+                arq.categoria === 'PLANILHA' ||
+                ['xlsx', 'xlsm', 'xls', 'csv'].includes(arq.extensao);
+              const isProcessando = processandoMlId === arq.id;
+
+              return (
+                <View key={arq.id} style={styles.fileChipCard}>
+                  <Pressable
+                    style={styles.fileChipMainRow}
+                    onPress={() => handleAbrirVisualizador(arq, item)}
+                  >
+                    <View
+                      style={[
+                        styles.fileIconBox,
+                        { backgroundColor: isPlanilha ? '#DCFCE7' : '#DBEAFE' },
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name={isPlanilha ? 'microsoft-excel' : 'file-document-outline'}
+                        size={17}
+                        color={isPlanilha ? '#15803D' : '#1D4ED8'}
+                      />
+                    </View>
+
+                    <View style={styles.fileInfoCol}>
+                      <Text
+                        style={styles.fileNameText}
+                        numberOfLines={1}
+                        ellipsizeMode="middle"
+                      >
+                        {arq.nome}
+                      </Text>
+                      <View style={styles.fileMetaRow}>
+                        <Text style={styles.fileMetaText} numberOfLines={1}>
+                          {isPlanilha ? 'Planilha' : 'Doc'} • {arq.tamanho}
+                        </Text>
+
+                        {isPlanilha && arq.templateMl && (
+                          <View
+                            style={[
+                              styles.mlTagBadge,
+                              arq.statusMl === 'PREENCHIDA_ML' && styles.mlTagBadgeFilled,
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name="robot-outline"
+                              size={10}
+                              color={
+                                arq.statusMl === 'PREENCHIDA_ML' ? '#047857' : '#6D28D9'
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.mlTagText,
+                                arq.statusMl === 'PREENCHIDA_ML' && styles.mlTagTextFilled,
+                              ]}
+                            >
+                              {arq.statusMl === 'PREENCHIDA_ML'
+                                ? 'IA OK'
+                                : arq.templateMl.includes('v25')
+                                ? 'V25'
+                                : 'V22'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.fileChipActionsRow}>
+                    <Pressable
+                      onPress={() => handleAbrirVisualizador(arq, item)}
+                      hitSlop={4}
+                      style={styles.fileActionIconBtn}
+                      accessibilityLabel="Abrir arquivo no navegador"
+                    >
+                      <Ionicons name="open-outline" size={15} color="#1D4ED8" />
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => handleBaixarArquivoRapido(arq, item)}
+                      hitSlop={4}
+                      style={[styles.fileActionIconBtn, { backgroundColor: '#DCFCE7' }]}
+                      accessibilityLabel="Baixar arquivo"
+                    >
+                      <Ionicons name="download-outline" size={15} color="#15803D" />
+                    </Pressable>
+
+                    {isPlanilha && (
+                      <Pressable
+                        style={[
+                          styles.mlActionMiniBtn,
+                          arq.statusMl === 'PREENCHIDA_ML' && styles.mlActionMiniBtnDone,
+                        ]}
+                        onPress={() =>
+                          handleProcessarPlanilhaMl(arq, item.imovelReferencia)
+                        }
+                        disabled={isProcessando}
+                      >
+                        {isProcessando ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <MaterialCommunityIcons
+                              name="auto-fix"
+                              size={12}
+                              color="#FFFFFF"
+                            />
+                            <Text style={styles.mlActionMiniBtnText}>IA</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    )}
+
+                    <Pressable
+                      onPress={() => handleRemoverArquivoDaDemanda(item.id, arq.id)}
+                      hitSlop={6}
+                      style={styles.removeFileBtn}
+                    >
+                      <Ionicons name="trash-outline" size={15} color="#94A3B8" />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -346,21 +733,40 @@ export default function EmpresaDemandasScreen({
           </Text>
         </View>
 
-        {/* 3. Título Principal da Tela */}
+        {/* 3. Título Principal da Tela com Ação de Inserir Arquivo na Empresa e Nova Demanda */}
         <View style={styles.titleRow}>
           <Text style={styles.screenTitle}>Demandas</Text>
 
-          <Pressable
-            style={styles.addDemandButton}
-            onPress={() => setNovaDemandaModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Nova demanda para esta empresa"
-          >
-            <Ionicons name="add-circle" size={30} color="#C61010" />
-          </Pressable>
+          <View style={styles.titleActions}>
+            <Pressable
+              style={styles.insertCompanyFileBtn}
+              onPress={() => {
+                setTarefaAlvoArquivo(null);
+                setDropdownTarefaDestinoAberto(false);
+                setCategoriaNovoArquivo('RELATORIO');
+                setNomeNovoArquivo('');
+                setWebFileSelecionado(null);
+                setTamanhoWebFile('');
+                setArquivoDispositivoSelecionado(null);
+                setModalArquivoEmpresaAberto(true);
+              }}
+            >
+              <Ionicons name="cloud-upload-outline" size={15} color="#C61010" />
+              <Text style={styles.insertCompanyFileBtnText}>Inserir Arquivo</Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.addDemandButton}
+              onPress={() => setNovaDemandaModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Nova demanda para esta empresa"
+            >
+              <Ionicons name="add-circle" size={30} color="#C61010" />
+            </Pressable>
+          </View>
         </View>
 
-        {/* 4. Banner com o Card da Empresa (Idêntico ao Figma) */}
+        {/* 4. Banner com o Card da Empresa + Contagem de Demandas e Arquivos */}
         <View style={[styles.companyBannerCard, { backgroundColor: getBannerColor() }]}>
           <View style={styles.decorBubbleOne} />
           <View style={styles.decorBubbleTwo} />
@@ -370,18 +776,26 @@ export default function EmpresaDemandasScreen({
           <View style={styles.bannerInfoRow}>
             <View style={styles.bannerCountPill}>
               <Text style={styles.bannerCountText}>
-                {tarefasProcessadas.pendentes.length} pendentes • {tarefasProcessadas.concluidas.length} concluídas
+                {tarefasProcessadas.pendentes.length} pendentes •{' '}
+                {tarefasProcessadas.concluidas.length} concluídas
+              </Text>
+            </View>
+
+            <View style={styles.bannerCountPill}>
+              <Ionicons name="document-attach-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.bannerCountText}>
+                {arquivosDaEmpresa.length} arquivos na empresa
               </Text>
             </View>
           </View>
         </View>
 
-        {/* 5. Barra de Pesquisa de Tarefas da Empresa */}
+        {/* 5. Barra de Pesquisa de Tarefas ou Arquivos da Empresa */}
         <View style={styles.searchContainer}>
           <Feather name="search" size={17} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Filtrar demandas ou responsável..."
+            placeholder="Filtrar demandas, relatórios ou planilhas da empresa..."
             placeholderTextColor="#9CA3AF"
             value={busca}
             onChangeText={setBusca}
@@ -394,7 +808,7 @@ export default function EmpresaDemandasScreen({
           )}
         </View>
 
-        {/* 6. Filtros Rápidos por Urgência (Melhoria UI/UX) */}
+        {/* 6. Filtros Rápidos por Urgência */}
         <View style={styles.filterPillsRow}>
           {(['TODAS', 'ALTA', 'MEDIA', 'BAIXA'] as const).map((urg) => {
             const isActive = filtroUrgencia === urg;
@@ -423,7 +837,7 @@ export default function EmpresaDemandasScreen({
           })}
         </View>
 
-        {/* 7. Lista Enfileirada de Demandas (Pendentes no topo, Concluídas no final) */}
+        {/* 7. Lista Enfileirada de Demandas da Empresa (Pendentes no topo, Concluídas no final) */}
         <View style={styles.tasksSection}>
           {tarefasProcessadas.todasOrdenadas.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -432,7 +846,7 @@ export default function EmpresaDemandasScreen({
             </View>
           ) : (
             <>
-              {/* SEÇÃO 1: DEMANDAS PENDENTES (Ordenadas por urgência/mais recente) */}
+              {/* SEÇÃO 1: DEMANDAS PENDENTES */}
               {tarefasProcessadas.pendentes.length > 0 && (
                 <View style={styles.subgroupContainer}>
                   <View style={styles.subgroupHeader}>
@@ -446,15 +860,7 @@ export default function EmpresaDemandasScreen({
                     const badge = getUrgenciaBadge(item.urgencia);
 
                     return (
-                      <Pressable
-                        key={item.id}
-                        style={styles.taskCardPending}
-                        onPress={() => handleToggleConcluida(item.id)}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: false }}
-                        accessibilityLabel={`Demanda pendente: ${item.titulo}`}
-                      >
-                        {/* Linha superior ocupando todo o bloco: Status/Prioridade na extremidade esquerda e Data na extremidade direita */}
+                      <View key={item.id} style={styles.taskCardPending}>
                         <View style={styles.taskCardTopMeta}>
                           <View style={[styles.urgencyBadge, { backgroundColor: badge.bg }]}>
                             <Text style={[styles.urgencyBadgeText, { color: badge.text }]}>
@@ -468,49 +874,56 @@ export default function EmpresaDemandasScreen({
                           </View>
                         </View>
 
-                        {/* Linha de conteúdo: Título e Responsável à esquerda, Checkbox na extremidade direita */}
                         <View style={styles.taskCardBody}>
-                          <View style={styles.taskCardTextContent}>
+                          <Pressable
+                            style={styles.taskCardTextContent}
+                            onPress={() =>
+                              onSelectDemanda
+                                ? onSelectDemanda(item)
+                                : handleToggleConcluida(item.id)
+                            }
+                          >
                             <Text style={styles.taskTitlePending}>{item.titulo}</Text>
+                            {item.imovelReferencia && (
+                              <Text style={styles.imovelRefText}>
+                                📍 {item.imovelReferencia}
+                              </Text>
+                            )}
                             <Text style={styles.taskResponsiblePending}>
                               Responsável:{' '}
                               <Text style={styles.taskResponsibleBold}>{item.responsavel}</Text>
                             </Text>
-                          </View>
+                          </Pressable>
 
-                          {/* Círculo Vazio (Checkbox Não Marcada) */}
                           <Pressable
                             style={styles.checkboxCirclePending}
                             onPress={() => handleToggleConcluida(item.id)}
                             hitSlop={8}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: false }}
                           />
                         </View>
-                      </Pressable>
+
+                        {/* Inserção de Documentos e Planilhas na Demanda */}
+                        {renderArquivosDaDemanda(item)}
+                      </View>
                     );
                   })}
                 </View>
               )}
 
-              {/* SEÇÃO 2: DEMANDAS CONCLUÍDAS (Jogadas para o final da tela) */}
+              {/* SEÇÃO 2: DEMANDAS CONCLUÍDAS */}
               {tarefasProcessadas.concluidas.length > 0 && (
                 <View style={styles.subgroupContainer}>
                   <View style={styles.subgroupHeader}>
                     <Text style={styles.subgroupTitleCompleted}>
                       Concluídas ({tarefasProcessadas.concluidas.length})
                     </Text>
-                    <Text style={styles.subgroupHint}>Finalizadas e arquivadas</Text>
+                    <Text style={styles.subgroupHint}>Contabilizadas no Painel</Text>
                   </View>
 
                   {tarefasProcessadas.concluidas.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      style={styles.taskCardCompleted}
-                      onPress={() => handleToggleConcluida(item.id)}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: true }}
-                      accessibilityLabel={`Demanda concluída: ${item.titulo}`}
-                    >
-                      {/* Linha superior ocupando todo o bloco: Status Concluída na esquerda e Data na direita */}
+                    <View key={item.id} style={styles.taskCardCompleted}>
                       <View style={styles.taskCardTopMeta}>
                         <View style={styles.completedBadge}>
                           <Ionicons name="checkmark-circle" size={12} color="#10B981" />
@@ -523,25 +936,35 @@ export default function EmpresaDemandasScreen({
                         </View>
                       </View>
 
-                      {/* Linha de conteúdo: Título e Responsável à esquerda, Checkbox com checkmark verde à direita */}
                       <View style={styles.taskCardBody}>
-                        <View style={styles.taskCardTextContent}>
+                        <Pressable
+                          style={styles.taskCardTextContent}
+                          onPress={() =>
+                            onSelectDemanda
+                              ? onSelectDemanda(item)
+                              : handleToggleConcluida(item.id)
+                          }
+                        >
                           <Text style={styles.taskTitleCompleted}>{item.titulo}</Text>
                           <Text style={styles.taskResponsibleCompleted}>
                             Responsável: {item.responsavel}
                           </Text>
-                        </View>
+                        </Pressable>
 
-                        {/* Círculo com Checkmark Verde de Sucesso */}
                         <Pressable
                           style={styles.checkboxCircleCompleted}
                           onPress={() => handleToggleConcluida(item.id)}
                           hitSlop={8}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: true }}
                         >
                           <Ionicons name="checkmark" size={17} color="#FFFFFF" />
                         </Pressable>
                       </View>
-                    </Pressable>
+
+                      {/* Inserção de Documentos e Planilhas na Demanda Concluída */}
+                      {renderArquivosDaDemanda(item)}
+                    </View>
                   ))}
                 </View>
               )}
@@ -549,14 +972,510 @@ export default function EmpresaDemandasScreen({
           )}
         </View>
 
-        {/* Espaçamento inferior */}
+        {/* 8. Central de Arquivos da Empresa (Relatórios, Documentos de Vistorias, Planilhas e Documentos) */}
+        <View style={styles.companyRepositorySection}>
+          <View style={styles.companyRepositoryHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.companyRepositoryTitle}>
+                Arquivos e Relatórios de {empresa.nome}
+              </Text>
+              <Text style={styles.companyRepositorySub}>
+                Relatórios técnicos, documentos de vistorias, laudos e planilhas da empresa
+              </Text>
+            </View>
+
+            <Pressable
+              style={styles.addRepoFileBtn}
+              onPress={() => {
+                setTarefaAlvoArquivo(null);
+                setDropdownTarefaDestinoAberto(false);
+                setCategoriaNovoArquivo('RELATORIO');
+                setNomeNovoArquivo('');
+                setWebFileSelecionado(null);
+                setTamanhoWebFile('');
+                setArquivoDispositivoSelecionado(null);
+                setModalArquivoEmpresaAberto(true);
+              }}
+            >
+              <Ionicons name="add" size={17} color="#FFFFFF" />
+              <Text style={styles.addRepoFileBtnText}>Adicionar</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.repoFilterRow}
+          >
+            {(
+              [
+                { id: 'TODOS', label: `Todos (${arquivosDaEmpresa.length})` },
+                { id: 'RELATORIO', label: 'Relatórios' },
+                { id: 'VISTORIA', label: 'Docs de Vistoria' },
+                { id: 'PLANILHA', label: 'Planilhas ML' },
+                { id: 'DOCUMENTO', label: 'Documentos' },
+              ] as const
+            ).map((cat) => {
+              const active = filtroCatArquivo === cat.id;
+              return (
+                <Pressable
+                  key={cat.id}
+                  style={[styles.repoFilterChip, active && styles.repoFilterChipActive]}
+                  onPress={() => setFiltroCatArquivo(cat.id)}
+                >
+                  <Text
+                    style={[
+                      styles.repoFilterChipText,
+                      active && styles.repoFilterChipTextActive,
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.repoFilesList}>
+            {arquivosEmpresaFiltrados.map((arq) => {
+              const badge = getCategoriaBadgeStyle(arq.categoria);
+              const isPlanilha =
+                arq.categoria === 'PLANILHA' ||
+                ['xlsx', 'xlsm', 'xls', 'csv'].includes(arq.extensao);
+              const isProcessando = processandoMlId === arq.id;
+
+              return (
+                <View key={arq.id} style={styles.repoFileCard}>
+                  <Pressable
+                    style={styles.fileChipMainRow}
+                    onPress={() => handleAbrirVisualizador(arq)}
+                  >
+                    <View style={[styles.repoFileIcon, { backgroundColor: badge.bg }]}>
+                      <MaterialCommunityIcons
+                        name={badge.icon}
+                        size={19}
+                        color={badge.text}
+                      />
+                    </View>
+
+                    <View style={styles.fileInfoCol}>
+                      <Text
+                        style={styles.fileNameText}
+                        numberOfLines={1}
+                        ellipsizeMode="middle"
+                      >
+                        {arq.nome}
+                      </Text>
+                      <View style={styles.fileMetaRow}>
+                        <View
+                          style={[
+                            styles.repoCatPill,
+                            { backgroundColor: badge.bg },
+                          ]}
+                        >
+                          <Text style={[styles.repoCatPillText, { color: badge.text }]}>
+                            {badge.label}
+                          </Text>
+                        </View>
+                        <Text style={styles.fileMetaText} numberOfLines={1}>
+                          {arq.tamanho} • {arq.dataUpload}
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+
+                  <View style={styles.fileChipActionsRow}>
+                    <Pressable
+                      onPress={() => handleAbrirVisualizador(arq)}
+                      hitSlop={4}
+                      style={styles.fileActionIconBtn}
+                      accessibilityLabel="Abrir arquivo no navegador"
+                    >
+                      <Ionicons name="open-outline" size={15} color="#1D4ED8" />
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => handleBaixarArquivoRapido(arq)}
+                      hitSlop={4}
+                      style={[styles.fileActionIconBtn, { backgroundColor: '#DCFCE7' }]}
+                      accessibilityLabel="Baixar arquivo"
+                    >
+                      <Ionicons name="download-outline" size={15} color="#15803D" />
+                    </Pressable>
+
+                    {isPlanilha && (
+                      <Pressable
+                        style={[
+                          styles.mlActionMiniBtn,
+                          arq.statusMl === 'PREENCHIDA_ML' && styles.mlActionMiniBtnDone,
+                        ]}
+                        onPress={() => handleProcessarPlanilhaMl(arq)}
+                        disabled={isProcessando}
+                      >
+                        {isProcessando ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <MaterialCommunityIcons
+                              name="auto-fix"
+                              size={12}
+                              color="#FFFFFF"
+                            />
+                            <Text style={styles.mlActionMiniBtnText}>IA</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    )}
+
+                    <Pressable
+                      onPress={() => handleRemoverArquivoDaEmpresa(arq.id)}
+                      hitSlop={6}
+                      style={styles.removeFileBtn}
+                    >
+                      <Ionicons name="trash-outline" size={15} color="#94A3B8" />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* 8. Barra de Navegação Inferior Vermelha */}
+      {/* Barra de Navegação Inferior Vermelha */}
       <BottomNavigation activeTab={activeTab} onSelectTab={onNavigateTab} />
 
-      {/* Modal para Adicionar Nova Demanda para a Empresa */}
+      {/* Modal para Inserir Arquivo (na Demanda específica ou no Acervo da Empresa) */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalArquivoEmpresaAberto}
+        onRequestClose={() => {
+          setModalArquivoEmpresaAberto(false);
+          setDropdownTarefaDestinoAberto(false);
+          setTarefaAlvoArquivo(null);
+        }}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => {
+            setModalArquivoEmpresaAberto(false);
+            setDropdownTarefaDestinoAberto(false);
+            setTarefaAlvoArquivo(null);
+          }}
+        >
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalHeaderTitle}>
+                {tarefaAlvoArquivo
+                  ? 'Enviar Arquivo na Tarefa'
+                  : `Enviar Arquivo em ${empresa.nome}`}
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setModalArquivoEmpresaAberto(false);
+                  setDropdownTarefaDestinoAberto(false);
+                  setTarefaAlvoArquivo(null);
+                }}
+                hitSlop={6}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </Pressable>
+            </View>
+
+            {/* Destino do arquivo: Acervo Geral da Empresa OU uma Tarefa/Demanda específica */}
+            <Text style={styles.inputLabel}>Destino do Documento / Arquivo</Text>
+            <Pressable
+              style={styles.dropdownSelector}
+              onPress={() => setDropdownTarefaDestinoAberto(!dropdownTarefaDestinoAberto)}
+            >
+              <View style={styles.dropdownSelectorLeft}>
+                <Ionicons
+                  name={tarefaAlvoArquivo ? 'clipboard-outline' : 'business-outline'}
+                  size={18}
+                  color="#C61010"
+                />
+                <Text style={styles.dropdownSelectorText} numberOfLines={1}>
+                  {tarefaAlvoArquivo
+                    ? `Tarefa: ${tarefaAlvoArquivo.titulo}`
+                    : `Acervo Geral da Empresa (${empresa.nome})`}
+                </Text>
+              </View>
+              <Ionicons
+                name={dropdownTarefaDestinoAberto ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color="#64748B"
+              />
+            </Pressable>
+
+            {dropdownTarefaDestinoAberto && (
+              <View style={styles.dropdownListContainer}>
+                <ScrollView
+                  style={styles.dropdownScroll}
+                  nestedScrollEnabled={true}
+                  showsVerticalScrollIndicator={true}
+                >
+                  <Pressable
+                    style={[
+                      styles.dropdownItem,
+                      !tarefaAlvoArquivo && styles.dropdownItemActive,
+                    ]}
+                    onPress={() => {
+                      setTarefaAlvoArquivo(null);
+                      setDropdownTarefaDestinoAberto(false);
+                    }}
+                  >
+                    <View style={styles.dropdownItemLeft}>
+                      <View
+                        style={[
+                          styles.dropdownAvatarBadge,
+                          { backgroundColor: '#FEE2E2' },
+                        ]}
+                      >
+                        <Ionicons name="business" size={14} color="#C61010" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            !tarefaAlvoArquivo && styles.dropdownItemTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          Acervo Geral de {empresa.nome}
+                        </Text>
+                        <Text style={styles.dropdownItemSubtext} numberOfLines={1}>
+                          Relatórios, planilhas e documentos gerais da empresa
+                        </Text>
+                      </View>
+                    </View>
+                    {!tarefaAlvoArquivo && (
+                      <Ionicons name="checkmark-circle" size={18} color="#C61010" />
+                    )}
+                  </Pressable>
+
+                  {tarefas.map((t) => {
+                    const isSelected = tarefaAlvoArquivo?.id === t.id;
+                    return (
+                      <Pressable
+                        key={t.id}
+                        style={[
+                          styles.dropdownItem,
+                          isSelected && styles.dropdownItemActive,
+                        ]}
+                        onPress={() => {
+                          setTarefaAlvoArquivo(t);
+                          setDropdownTarefaDestinoAberto(false);
+                        }}
+                      >
+                        <View style={styles.dropdownItemLeft}>
+                          <View
+                            style={[
+                              styles.dropdownAvatarBadge,
+                              { backgroundColor: '#DBEAFE' },
+                            ]}
+                          >
+                            <Ionicons name="document-text" size={14} color="#1D4ED8" />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.dropdownItemText,
+                                isSelected && styles.dropdownItemTextActive,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {t.titulo}
+                            </Text>
+                            <Text style={styles.dropdownItemSubtext} numberOfLines={1}>
+                              Resp: {t.responsavel} • {(t.arquivos || []).length} arq(s)
+                            </Text>
+                          </View>
+                        </View>
+                        {isSelected && (
+                          <Ionicons name="checkmark-circle" size={18} color="#C61010" />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Botão para escolher arquivo real do computador/celular */}
+            <Pressable
+              style={styles.deviceUploadBox}
+              onPress={() => handleEscolherArquivoDispositivo(false)}
+            >
+              <Ionicons name="folder-open-outline" size={24} color="#C61010" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.deviceUploadTitle}>
+                  {arquivoDispositivoSelecionado
+                    ? 'Trocar arquivo selecionado do dispositivo'
+                    : 'Selecionar arquivo do seu dispositivo'}
+                </Text>
+                <Text style={styles.deviceUploadSub}>
+                  Toque para escolher PDF, Planilha (.xlsx/.xlsm), Word (.docx) ou Imagem do seu celular/computador
+                </Text>
+              </View>
+            </Pressable>
+
+            {arquivoDispositivoSelecionado && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  backgroundColor: '#ECFDF5',
+                  borderWidth: 1,
+                  borderColor: '#A7F3D0',
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 9,
+                  marginBottom: 8,
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={18} color="#059669" />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: fonts.bold,
+                      fontSize: 12,
+                      color: '#065F46',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {arquivoDispositivoSelecionado.nome}
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: fonts.regular,
+                      fontSize: 11,
+                      color: '#047857',
+                    }}
+                  >
+                    Tamanho real: {arquivoDispositivoSelecionado.tamanho} • Pronto para envio
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <Text style={styles.inputLabel}>Categoria do Arquivo</Text>
+            <View style={styles.typeSelectGrid}>
+              {(
+                [
+                  { id: 'PLANILHA', label: '📗 Planilha (.xlsx)' },
+                  { id: 'DOCUMENTO', label: '📄 Documento' },
+                  { id: 'RELATORIO', label: '📊 Relatório' },
+                  { id: 'VISTORIA', label: '📋 Doc. Vistoria' },
+                ] as const
+              ).map((t) => {
+                const active = categoriaNovoArquivo === t.id;
+                return (
+                  <Pressable
+                    key={t.id}
+                    style={[
+                      styles.typeOptionBtn,
+                      active && styles.typeOptionBtnActive,
+                    ]}
+                    onPress={() => setCategoriaNovoArquivo(t.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.typeOptionText,
+                        active && styles.typeOptionTextActive,
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.inputLabel}>Nome de Exibição do Arquivo</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Selecione um arquivo acima ou digite o nome..."
+              placeholderTextColor="#9CA3AF"
+              value={nomeNovoArquivo}
+              onChangeText={setNomeNovoArquivo}
+            />
+
+            <Pressable
+              style={[
+                styles.submitButton,
+                (!nomeNovoArquivo.trim() || enviandoArquivo) && { opacity: 0.6 },
+              ]}
+              onPress={handleSalvarArquivo}
+              disabled={!nomeNovoArquivo.trim() || enviandoArquivo}
+            >
+              {enviandoArquivo ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>
+                  {tarefaAlvoArquivo
+                    ? 'Enviar Arquivo para esta Tarefa'
+                    : 'Enviar Arquivo para a Empresa'}
+                </Text>
+              )}
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal de Resultado do Processamento Machine Learning na Planilha */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={!!feedbackMl?.visivel}
+        onRequestClose={() => setFeedbackMl(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setFeedbackMl(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            {feedbackMl && (
+              <>
+                <View style={styles.mlFeedbackHeader}>
+                  <View style={styles.mlFeedbackIconCircle}>
+                    <MaterialCommunityIcons name="robot-happy" size={28} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.mlFeedbackTitle}>{feedbackMl.titulo}</Text>
+                  <Text style={styles.mlFeedbackDesc}>{feedbackMl.detalhe}</Text>
+                </View>
+
+                {feedbackMl.campos && (
+                  <View style={styles.mlFieldsBox}>
+                    <Text style={styles.mlFieldsBoxTitle}>
+                      Campos Canônicos Extraídos / Preenchidos:
+                    </Text>
+                    {Object.entries(feedbackMl.campos)
+                      .slice(0, 6)
+                      .map(([k, v]) => (
+                        <View key={k} style={styles.mlFieldRow}>
+                          <Text style={styles.mlFieldKey}>{k}:</Text>
+                          <Text style={styles.mlFieldVal} numberOfLines={1}>
+                            {String(v)}
+                          </Text>
+                        </View>
+                      ))}
+                  </View>
+                )}
+
+                <Pressable
+                  style={styles.submitButton}
+                  onPress={() => setFeedbackMl(null)}
+                >
+                  <Text style={styles.submitButtonText}>Concluído</Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Modal para Adicionar Nova Demanda para a Empresa (com anexos de documentos/planilhas) */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -579,7 +1498,7 @@ export default function EmpresaDemandasScreen({
             <Text style={styles.inputLabel}>Descrição da Demanda / Vistoria</Text>
             <TextInput
               style={styles.modalTextArea}
-              placeholder="Ex: Fazer a vistoria de saída do Apto 302..."
+              placeholder="Ex: Fazer a vistoria de saída do Apto 302 e preencher planilha V22..."
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={3}
@@ -588,7 +1507,6 @@ export default function EmpresaDemandasScreen({
             />
 
             <Text style={styles.inputLabel}>Responsável Atribuído (Vistoriador / Equipe)</Text>
-            {/* Caixa de Seleção Dinâmica para Responsável */}
             <Pressable
               style={styles.dropdownSelector}
               onPress={() => setDropdownResponsavelAberto(!dropdownResponsavelAberto)}
@@ -687,12 +1605,101 @@ export default function EmpresaDemandasScreen({
               ))}
             </View>
 
+            <View style={styles.newDemandAttachRow}>
+              <Text style={styles.inputLabel}>
+                Documentos e Planilhas ({arquivosNovaDemanda.length})
+              </Text>
+              <Pressable
+                style={styles.attachFileMiniBtn}
+                onPress={() => handleEscolherArquivoDispositivo(true)}
+              >
+                <Ionicons name="add-circle-outline" size={14} color="#C61010" />
+                <Text style={styles.attachFileMiniBtnText}>Anexar</Text>
+              </Pressable>
+            </View>
+
+            {arquivosNovaDemanda.length > 0 && (
+              <View style={{ gap: 4, marginTop: 4 }}>
+                {arquivosNovaDemanda.map((arq, idx) => (
+                  <View key={idx} style={styles.fileChipCard}>
+                    <MaterialCommunityIcons
+                      name={
+                        arq.categoria === 'PLANILHA'
+                          ? 'microsoft-excel'
+                          : 'file-document-outline'
+                      }
+                      size={16}
+                      color={arq.categoria === 'PLANILHA' ? '#15803D' : '#1D4ED8'}
+                    />
+                    <Text style={[styles.fileNameText, { flex: 1 }]} numberOfLines={1}>
+                      {arq.nome}
+                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        setArquivosNovaDemanda((prev) => prev.filter((_, i) => i !== idx))
+                      }
+                    >
+                      <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <Pressable style={styles.submitButton} onPress={handleCriarDemanda}>
               <Text style={styles.submitButtonText}>Cadastrar Demanda</Text>
             </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Modal de Visualização e Download de Arquivos */}
+      <FileViewerModal
+        visible={!!arquivoVisualizando}
+        arquivo={arquivoVisualizando}
+        empresaNome={empresa.nome}
+        demandaTitulo={demandaContextoVisualizacao?.titulo}
+        imovelReferencia={demandaContextoVisualizacao?.imovelReferencia}
+        onClose={() => {
+          setArquivoVisualizando(null);
+          setDemandaContextoVisualizacao(null);
+        }}
+        onProcessarMl={(arq) =>
+          handleProcessarPlanilhaMl(arq, demandaContextoVisualizacao?.imovelReferencia)
+        }
+      />
+
+      {toastDownload && (
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 86,
+            left: 16,
+            right: 16,
+            backgroundColor: '#064E3B',
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 11,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            elevation: 6,
+          }}
+        >
+          <Ionicons name="checkmark-circle" size={18} color="#34D399" />
+          <Text
+            style={{
+              fontFamily: fonts.semibold,
+              fontSize: 12,
+              color: '#ECFDF5',
+              flex: 1,
+            }}
+            numberOfLines={2}
+          >
+            {toastDownload}
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -712,7 +1719,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
 
-  /* 1. Header */
   header: {
     backgroundColor: '#C61010',
     paddingHorizontal: spacing.lg,
@@ -735,7 +1741,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* 2. Breadcrumb */
   breadcrumbRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -751,21 +1756,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#FEE2E2',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-        cursor: 'pointer',
-      },
-    }),
   },
   breadcrumbText: {
     fontFamily: fonts.semibold,
@@ -778,7 +1768,6 @@ const styles = StyleSheet.create({
     color: '#991B1B',
   },
 
-  /* 3. Título e Botão Adicionar */
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -790,11 +1779,31 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: '#1E1E1E',
   },
+  titleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  insertCompanyFileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  insertCompanyFileBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
+    color: '#C61010',
+  },
   addDemandButton: {
     padding: 2,
   },
 
-  /* 4. Banner Card da Empresa (Fiel ao Figma) */
   companyBannerCard: {
     borderRadius: 20,
     paddingHorizontal: spacing.xl,
@@ -804,20 +1813,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     marginBottom: spacing.lg,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.14,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-      web: {
-        boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
-      },
-    }),
   },
   decorBubbleOne: {
     position: 'absolute',
@@ -845,14 +1840,19 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   bannerInfoRow: {
-    marginTop: 6,
+    marginTop: 8,
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     zIndex: 2,
   },
   bannerCountPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.22)',
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   bannerCountText: {
@@ -861,7 +1861,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* 5. Barra de Pesquisa */
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -883,7 +1882,6 @@ const styles = StyleSheet.create({
     color: '#1E1E1E',
   },
 
-  /* 6. Filtros por Urgência */
   filterPillsRow: {
     flexDirection: 'row',
     gap: 6,
@@ -910,7 +1908,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* 7. Tarefas / Demandas */
   tasksSection: {
     gap: 16,
   },
@@ -939,7 +1936,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 
-  /* Card Pendente (Conforme o protótipo do Figma: Borda cinza, sem risco) */
   taskCardPending: {
     backgroundColor: '#F3F4F6',
     borderRadius: 18,
@@ -947,21 +1943,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#9CA3AF',
     gap: 6,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 1,
-      },
-      web: {
-        boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-        cursor: 'pointer',
-      },
-    }),
+    width: '100%',
+    overflow: 'hidden',
   },
   taskCardBody: {
     flexDirection: 'row',
@@ -972,11 +1955,13 @@ const styles = StyleSheet.create({
   },
   taskCardTextContent: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
   },
   taskCardTopMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // Status na esquerda extrema e Data na direita extrema do bloco
+    justifyContent: 'space-between',
     width: '100%',
     marginBottom: 4,
   },
@@ -1018,7 +2003,13 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 19,
     color: '#1E1E1E',
-    marginBottom: 6,
+    marginBottom: 4,
+  },
+  imovelRefText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    color: '#475569',
+    marginBottom: 4,
   },
   taskResponsiblePending: {
     fontFamily: fonts.regular,
@@ -1038,7 +2029,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  /* Card Concluído: Estilo neutro, sofisticado e sem vermelho agressivo */
   taskCardCompleted: {
     backgroundColor: '#F8FAFC',
     borderRadius: 18,
@@ -1046,30 +2036,17 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
     gap: 6,
-    opacity: 0.88,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.03,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 1,
-      },
-      web: {
-        boxShadow: '0 1px 4px rgba(0,0,0,0.02)',
-        cursor: 'pointer',
-      },
-    }),
+    opacity: 0.92,
+    width: '100%',
+    overflow: 'hidden',
   },
   taskTitleCompleted: {
     fontFamily: fonts.semibold,
     fontSize: 13.5,
     lineHeight: 19,
-    color: '#64748B', // Cinza neutro elegante
+    color: '#64748B',
     textDecorationLine: 'line-through',
-    textDecorationColor: '#94A3B8', // Linha tachada em cinza suave
+    textDecorationColor: '#94A3B8',
     marginBottom: 6,
   },
   taskResponsibleCompleted: {
@@ -1083,12 +2060,278 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 1.5,
     borderColor: '#10B981',
-    backgroundColor: '#10B981', // Verde de sucesso no checkbox preenchido
+    backgroundColor: '#10B981',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  /* Empty state */
+  /* Seção de Arquivos dentro das Demandas da Empresa */
+  demandFilesContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    gap: 8,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  demandFilesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    width: '100%',
+  },
+  demandFilesHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  demandFilesHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+  demandFilesTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    color: '#475569',
+    flexShrink: 1,
+  },
+  attachFileMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  attachFileMiniBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: '#C61010',
+  },
+  filesList: {
+    gap: 6,
+    width: '100%',
+  },
+  fileChipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  fileChipMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  fileChipActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
+  },
+  fileActionIconBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fileIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  fileInfoCol: {
+    flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  fileNameText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    color: '#1E293B',
+  },
+  fileMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 2,
+  },
+  fileMetaText: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: '#64748B',
+  },
+  mlTagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#EDE9FE',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
+  },
+  mlTagBadgeFilled: {
+    backgroundColor: '#D1FAE5',
+  },
+  mlTagText: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    color: '#6D28D9',
+  },
+  mlTagTextFilled: {
+    color: '#047857',
+  },
+  mlActionMiniBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  mlActionMiniBtnDone: {
+    backgroundColor: '#059669',
+  },
+  mlActionMiniBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+    color: '#FFFFFF',
+  },
+  removeFileBtn: {
+    padding: 3,
+  },
+
+  /* 8. Acervo de Arquivos da Empresa (Relatórios, Vistorias, Documentos, Planilhas) */
+  companyRepositorySection: {
+    marginTop: spacing.xl,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: spacing.md + 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  companyRepositoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    width: '100%',
+  },
+  companyRepositoryTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: '#0F172A',
+  },
+  companyRepositorySub: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  addRepoFileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#C61010',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    flexShrink: 0,
+  },
+  addRepoFileBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
+    color: '#FFFFFF',
+  },
+  repoFilterRow: {
+    gap: 6,
+    paddingVertical: 2,
+  },
+  repoFilterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  repoFilterChipActive: {
+    backgroundColor: '#1E1E1E',
+    borderColor: '#1E1E1E',
+  },
+  repoFilterChipText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    color: '#475569',
+  },
+  repoFilterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  repoFilesList: {
+    gap: 8,
+    width: '100%',
+  },
+  repoFileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  repoFileIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  repoCatPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+  },
+  repoCatPillText: {
+    fontFamily: fonts.bold,
+    fontSize: 9.5,
+  },
+
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl,
@@ -1101,7 +2344,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* Modal de Nova Demanda */
+  /* Modais */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1111,7 +2354,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 380,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: spacing.xl,
@@ -1124,14 +2367,15 @@ const styles = StyleSheet.create({
   },
   modalHeaderTitle: {
     fontFamily: fonts.bold,
-    fontSize: 18,
+    fontSize: 17,
     color: '#1E1E1E',
+    flex: 1,
   },
   modalCompanySubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
     color: '#6B7280',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   inputLabel: {
     fontFamily: fonts.semibold,
@@ -1159,7 +2403,150 @@ const styles = StyleSheet.create({
     padding: 10,
     fontFamily: fonts.regular,
     fontSize: 13,
+    color: '#1E1E1E',
   },
+  typeSelectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  typeOptionBtn: {
+    width: '48%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 9,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  typeOptionBtnActive: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#F87171',
+  },
+  typeOptionText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    color: '#64748B',
+  },
+  typeOptionTextActive: {
+    color: '#C61010',
+    fontFamily: fonts.bold,
+  },
+  deviceUploadBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#F87171',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+  },
+  deviceUploadTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 12.5,
+    color: '#991B1B',
+  },
+  deviceUploadSub: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: '#B91C1C',
+  },
+  quickTemplatesList: {
+    gap: 6,
+    marginTop: 4,
+  },
+  quickTemplateItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickTemplateName: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    color: '#1E293B',
+  },
+  quickTemplateDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: '#64748B',
+  },
+  newDemandAttachRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+
+  mlFeedbackHeader: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  mlFeedbackIconCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#7C3AED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  mlFeedbackTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: '#1E1E1E',
+    textAlign: 'center',
+  },
+  mlFeedbackDesc: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: '#475569',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  mlFieldsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  mlFieldsBoxTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
+    color: '#334155',
+    marginBottom: 4,
+  },
+  mlFieldRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  mlFieldKey: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  mlFieldVal: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: '#0F172A',
+    flex: 1,
+    textAlign: 'right',
+  },
+
   urgencySelectRow: {
     flexDirection: 'row',
     gap: 8,
@@ -1191,7 +2578,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
   },
   submitButtonText: {
     fontFamily: fonts.bold,
@@ -1199,7 +2586,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* Dropdown de Responsável Atribuído */
   dropdownSelector: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
@@ -1228,25 +2614,11 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 12,
     marginTop: 6,
-    maxHeight: 180,
+    maxHeight: 160,
     overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 4,
-      },
-      web: {
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-      },
-    }),
   },
   dropdownScroll: {
-    maxHeight: 180,
+    maxHeight: 160,
   },
   dropdownItem: {
     flexDirection: 'row',

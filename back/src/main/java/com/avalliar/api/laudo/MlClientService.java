@@ -36,4 +36,19 @@ public class MlClientService {
 
         return restTemplate.postForObject(mlUrl + "/preencher", request, Map.class);
     }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> health() {
+        return restTemplate.getForObject(mlUrl + "/health", Map.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> metricas(int n) {
+        return restTemplate.getForObject(mlUrl + "/metricas?n=" + n, Map.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> consultar(String q, int k) {
+        return restTemplate.getForObject(mlUrl + "/consultar?q={q}&k={k}", Map.class, q, k);
+    }
 }

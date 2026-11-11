@@ -11,12 +11,14 @@ import {
 
 import HomeScreen, { NavigationTarget } from './src/screens/HomeScreen';
 import DemandasScreen, { EmpresaDemanda } from './src/screens/DemandasScreen';
-import EmpresaDemandasScreen from './src/screens/EmpresaDemandasScreen';
+import EmpresaDemandasScreen, { TarefaDemanda } from './src/screens/EmpresaDemandasScreen';
+import DemandaDetalheScreen from './src/screens/DemandaDetalheScreen';
 import UsuariosScreen from './src/screens/UsuariosScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import NovaDemandaScreen from './src/screens/NovaDemandaScreen';
+import PainelScreen from './src/screens/PainelScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import { TabType } from './src/components/BottomNavigation';
 import { AuthResponse } from './src/services/authService';
@@ -29,6 +31,7 @@ type CurrentScreen =
   | 'dashboard'
   | 'demandas'
   | 'empresa-demandas'
+  | 'demanda-detalhe'
   | 'tarefas'
   | 'painel'
   | 'configuracoes'
@@ -55,6 +58,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<CurrentScreen>('home');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [empresaAtiva, setEmpresaAtiva] = useState<EmpresaDemanda | null>(null);
+  const [demandaAtiva, setDemandaAtiva] = useState<TarefaDemanda | null>(null);
 
   if (!fontsLoaded) return null;
 
@@ -162,8 +166,23 @@ export default function App() {
           currentUser={currentUser}
           onBack={() => setCurrentScreen('demandas')}
           onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
+          onSelectDemanda={(demanda) => {
+            setDemandaAtiva(demanda);
+            setCurrentScreen('demanda-detalhe');
+          }}
           onNavigateTab={handleTabSelect}
           onLogout={handleLogout}
+          activeTab="demandas"
+        />
+      )}
+
+      {currentScreen === 'demanda-detalhe' && empresaAtiva && demandaAtiva && (
+        <DemandaDetalheScreen
+          empresa={empresaAtiva}
+          demandaInicial={demandaAtiva}
+          currentUser={currentUser}
+          onBack={() => setCurrentScreen('empresa-demandas')}
+          onNavigateTab={handleTabSelect}
           activeTab="demandas"
         />
       )}
@@ -180,12 +199,15 @@ export default function App() {
       )}
 
       {currentScreen === 'painel' && (
-        <PlaceholderScreen
-          title="Painel de Métricas"
-          description="Acompanhe estatísticas reais de produtividade, tempo médio de laudo e cumprimento de metas da equipe."
-          iconName="assessment"
+        <PainelScreen
+          currentUser={currentUser}
           onBack={() => handleNavigate('home')}
           onNavigateTab={handleTabSelect}
+          onSelectEmpresa={(empresa) => {
+            setEmpresaAtiva(empresa);
+            setCurrentScreen('empresa-demandas');
+          }}
+          onLogout={handleLogout}
           activeTab="painel"
         />
       )}
@@ -218,6 +240,8 @@ export default function App() {
           currentScreen === 'demandas' ||
           currentScreen === 'listar-demandas' ||
           currentScreen === 'empresa-demandas' ||
+          currentScreen === 'demanda-detalhe' ||
+          currentScreen === 'painel' ||
           currentScreen === 'usuarios'
             ? 'light'
             : 'dark'

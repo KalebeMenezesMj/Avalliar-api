@@ -123,27 +123,25 @@ export default function DemandasScreen({
     });
   }, [empresas, busca, filtroStatus]);
 
-  // Retorna os estilos visuais de cada card baseado no status solicitado:
-  // Verde: sem pendências | Azul: tarefas pendentes | Cinza: demandas em aberto
   const getCardTheme = (status: StatusEmpresa) => {
     switch (status) {
       case 'SEM_PENDENCIAS':
         return {
-          backgroundColor: '#388E3C', // Verde institucional do protótipo
+          backgroundColor: '#388E3C',
           accentPill: '#2E7D32',
           iconName: 'checkmark-circle' as const,
           tagText: 'Sem pendências',
         };
       case 'COM_PENDENCIAS':
         return {
-          backgroundColor: '#3B68C4', // Azul do protótipo
+          backgroundColor: '#3B68C4',
           accentPill: '#2D55A6',
           iconName: 'time' as const,
           tagText: 'Com pendências',
         };
       case 'EM_ABERTO':
         return {
-          backgroundColor: '#3F3F46', // Cinza / Grafite do protótipo
+          backgroundColor: '#3F3F46',
           accentPill: '#27272A',
           iconName: 'alert-circle' as const,
           tagText: 'Em aberto',
@@ -244,7 +242,7 @@ export default function DemandasScreen({
           )}
         </View>
 
-        {/* 5. Linha de Filtragem e Filtros Rápidos (Melhoria UI/UX) */}
+        {/* 5. Linha de Filtragem e Filtros Rápidos */}
         <View style={styles.filterSection}>
           <Pressable
             style={styles.filterButton}
@@ -256,7 +254,6 @@ export default function DemandasScreen({
             <Text style={styles.filterButtonText}>Filtrar</Text>
           </Pressable>
 
-          {/* Chips de filtro rápido por status */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -275,7 +272,7 @@ export default function DemandasScreen({
                   filtroStatus === 'TODOS' && styles.chipTextActive,
                 ]}
               >
-                Todas ({EMPRESAS_DEMANDAS.length})
+                Todas ({empresas.length})
               </Text>
             </Pressable>
 
@@ -347,7 +344,7 @@ export default function DemandasScreen({
           </ScrollView>
         </View>
 
-        {/* 6. Lista de Cards das Empresas (Fiel ao Figma) */}
+        {/* 6. Lista de Cards das Empresas */}
         <View style={styles.cardsList}>
           {empresasFiltradas.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -388,11 +385,9 @@ export default function DemandasScreen({
                   accessibilityRole="button"
                   accessibilityLabel={`Empresa ${empresa.nome}, ${empresa.descricao}`}
                 >
-                  {/* Elementos decorativos (círculos translúcidos no canto superior esquerdo do Figma) */}
                   <View style={styles.decorBubbleOne} />
                   <View style={styles.decorBubbleTwo} />
 
-                  {/* Conteúdo do Card */}
                   <View style={styles.cardHeader}>
                     <Text style={styles.companyName}>{empresa.nome}</Text>
                   </View>
@@ -403,7 +398,6 @@ export default function DemandasScreen({
                     </Text>
                   </View>
 
-                  {/* Botão de Seta Circular no Canto Inferior Direito */}
                   <View style={styles.cardFooter}>
                     <View style={styles.cardArrowCircle}>
                       <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
@@ -415,11 +409,10 @@ export default function DemandasScreen({
           )}
         </View>
 
-        {/* Espaçamento inferior para a nav bar */}
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Botão Flutuante do Chatbot (Robô) no canto inferior direito */}
+      {/* Botão Flutuante do Chatbot */}
       <View style={styles.floatingBotContainer}>
         <Pressable
           style={styles.floatingBotButton}
@@ -435,7 +428,7 @@ export default function DemandasScreen({
         </Pressable>
       </View>
 
-      {/* 7. Barra de Navegação Inferior Vermelha (Aba "Demandas" Ativa com Círculo Elevado) */}
+      {/* 7. Barra de Navegação Inferior Vermelha */}
       <BottomNavigation activeTab={activeTab} onSelectTab={onNavigateTab} />
 
       {/* Modal de Detalhes da Empresa e Vistorias */}
@@ -700,7 +693,7 @@ export default function DemandasScreen({
               <MaterialCommunityIcons name="robot" size={32} color="#C61010" />
               <Text style={styles.botTitle}>Assistente Avalliar</Text>
               <Text style={styles.botSub}>
-                Deseja ajuda para filtrar demandas ou abrir uma nova vistoria de imóvel?
+                Toque em qualquer empresa para gerenciar suas demandas e anexar planilhas, relatórios e documentos de vistoria!
               </Text>
             </View>
 
@@ -805,21 +798,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#FEE2E2',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-        cursor: 'pointer',
-      },
-    }),
   },
 
   /* 3. Título e Botão Adicionar Demanda */
@@ -849,20 +827,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: '#E5E7EB',
     marginBottom: spacing.md + 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 1,
-      },
-      web: {
-        boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-      },
-    }),
   },
   searchIcon: {
     marginRight: 8,
@@ -970,7 +934,6 @@ const styles = StyleSheet.create({
     opacity: 0.94,
     transform: [{ scale: 0.99 }],
   },
-  /* Bolhas decorativas no topo esquerdo do card (conforme Figma) */
   decorBubbleOne: {
     position: 'absolute',
     top: -12,
@@ -1073,21 +1036,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
     borderColor: '#E84141',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 6,
-      },
-      web: {
-        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-        cursor: 'pointer',
-      },
-    }),
   },
 
   /* Modais */
@@ -1106,7 +1054,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
 
-  /* Modal de Empresa */
   empresaModalHeader: {
     alignItems: 'center',
     marginBottom: spacing.md,
@@ -1190,7 +1137,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* Modal de Filtro */
   filterModalTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
@@ -1221,7 +1167,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  /* Perfil */
   profileHeader: {
     alignItems: 'center',
     marginBottom: spacing.md,
@@ -1264,7 +1209,6 @@ const styles = StyleSheet.create({
     color: '#DC2626',
   },
 
-  /* Notificações */
   notifHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1302,7 +1246,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* Botão Fechar Padrão */
   modalCloseButton: {
     marginTop: spacing.md,
     paddingVertical: 11,
@@ -1316,7 +1259,6 @@ const styles = StyleSheet.create({
     color: '#4B5563',
   },
 
-  /* Botão Bot */
   botHeader: {
     alignItems: 'center',
     marginBottom: spacing.md,
