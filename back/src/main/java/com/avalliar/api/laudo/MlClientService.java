@@ -4,9 +4,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -50,5 +55,47 @@ public class MlClientService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> consultar(String q, int k) {
         return restTemplate.getForObject(mlUrl + "/consultar?q={q}&k={k}", Map.class, q, k);
+    }
+
+    /** Preenche a própria planilha enviada pelo usuário (modelo reconhecido automaticamente). */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> preencherArquivo(MultipartFile file, String dadosJson) throws IOException {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", arquivo(file));
+        body.add("dados", dadosJson == null || dadosJson.isBlank() ? "{}" : dadosJson);
+        return restTemplate.postForObject(mlUrl + "/preencher-arquivo", multipart(body), Map.class);
+    }
+
+    /** Descobre se a planilha enviada é V22, V25 ou desconhecida. */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> reconhecer(MultipartFile file) throws IOException {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", arquivo(file));
+        return restTemplate.postForObject(mlUrl + "/reconhecer", multipart(body), Map.class);
+    }
+
+    /** Lê os campos já preenchidos de uma planilha (para pré-preencher o formulário). */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> extrair(String templateId, MultipartFile file) throws IOException {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", arquivo(file));
+        return restTemplate.postForObject(
+                mlUrl + "/extrair?template_id={t}", multipart(body), Map.class, templateId);
+    }
+
+    private static ByteArrayResource arquivo(MultipartFile file) throws IOException {
+        String nome = file.getOriginalFilename() == null ? "planilha.xlsx" : file.getOriginalFilename();
+        return new ByteArrayResource(file.getBytes()) {
+            @Override
+            public String getFilename() {
+                return nome;
+            }
+        };
+    }
+
+    private static HttpEntity<MultiValueMap<String, Object>> multipart(MultiValueMap<String, Object> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        return new HttpEntity<>(body, headers);
     }
 }

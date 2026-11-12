@@ -13,13 +13,14 @@ Endpoints:
 """
 import base64
 import hmac
+import json
 import os
 import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from fastapi import FastAPI, File, Header, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
@@ -165,6 +166,48 @@ def preencher(req: PreencherRequest):
             "conteudo_base64": b64,
         }
     finally:
+        os.unlink(out)
+
+
+@app.post("/preencher-arquivo")
+def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
+    """Preenche a PRÓPRIA planilha enviada (em vez do template em branco do servidor).
+
+    `dados` é um JSON ({campo: valor}). O modelo da planilha (V22/V25) é reconhecido
+    automaticamente. Devolve o mesmo formato de /preencher.
+    """
+    try:
+        valores = json.loads(dados)
+        if not isinstance(valores, dict):
+            raise ValueError
+    except ValueError:
+        raise HTTPException(400, "'dados' deve ser um JSON objeto {campo: valor}")
+
+    nome = file.filename or "planilha.xlsx"
+    ext = os.path.splitext(nome)[1].lower()
+    if ext not in (".xlsx", ".xlsm"):
+        raise HTTPException(400, "Envie um arquivo .xlsx ou .xlsm")
+
+    entrada = _salvar_upload(file)
+    fd, out = tempfile.mkstemp(suffix=ext)
+    os.close(fd)
+    try:
+        try:
+            tid, escritos = filler.fill(entrada, valores, out)
+        except Exception as e:
+            raise HTTPException(400, f"Não foi possível ler a planilha: {e}")
+        if tid not in templates.CELL_MAP:
+            raise HTTPException(422, "Modelo de planilha não reconhecido (esperado V22 ou V25)")
+        with open(out, "rb") as fh:
+            b64 = base64.b64encode(fh.read()).decode("ascii")
+        return {
+            "template_id": tid,
+            "nome_arquivo": nome,
+            "campos_preenchidos": len(escritos),
+            "conteudo_base64": b64,
+        }
+    finally:
+        os.unlink(entrada)
         os.unlink(out)
 
 

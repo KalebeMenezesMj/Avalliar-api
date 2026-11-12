@@ -6,6 +6,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -57,6 +61,27 @@ public class LaudoController {
             @RequestParam String q,
             @RequestParam(defaultValue = "5") int k) {
         return mlClientService.consultar(q, k);
+    }
+
+    @PostMapping(value = "/preencher-arquivo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Preenche a planilha enviada (.xlsx/.xlsm) com os dados do formulário; o modelo V22/V25 é reconhecido automaticamente")
+    public Map<String, Object> preencherArquivo(@RequestPart("file") MultipartFile file,
+                                                @RequestParam(value = "dados", defaultValue = "{}") String dados)
+            throws IOException {
+        return mlClientService.preencherArquivo(file, dados);
+    }
+
+    @PostMapping(value = "/reconhecer", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Reconhece se a planilha enviada é V22 ou V25")
+    public Map<String, Object> reconhecer(@RequestPart("file") MultipartFile file) throws IOException {
+        return mlClientService.reconhecer(file);
+    }
+
+    @PostMapping(value = "/extrair", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Extrai os campos já preenchidos da planilha (para pré-preencher o formulário)")
+    public Map<String, Object> extrair(@RequestParam("templateId") String templateId,
+                                       @RequestPart("file") MultipartFile file) throws IOException {
+        return mlClientService.extrair(templateId, file);
     }
 
     @GetMapping
