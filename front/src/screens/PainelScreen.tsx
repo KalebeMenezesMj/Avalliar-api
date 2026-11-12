@@ -21,6 +21,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
 import { AuthResponse } from '../services/authService';
 import {
   demandaService,
@@ -70,6 +71,10 @@ export default function PainelScreen({
   // Planilhas disponíveis nas demandas para processamento ML
   const [planilhasDemandas, setPlanilhasDemandas] = useState<ArquivoAnexo[]>([]);
   const [processandoArqId, setProcessandoArqId] = useState<string | null>(null);
+  const [planilhaModalPreenchimento, setPlanilhaModalPreenchimento] = useState<{
+    visivel: boolean;
+    arquivo: ArquivoAnexo | null;
+  }>({ visivel: false, arquivo: null });
   const [modalResultadoMl, setModalResultadoMl] = useState<{
     titulo: string;
     templateNome: string;
@@ -100,7 +105,9 @@ export default function PainelScreen({
       todosArqs.filter(
         (a) =>
           a.categoria === 'PLANILHA' ||
-          ['xlsx', 'xlsm', 'xls', 'csv'].includes(a.extensao)
+          ['xlsx', 'xlsm', 'xls', 'csv'].includes((a.extensao || '').toLowerCase()) ||
+          a.nome.toLowerCase().endsWith('.xlsx') ||
+          a.nome.toLowerCase().endsWith('.xlsm')
       )
     );
   };
@@ -109,6 +116,10 @@ export default function PainelScreen({
     atualizarDadosPainel();
     carregarDadosMl();
   }, []);
+
+  useEffect(() => {
+    atualizarDadosPainel();
+  }, [secaoAtiva]);
 
   const carregarDadosMl = async () => {
     setCarregandoMl(true);
@@ -133,38 +144,11 @@ export default function PainelScreen({
   };
 
   // Executar pipeline de ML (Reconhecer -> Extrair -> Preencher) em uma planilha das demandas
-  const handleExecutarPipelineMl = async (arq: ArquivoAnexo) => {
-    setProcessandoArqId(arq.id);
-    try {
-      const rec = await mlService.reconhecerPlanilha(arq.nome, arq.webFile);
-      const ext = await mlService.extrairCamposLaudo(
-        rec.template_id,
-        arq.nome,
-        arq.empresaNome,
-        arq.tarefaTitulo,
-        arq.webFile
-      );
-      const fillRes = await mlService.preencherPlanilha(rec.template_id, ext.campos);
-
-      demandaService.atualizarStatusMlArquivo(
-        arq.id,
-        'PREENCHIDA_ML',
-        rec.template_id,
-        ext.campos
-      );
-      atualizarDadosPainel();
-
-      setModalResultadoMl({
-        titulo: arq.nome,
-        templateNome: rec.template_nome,
-        camposPreenchidos: fillRes.campos_preenchidos,
-        campos: ext.campos,
-        base64: fillRes.conteudo_base64,
-        nomeArquivoSaida: fillRes.nome_arquivo,
-      });
-    } finally {
-      setProcessandoArqId(null);
-    }
+  const handleExecutarPipelineMl = (arq: ArquivoAnexo) => {
+    setPlanilhaModalPreenchimento({
+      visivel: true,
+      arquivo: arq,
+    });
   };
 
   // Enviar nova planilha do computador direto para o motor de ML
@@ -970,6 +954,19 @@ export default function PainelScreen({
       </Modal>
 
       <BottomNavigation activeTab={activeTab} onSelectTab={onNavigateTab} />
+      {/* Modal Dinâmico de Reconhecimento e Preenchimento de Planilhas via ML */}
+      <PlanilhaPreenchimentoModal
+        visible={planilhaModalPreenchimento.visivel}
+        arquivo={planilhaModalPreenchimento.arquivo}
+        empresaNome={planilhaModalPreenchimento.arquivo?.empresaNome || 'Avalliar'}
+        demandaTitulo={planilhaModalPreenchimento.arquivo?.tarefaTitulo || 'Vistoria Técnica'}
+        imovelReferencia={planilhaModalPreenchimento.arquivo?.tarefaTitulo || 'Imóvel Avaliado'}
+        responsavel={userName}
+        onClose={() => setPlanilhaModalPreenchimento({ visivel: false, arquivo: null })}
+        onSucessoPreenchimento={() => {
+          atualizarDadosPainel();
+        }}
+      />
     </SafeAreaView>
   );
 }

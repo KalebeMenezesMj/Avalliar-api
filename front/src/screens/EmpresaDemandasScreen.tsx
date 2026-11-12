@@ -37,6 +37,7 @@ import FileViewerModal, {
   enviarArquivoParaServidor,
   ArquivoDispositivoSelecionado,
 } from '../components/FileViewerModal';
+import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
 
 export type { Urgencia, TarefaDemanda };
 
@@ -135,6 +136,12 @@ export default function EmpresaDemandasScreen({
   const [tarefaAlvoArquivo, setTarefaAlvoArquivo] = useState<TarefaDemanda | null>(null);
   const [dropdownTarefaDestinoAberto, setDropdownTarefaDestinoAberto] = useState(false);
   const [modalArquivoEmpresaAberto, setModalArquivoEmpresaAberto] = useState(false);
+  const [planilhaModalPreenchimento, setPlanilhaModalPreenchimento] = useState<{
+    visivel: boolean;
+    arquivo: ArquivoAnexo | null;
+    imovelReferencia?: string;
+    tarefaTitulo?: string;
+  }>({ visivel: false, arquivo: null });
   const [nomeNovoArquivo, setNomeNovoArquivo] = useState('');
   const [categoriaNovoArquivo, setCategoriaNovoArquivo] = useState<CategoriaArquivo>('PLANILHA');
   const [webFileSelecionado, setWebFileSelecionado] = useState<any>(null);
@@ -306,42 +313,17 @@ export default function EmpresaDemandasScreen({
     recarregarTudoDaEmpresa();
   };
 
-  const handleProcessarPlanilhaMl = async (
+  const handleProcessarPlanilhaMl = (
     arq: ArquivoAnexo,
-    imovelReferencia?: string
+    imovelReferencia?: string,
+    tarefaTitulo?: string
   ) => {
-    setProcessandoMlId(arq.id);
-    try {
-      const rec = await mlService.reconhecerPlanilha(arq.nome, arq.webFile);
-      const ext = await mlService.extrairCamposLaudo(
-        rec.template_id,
-        arq.nome,
-        empresa.nome,
-        imovelReferencia,
-        arq.webFile
-      );
-      const preenchido = await mlService.preencherPlanilha(rec.template_id, ext.campos);
-
-      demandaService.atualizarStatusMlArquivo(
-        arq.id,
-        'PREENCHIDA_ML',
-        rec.template_id,
-        ext.campos,
-        preenchido.conteudo_base64
-      );
-      recarregarTudoDaEmpresa();
-
-      setFeedbackMl({
-        visivel: true,
-        titulo: 'Planilha Processada via ML!',
-        detalhe: `Template reconhecido: ${rec.template_nome} (${Math.round(
-          rec.confianca * 100
-        )}% de confiança). ${preenchido.campos_preenchidos} células mapeadas e preenchidas automaticamente.`,
-        campos: ext.campos,
-      });
-    } finally {
-      setProcessandoMlId(null);
-    }
+    setPlanilhaModalPreenchimento({
+      visivel: true,
+      arquivo: arq,
+      imovelReferencia: imovelReferencia || arq.tarefaTitulo,
+      tarefaTitulo: tarefaTitulo || arq.tarefaTitulo,
+    });
   };
 
   const handleAbrirVisualizador = async (
@@ -1667,6 +1649,20 @@ export default function EmpresaDemandasScreen({
         onProcessarMl={(arq) =>
           handleProcessarPlanilhaMl(arq, demandaContextoVisualizacao?.imovelReferencia)
         }
+      />
+
+      {/* Modal Dinâmico de Reconhecimento e Preenchimento de Planilhas via ML */}
+      <PlanilhaPreenchimentoModal
+        visible={planilhaModalPreenchimento.visivel}
+        arquivo={planilhaModalPreenchimento.arquivo}
+        empresaNome={empresa.nome}
+        demandaTitulo={planilhaModalPreenchimento.tarefaTitulo}
+        imovelReferencia={planilhaModalPreenchimento.imovelReferencia}
+        responsavel={userName}
+        onClose={() => setPlanilhaModalPreenchimento({ visivel: false, arquivo: null })}
+        onSucessoPreenchimento={() => {
+          recarregarTudoDaEmpresa();
+        }}
       />
 
       {toastDownload && (

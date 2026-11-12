@@ -394,6 +394,33 @@ export async function visualizarArquivoDemanda(
   imovelRef = 'Imóvel Vistoriado',
   responsavel = 'Eng. Responsável'
 ): Promise<string> {
+  // 1. Se tem conteudoBase64 preenchido por ML, atualiza webFile com os novos bytes preenchidos
+  if (arq.conteudoBase64 && Platform.OS === 'web' && typeof Blob !== 'undefined') {
+    try {
+      const mime =
+        arq.extensao === 'xlsm'
+          ? 'application/vnd.ms-excel.sheet.macroEnabled.12'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const binaryString = atob(arq.conteudoBase64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: mime });
+      if (typeof File !== 'undefined') {
+        arq.webFile = new File([blob], arq.nome, { type: mime });
+      }
+      if (typeof URL !== 'undefined' && URL.createObjectURL) {
+        const fileUrl = URL.createObjectURL(blob);
+        window.open(fileUrl, '_blank', 'noopener,noreferrer');
+        return `Planilha preenchida aberta em nova aba: ${arq.nome}`;
+      }
+    } catch (_e) {
+      // fallback abaixo
+    }
+  }
+
   if (arq.uriLocal || arq.webFile) {
     await enviarArquivoParaServidor(arq);
   }
@@ -463,6 +490,84 @@ export async function baixarArquivoDemanda(
   }
 
   if (typeof document !== 'undefined') {
+    // A. Prioridade máxima: se possui conteudoBase64 preenchido por ML, baixa os dados preenchidos reais
+    if (arq.conteudoBase64) {
+      try {
+        const mime =
+          arq.extensao === 'xlsm'
+            ? 'application/vnd.ms-excel.sheet.macroEnabled.12'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        const binaryString = atob(arq.conteudoBase64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = arq.nome;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+        if (typeof File !== 'undefined') {
+          arq.webFile = new File([blob], arq.nome, { type: mime });
+          enviarArquivoParaServidor(arq);
+        }
+        return `Download da planilha preenchida concluído: ${arq.nome}`;
+      } catch (_e) {
+        // continua para o fallback
+      }
+    }
+
+    // B. Se for planilha ainda não preenchida, tenta preenchimento automático sob demanda
+    if (isPlanilha && !arq.conteudoBase64) {
+      try {
+        const tid = arq.templateMl || 'v22_unidades_isoladas';
+        const dados = arq.camposExtraidosMl || {
+          cliente: empresaNome,
+          empreendimento: demandaTitulo,
+          endereco: imovelRef,
+          engenheiro_responsavel: responsavel,
+        };
+        const res = await mlService.preencherPlanilha(tid, dados, arq.id);
+        if (res.conteudo_base64) {
+          arq.conteudoBase64 = res.conteudo_base64;
+          const mime =
+            arq.extensao === 'xlsm'
+              ? 'application/vnd.ms-excel.sheet.macroEnabled.12'
+              : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          const binaryString = atob(res.conteudo_base64);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: mime });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = arq.nome;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+          if (typeof File !== 'undefined') {
+            arq.webFile = new File([blob], arq.nome, { type: mime });
+            enviarArquivoParaServidor(arq);
+          }
+          return `Planilha preenchida via IA baixada: ${arq.nome}`;
+        }
+      } catch {
+        // usa fallback de arquivo original ou download do servidor abaixo
+      }
+    }
+
+    // C. Se for outro arquivo do usuário ou arquivo bruto
     if (arq.webFile && typeof URL !== 'undefined' && URL.createObjectURL) {
       const url = URL.createObjectURL(arq.webFile);
       const a = document.createElement('a');
@@ -473,40 +578,6 @@ export async function baixarArquivoDemanda(
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 3000);
       return `Download concluído: ${arq.nome}`;
-    }
-
-    if (arq.conteudoBase64) {
-      const a = document.createElement('a');
-      a.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${arq.conteudoBase64}`;
-      a.download = arq.nome;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return `Planilha baixada: ${arq.nome}`;
-    }
-
-    if (isPlanilha) {
-      try {
-        const tid = arq.templateMl || 'v22_unidades_isoladas';
-        const dados = arq.camposExtraidosMl || {
-          cliente: empresaNome,
-          empreendimento: demandaTitulo,
-          endereco: imovelRef,
-          engenheiro_responsavel: responsavel,
-        };
-        const res = await mlService.preencherPlanilha(tid, dados);
-        if (res.conteudo_base64) {
-          const a = document.createElement('a');
-          a.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${res.conteudo_base64}`;
-          a.download = arq.nome;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          return `Planilha baixada: ${arq.nome}`;
-        }
-      } catch {
-        // usa endpoint de download abaixo
-      }
     }
 
     const baseUrl = await resolveMobileFileServerUrl();

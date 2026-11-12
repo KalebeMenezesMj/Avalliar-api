@@ -770,7 +770,13 @@ function attachFileServerMiddleware(middleware) {
     const parsedUrl = url.parse(req.url || '', true);
     const pathname = parsedUrl.pathname || '';
 
-    if (!pathname.startsWith('/arquivos/')) {
+    const isArquivoRoute = pathname.startsWith('/arquivos/');
+    const isMlRoute =
+      pathname === '/preencher' ||
+      pathname === '/api/laudos/preencher' ||
+      pathname === '/ml/preencher';
+
+    if (!isArquivoRoute && !isMlRoute) {
       return middleware(req, res, next);
     }
 
@@ -781,6 +787,113 @@ function attachFileServerMiddleware(middleware) {
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
+      return;
+    }
+
+    // 0. Preenchimento de Planilha via Machine Learning (POST /preencher)
+    if (isMlRoute && req.method === 'POST') {
+      const chunks = [];
+      req.on('data', (chunk) => chunks.push(chunk));
+      req.on('end', async () => {
+        try {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          const body = JSON.parse(raw || '{}');
+          const templateId = body.template_id || body.templateId || 'v22_unidades_isoladas';
+          const dados = body.dados || {};
+          const arquivoId = body.arquivoId || (parsedUrl.query && parsedUrl.query.arquivoId);
+
+          let resultado = null;
+
+          // A. Tenta primeiro proxy para FastAPI (:8000) se estiver ativo
+          try {
+            const controller = new AbortController();
+            const to = setTimeout(() => controller.abort(), 1200);
+            const faRes = await fetch('http://localhost:8000/preencher', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ template_id: templateId, dados }),
+              signal: controller.signal,
+            });
+            clearTimeout(to);
+            if (faRes.ok) {
+              resultado = await faRes.json();
+            }
+          } catch (_e) {
+            // Continua para o executor Python local embutido
+          }
+
+          // B. Fallback local robusto via script CLI e venv Python
+          if (!resultado || !resultado.conteudo_base64) {
+            let arquivoPathParaPreencher = null;
+            if (arquivoId && uploadedFilesStore.has(arquivoId)) {
+              const st = uploadedFilesStore.get(arquivoId);
+              if (st && st.filePath && fs.existsSync(st.filePath)) {
+                arquivoPathParaPreencher = st.filePath;
+              }
+            }
+
+            const { spawnSync } = require('child_process');
+            const pythonVenv = path.resolve(__dirname, '..', 'ml', '.venv', 'Scripts', 'python.exe');
+            const cliScript = path.resolve(__dirname, '..', 'ml', 'preencher_cli.py');
+
+            const payloadStr = JSON.stringify({
+              template_id: templateId,
+              dados,
+              arquivo_path: arquivoPathParaPreencher,
+            });
+            const proc = spawnSync(pythonVenv, [cliScript, '-'], {
+              input: payloadStr,
+              encoding: 'utf8',
+              maxBuffer: 60 * 1024 * 1024,
+            });
+
+            if (proc.status === 0 && proc.stdout) {
+              const lines = proc.stdout.trim().split('\n');
+              const lastLine = lines[lines.length - 1];
+              resultado = JSON.parse(lastLine);
+            } else {
+              throw new Error(
+                (proc.stderr && proc.stderr.trim()) ||
+                  `Falha no processamento Python ML (código ${proc.status})`
+              );
+            }
+          }
+
+          // C. Se vinculado a um arquivoId do acervo, atualiza imediatamente os bytes em disco e no store
+          if (arquivoId && resultado && resultado.conteudo_base64) {
+            const fileBuf = Buffer.from(resultado.conteudo_base64, 'base64');
+            const existing = uploadedFilesStore.get(arquivoId) || {};
+            const cleanName = existing.nome || resultado.nome_arquivo || 'Planilha_Preenchida.xlsx';
+            const safeDiskName = `${String(arquivoId).replace(/[^a-zA-Z0-9_-]/g, '')}_${cleanName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+            const filePath = path.join(UPLOAD_DIR, safeDiskName);
+            try {
+              fs.writeFileSync(filePath, fileBuf);
+            } catch (_e) {}
+
+            uploadedFilesStore.set(arquivoId, {
+              ...existing,
+              id: arquivoId,
+              nome: cleanName,
+              extensao: cleanName.split('.').pop() || 'xlsx',
+              mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              categoria: 'PLANILHA',
+              tamanho: formatBytes(fileBuf.length),
+              filePath,
+              buffer: fileBuf,
+              templateMl: templateId,
+              statusMl: 'PREENCHIDA_ML',
+              camposExtraidosMl: dados,
+            });
+            persistIndex();
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify(resultado));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ ok: false, error: String(err.message || err) }));
+        }
+      });
       return;
     }
 

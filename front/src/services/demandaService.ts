@@ -664,6 +664,7 @@ export const demandaService = {
       (e) => e.nome.toLowerCase() === params.empresaNome.toLowerCase()
     );
     const chave = baseMatch?.id || params.empresaId || chaveEmpresa('', params.empresaNome);
+    const chaveNome = chaveEmpresa(params.empresaId, params.empresaNome);
 
     const novo: ArquivoAnexo = {
       id: `arq-emp-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -686,6 +687,31 @@ export const demandaService = {
       arquivosPorEmpresaStore[chave] = [];
     }
     arquivosPorEmpresaStore[chave].unshift(novo);
+
+    if (chaveNome !== chave) {
+      if (!arquivosPorEmpresaStore[chaveNome]) {
+        arquivosPorEmpresaStore[chaveNome] = [];
+      }
+      if (!arquivosPorEmpresaStore[chaveNome].some((a) => a.id === novo.id)) {
+        arquivosPorEmpresaStore[chaveNome].unshift(novo);
+      }
+    }
+
+    const jaExiste =
+      EMPRESAS_BASE.some((e) => e.nome.toLowerCase() === params.empresaNome.toLowerCase()) ||
+      empresasDinamicas.some((e) => e.nome.toLowerCase() === params.empresaNome.toLowerCase());
+
+    if (!jaExiste) {
+      empresasDinamicas.push({
+        id: params.empresaId || `cli-${Date.now()}`,
+        nome: params.empresaNome,
+        status: 'COM_PENDENCIAS',
+        quantidadePendentes: 0,
+        totalDemandas: 0,
+        descricao: '| Arquivos cadastrados para esta empresa.',
+        contato: `contato@${params.empresaNome.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`,
+      });
+    }
 
     return novo;
   },
@@ -971,14 +997,28 @@ export const demandaService = {
    */
   listarArquivosGerais(): ArquivoAnexo[] {
     const mapa = new Map<string, ArquivoAnexo>();
-    const todasEmpresas = [...EMPRESAS_BASE, ...empresasDinamicas];
 
-    todasEmpresas.forEach((emp) => {
-      const arqsEmp = demandaService.obterArquivosDaEmpresa(emp.id, emp.nome);
-      arqsEmp.forEach((arq) => {
+    // 1. Vasculha diretamente todos os acervos de todas as empresas registradas no store
+    Object.values(arquivosPorEmpresaStore).forEach((lista) => {
+      (lista || []).forEach((arq) => {
         if (!mapa.has(arq.id)) {
-          mapa.set(arq.id, arq);
+          mapa.set(arq.id, { ...arq });
         }
+      });
+    });
+
+    // 2. Vasculha diretamente todos os arquivos vinculados a demandas em todas as empresas
+    Object.values(demandasPorEmpresaStore).forEach((tarefas) => {
+      (tarefas || []).forEach((t) => {
+        (t.arquivos || []).forEach((arq) => {
+          if (!mapa.has(arq.id)) {
+            mapa.set(arq.id, {
+              ...arq,
+              tarefaId: arq.tarefaId || t.id,
+              tarefaTitulo: arq.tarefaTitulo || t.titulo,
+            });
+          }
+        });
       });
     });
 

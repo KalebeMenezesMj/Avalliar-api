@@ -25,6 +25,7 @@ import FileViewerModal, {
   enviarArquivoParaServidor,
   ArquivoDispositivoSelecionado,
 } from '../components/FileViewerModal';
+import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
 import { AuthResponse } from '../services/authService';
 import {
   demandaService,
@@ -75,6 +76,10 @@ export default function DemandaDetalheScreen({
 
   const [filtroCat, setFiltroCat] = useState<'TODOS' | CategoriaArquivo>('TODOS');
   const [modalAnexoAberto, setModalAnexoAberto] = useState(false);
+  const [modalPreenchimentoPlanilha, setModalPreenchimentoPlanilha] = useState<{
+    visivel: boolean;
+    arquivo: ArquivoAnexo | null;
+  }>({ visivel: false, arquivo: null });
   const [nomeNovoArquivo, setNomeNovoArquivo] = useState('');
   const [categoriaNovoArquivo, setCategoriaNovoArquivo] =
     useState<CategoriaArquivo>('VISTORIA');
@@ -248,41 +253,11 @@ export default function DemandaDetalheScreen({
   };
 
   // Processar planilha desta demanda com Machine Learning (/reconhecer -> /extrair -> /preencher)
-  const handleProcessarPlanilhaMl = async (arq: ArquivoAnexo) => {
-    setProcessandoMlId(arq.id);
-    try {
-      const rec = await mlService.reconhecerPlanilha(arq.nome, arq.webFile);
-      const ext = await mlService.extrairCamposLaudo(
-        rec.template_id,
-        arq.nome,
-        empresa.nome,
-        demanda.imovelReferencia,
-        arq.webFile
-      );
-      const preenchido = await mlService.preencherPlanilha(rec.template_id, ext.campos);
-
-      demandaService.atualizarStatusMlArquivo(
-        arq.id,
-        'PREENCHIDA_ML',
-        rec.template_id,
-        ext.campos,
-        preenchido.conteudo_base64
-      );
-      recarregarDemanda();
-
-      setFeedbackMl({
-        visivel: true,
-        titulo: 'Planilha da Demanda Preenchida via ML!',
-        detalhe: `Template identificado: ${rec.template_nome} (${Math.round(
-          rec.confianca * 100
-        )}% de precisão). ${preenchido.campos_preenchidos} células preenchidas automaticamente com os dados da demanda.`,
-        campos: ext.campos,
-        base64: preenchido.conteudo_base64,
-        nomeArquivoSaida: preenchido.nome_arquivo,
-      });
-    } finally {
-      setProcessandoMlId(null);
-    }
+  const handleProcessarPlanilhaMl = (arq: ArquivoAnexo) => {
+    setModalPreenchimentoPlanilha({
+      visivel: true,
+      arquivo: arq,
+    });
   };
 
   // Estimar idade aparente do imóvel desta demanda via foto (/idade)
@@ -1019,6 +994,19 @@ export default function DemandaDetalheScreen({
           </Pressable>
         </Pressable>
       </Modal>
+      {/* Modal Dinâmico de Reconhecimento e Preenchimento de Planilhas via ML */}
+      <PlanilhaPreenchimentoModal
+        visible={modalPreenchimentoPlanilha.visivel}
+        arquivo={modalPreenchimentoPlanilha.arquivo}
+        empresaNome={empresa.nome}
+        demandaTitulo={demanda.titulo}
+        imovelReferencia={demanda.imovelReferencia || empresa.nome}
+        responsavel={demanda.responsavel}
+        onClose={() => setModalPreenchimentoPlanilha({ visivel: false, arquivo: null })}
+        onSucessoPreenchimento={() => {
+          recarregarDemanda();
+        }}
+      />
     </SafeAreaView>
   );
 }

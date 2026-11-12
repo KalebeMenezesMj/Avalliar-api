@@ -346,36 +346,117 @@ export const mlService = {
   },
 
   /**
-   * 5. Preenche automaticamente uma planilha de homogeneização via ML (/api/laudos/preencher)
+   * 5. Preenche automaticamente uma planilha de homogeneização via ML (/api/laudos/preencher ou /preencher-arquivo)
    */
   async preencherPlanilha(
     templateId: string,
-    dados: Record<string, any>
+    dados: Record<string, any>,
+    arquivoId?: string,
+    webFile?: File
   ): Promise<MlPreencherResponse> {
-    try {
-      const resApi = await fetch(`${getBaseUrl()}/api/laudos/preencher`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId, dados }),
-      });
-      if (resApi.ok) {
-        return await resApi.json();
+    // 0. Se possuir o arquivo real enviado (webFile), tenta preenchimento direto no novo endpoint /preencher-arquivo
+    if (webFile) {
+      try {
+        const form = new FormData();
+        form.append('file', webFile);
+        form.append('dados', JSON.stringify(dados));
+
+        // Tenta FastAPI direto (:8000)
+        try {
+          const resFastApi = await fetch(`${getMlDirectUrl()}/preencher-arquivo`, {
+            method: 'POST',
+            body: form,
+          });
+          if (resFastApi.ok) {
+            const data = await resFastApi.json();
+            if (data && data.conteudo_base64) {
+              return data;
+            }
+          }
+        } catch {
+          // continua
+        }
+
+        // Tenta Spring backend (:8080)
+        try {
+          const resSpring = await fetch(`${getBaseUrl()}/api/laudos/preencher-arquivo`, {
+            method: 'POST',
+            body: form,
+          });
+          if (resSpring.ok) {
+            const data = await resSpring.json();
+            if (data && data.conteudo_base64) {
+              return data;
+            }
+          }
+        } catch {
+          // continua
+        }
+      } catch {
+        // fallback para o fluxo tradicional abaixo
       }
-    } catch {
-      // Tenta direto no FastAPI
     }
 
+    const payloadStr = JSON.stringify({
+      template_id: templateId,
+      templateId,
+      dados,
+      arquivoId,
+    });
+
+    // 1. Tenta direto no servidor Metro / FileServerMiddleware (localhost:8081 / origem atual)
+    try {
+      const origin =
+        Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin
+          ? window.location.origin
+          : 'http://localhost:8081';
+      const resMetro = await fetch(`${origin}/preencher`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadStr,
+      });
+      if (resMetro.ok) {
+        const data = await resMetro.json();
+        if (data && data.conteudo_base64) {
+          return data;
+        }
+      }
+    } catch {
+      // continua para os demais endpoints
+    }
+
+    // 2. Tenta direto no FastAPI de Machine Learning (:8000)
     try {
       const resDirect = await fetch(`${getMlDirectUrl()}/preencher`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template_id: templateId, dados }),
+        body: payloadStr,
       });
       if (resDirect.ok) {
-        return await resDirect.json();
+        const data = await resDirect.json();
+        if (data && data.conteudo_base64) {
+          return data;
+        }
       }
     } catch {
-      // Fallback
+      // continua
+    }
+
+    // 3. Tenta no backend Spring (:8080)
+    try {
+      const resApi = await fetch(`${getBaseUrl()}/api/laudos/preencher`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payloadStr,
+      });
+      if (resApi.ok) {
+        const data = await resApi.json();
+        if (data && data.conteudo_base64) {
+          return data;
+        }
+      }
+    } catch {
+      // Fallback abaixo
     }
 
     const isV25 = templateId.includes('v25');

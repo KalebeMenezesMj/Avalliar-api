@@ -75,7 +75,9 @@ def fill(template_path, data, output_path):
             wb[sheet_name][cell] = value
             written.append((field, sheet_name, cell, value))
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    out_dir = os.path.dirname(output_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
     wb.save(output_path)
     return template_id, written
 
