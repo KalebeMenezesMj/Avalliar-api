@@ -188,8 +188,11 @@ def _resolver_amostras(valores):
     busca = valores.pop("busca", None)
     if not busca or valores.get("amostras"):
         return []
-    import amostras as amostras_mod
-    encontradas, avisos = amostras_mod.buscar(busca)
+    try:
+        import amostras as amostras_mod
+        encontradas, avisos = amostras_mod.buscar(busca)
+    except Exception as e:  # a busca nunca deve derrubar o preenchimento do resto da planilha
+        return [f"busca de amostras falhou ({type(e).__name__}: {e}); amostras não preenchidas"]
     if encontradas:
         valores["amostras"] = encontradas
     return avisos
