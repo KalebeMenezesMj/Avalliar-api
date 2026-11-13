@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, ScrollView 
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../theme';
 import { AuthResponse } from '../services/authService';
+import { mlService } from '../services/mlService'; // Importar mlService
+import { Alert, ActivityIndicator } from 'react-native'; // Importar Alert e ActivityIndicator
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -13,9 +15,33 @@ interface SettingsScreenProps {
 const SettingsScreen = ({ onBack, currentUser, onLogout }: SettingsScreenProps) => {
   const [isNotificationsEnabled, setIsNotificationsEnabled] = React.useState(true);
   const [isDarkModeEnabled, setIsDarkModeEnabled] = React.useState(false);
+  const [isPredicting, setIsPredicting] = React.useState(false); // Novo estado
 
   const handleGoBack = () => {
     onBack();
+  };
+
+  const handleTestML = async () => {
+    setIsPredicting(true);
+    try {
+      const result = await mlService.predizerValor({
+        area_privativa: 75,
+        dormitorios: 3,
+        vagas: 2,
+        banheiros: 2
+      });
+      
+      Alert.alert(
+        "IA: Estimativa de Valor",
+        `Com base nos dados (75m², 3 dorms, 2 vagas), o valor estimado é:\n\n${result.moeda} ${result.valor_estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Erro", "Não foi possível conectar ao serviço de Machine Learning.");
+    } finally {
+      setIsPredicting(false);
+    }
   };
 
   const handleEditProfile = () => {
@@ -119,6 +145,24 @@ const SettingsScreen = ({ onBack, currentUser, onLogout }: SettingsScreenProps) 
               <Text style={styles.settingText}>Ajuda</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Inteligência Artificial */}
+        <Text style={styles.sectionLabel}>INTELIGÊNCIA ARTIFICIAL</Text>
+        <View style={styles.cardSection}>
+          <TouchableOpacity 
+            style={[styles.settingItem, styles.firstSettingItem, styles.lastSettingItem]} 
+            onPress={handleTestML}
+            disabled={isPredicting}
+            activeOpacity={0.5}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="flask-outline" size={22} color={colors.primary} />
+              <Text style={[styles.settingText, { color: colors.primary }]}>Testar Estimativa de Valor</Text>
+              {isPredicting && <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 10 }} />}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
 

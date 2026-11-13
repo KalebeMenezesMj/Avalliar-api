@@ -91,6 +91,13 @@ class PreencherRequest(BaseModel):
     dados: dict
 
 
+class PricePredictionRequest(BaseModel):
+    area_privativa: float
+    dormitorios: int = 1
+    vagas: int = 0
+    banheiros: int = 1
+
+
 def _salvar_upload(upload: UploadFile) -> str:
     """Salva o arquivo enviado num temporário e devolve o caminho."""
     ext = os.path.splitext(upload.filename or "")[1]
