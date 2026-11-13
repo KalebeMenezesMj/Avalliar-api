@@ -5,6 +5,7 @@ import os
 import joblib
 import openpyxl
 
+import calc
 import templates
 
 MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "models"))
@@ -74,6 +75,12 @@ def fill(template_path, data, output_path):
             sheet_name, cell = cell_map[field]
             wb[sheet_name][cell] = value
             written.append((field, sheet_name, cell, value))
+
+    # Dados Calc (avaliando + amostras do VivaReal) — só no V22
+    if template_id == "v22_unidades_isoladas" and (data.get("avaliando") or data.get("amostras") or any(k in data for k in calc.CAMPOS_LAUDO)):
+        written.extend(calc.escrever(wb, data))
+    if template_id == "v22_unidades_isoladas" and data.get("cub"):
+        written.extend(calc.escrever_cub(wb, data["cub"]))
 
     out_dir = os.path.dirname(output_path)
     if out_dir:

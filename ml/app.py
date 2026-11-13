@@ -50,7 +50,7 @@ def _blob_url(blob, filename):
 
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 # modelos que não são treinados no container (precisam das fotos dos laudos): vêm do Blob
-ARTEFATOS = {"idade_model.joblib": MODELS_DIR}
+ARTEFATOS = {"idade_model.joblib": MODELS_DIR, "campos_amostra.joblib": MODELS_DIR}
 
 
 def baixar_templates():
@@ -123,11 +123,18 @@ def extrair(template_id: str, file: UploadFile = File(...)):
     if template_id not in templates.CELL_MAP:
         raise HTTPException(404, f"Template desconhecido: {template_id}")
     tmp = _salvar_upload(file)
+    resposta = {}
     try:
         dados = filler.extract(template_id, tmp)
+        if template_id == "v22_unidades_isoladas":
+            import calc
+            import openpyxl
+            wb = openpyxl.load_workbook(tmp, data_only=False)
+            resposta = calc.ler(wb)
+            wb.close()
     finally:
         os.unlink(tmp)
-    return {"template_id": template_id, "campos": dados}
+    return {"template_id": template_id, "campos": dados, **resposta}
 
 
 @app.post("/preencher")
@@ -152,11 +159,14 @@ def preencher(req: PreencherRequest):
             "conteudo_base64": base64.b64encode(raw_bytes).decode("ascii"),
         }
 
+    avisos = _resolver_amostras(req.dados)
     ext = os.path.splitext(TEMPLATE_FILES[req.template_id])[1]
     fd, out = tempfile.mkstemp(suffix=ext)
     os.close(fd)
     try:
         tid, escritos = filler.fill(template_path, req.dados, out)
+        if tid == "v22_unidades_isoladas" and not req.dados.get("cub"):
+            avisos.append(CUB_AVISO)
         with open(out, "rb") as fh:
             b64 = base64.b64encode(fh.read()).decode("ascii")
         return {
@@ -164,9 +174,25 @@ def preencher(req: PreencherRequest):
             "nome_arquivo": TEMPLATE_FILES[req.template_id],
             "campos_preenchidos": len(escritos),
             "conteudo_base64": b64,
+            "avisos": avisos,
         }
     finally:
         os.unlink(out)
+
+
+CUB_AVISO = ("Tabela CUB/R8N mantida como no template (mar/2023): informe dados.cub {rotulo, referencia, valores:{UF: R$/m²}} para atualizar")
+
+def _resolver_amostras(valores):
+    """Se `dados.busca` veio e não há `amostras`, busca no VivaReal e preenche `amostras`.
+    Devolve a lista de avisos. Remove `busca` de `valores`."""
+    busca = valores.pop("busca", None)
+    if not busca or valores.get("amostras"):
+        return []
+    import amostras as amostras_mod
+    encontradas, avisos = amostras_mod.buscar(busca)
+    if encontradas:
+        valores["amostras"] = encontradas
+    return avisos
 
 
 @app.post("/preencher-arquivo")
@@ -188,6 +214,7 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
     if ext not in (".xlsx", ".xlsm"):
         raise HTTPException(400, "Envie um arquivo .xlsx ou .xlsm")
 
+    avisos = _resolver_amostras(valores)
     entrada = _salvar_upload(file)
     fd, out = tempfile.mkstemp(suffix=ext)
     os.close(fd)
@@ -198,6 +225,8 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
             raise HTTPException(400, f"Não foi possível ler a planilha: {e}")
         if tid not in templates.CELL_MAP:
             raise HTTPException(422, "Modelo de planilha não reconhecido (esperado V22 ou V25)")
+        if tid == "v22_unidades_isoladas" and not valores.get("cub"):
+            avisos.append(CUB_AVISO)
         with open(out, "rb") as fh:
             b64 = base64.b64encode(fh.read()).decode("ascii")
         return {
@@ -205,6 +234,7 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
             "nome_arquivo": nome,
             "campos_preenchidos": len(escritos),
             "conteudo_base64": b64,
+            "avisos": avisos,
         }
     finally:
         os.unlink(entrada)
