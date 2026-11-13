@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# LibreOffice (headless) só para calcular as fórmulas das planilhas preenchidas (recalc.py)
+RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-calc fonts-liberation     && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY requirements.txt .

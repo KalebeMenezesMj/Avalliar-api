@@ -26,6 +26,7 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 import fill as filler
+import recalc
 import templates
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -151,20 +152,7 @@ def preencher(req: PreencherRequest):
 
     template_path = os.path.join(TEMPLATES_DIR, TEMPLATE_FILES[req.template_id])
     if not os.path.exists(template_path):
-        raw_bytes = _gerar_planilha_bytes(
-            TEMPLATE_FILES[req.template_id],
-            str(req.dados.get("cliente", "Avalliar")),
-            str(req.dados.get("empreendimento", "Vistoria Técnica")),
-            str(req.dados.get("endereco", "Imóvel Vistoriado")),
-            str(req.dados.get("engenheiro_responsavel", "Eng. Responsável")),
-            req.template_id,
-        )
-        return {
-            "template_id": req.template_id,
-            "nome_arquivo": TEMPLATE_FILES[req.template_id],
-            "campos_preenchidos": len(templates.CELL_MAP.get(req.template_id, {})),
-            "conteudo_base64": base64.b64encode(raw_bytes).decode("ascii"),
-        }
+        raise HTTPException(503, "Template não está no servidor (verifique TEMPLATES_BLOB); não é gerada planilha sintética.")
 
     avisos = _resolver_amostras(req.dados)
     ext = os.path.splitext(TEMPLATE_FILES[req.template_id])[1]
@@ -174,6 +162,9 @@ def preencher(req: PreencherRequest):
         tid, escritos = filler.fill(template_path, req.dados, out)
         if tid == "v22_unidades_isoladas" and not req.dados.get("cub"):
             avisos.append(CUB_AVISO)
+        aviso_calc = recalc.preencher_cache(out)
+        if aviso_calc:
+            avisos.append(aviso_calc)
         with open(out, "rb") as fh:
             b64 = base64.b64encode(fh.read()).decode("ascii")
         return {
@@ -237,6 +228,9 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
             raise HTTPException(422, "Modelo de planilha não reconhecido (esperado V22 ou V25)")
         if tid == "v22_unidades_isoladas" and not valores.get("cub"):
             avisos.append(CUB_AVISO)
+        aviso_calc = recalc.preencher_cache(out)
+        if aviso_calc:
+            avisos.append(aviso_calc)
         with open(out, "rb") as fh:
             b64 = base64.b64encode(fh.read()).decode("ascii")
         return {
