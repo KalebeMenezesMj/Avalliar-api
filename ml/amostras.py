@@ -10,6 +10,7 @@ import requests
 
 import calc
 import campos
+import terreno
 import selecao
 import vivareal
 
@@ -80,6 +81,7 @@ def buscar(busca, completar=True):
         cep = _cep(a.get("uf"), a.get("cidade"), a.get("endereco")) if completar else None
         out.append(calc.amostra_do_vivareal(a, idade=idade, cep=cep))
     estimados = campos.completar(out)
+    estimados += terreno.completar(out)
     for a in out:
         a.setdefault("estado_conservacao", 3)  # reserva se o modelo não estiver disponível
     if estimados:

@@ -14,41 +14,30 @@ import openpyxl, fill as filler, calc, recalc
 # Fonte das amostras novas: anúncios reais de OUTROS laudos (o VivaReal bloqueia acesso automatizado).
 POOL = json.load(open(os.getenv("AMOSTRAS_JSON", "/dados/amostras_v22.json"), encoding="utf-8"))
 
-def _n(t): return "".join(c for c in unicodedata.normalize("NFD", str(t or "").lower()) if unicodedata.category(c) != "Mn")
+def _n(t): return "".join(c for c in unicodedata.normalize("NFD", str(t or "").lower()) if c.isascii() and c.isalnum())
+
+import selecao_calc, terreno
+ESTRATEGIA = os.getenv("ESTRATEGIA", "multi")  # multi | base
 
 def amostras_novas_de(av, proprias, laudo_nome, n=5):
-    """5 amostras mais parecidas (metragem dominante, cidade, bairro) tiradas de outros laudos,
-    sem repetir nenhuma das que o próprio laudo já usa."""
+    """5 amostras tiradas de OUTROS laudos (mesma cidade), sem repetir as que o próprio laudo usa."""
     usadas = {(a.get("preco"), a.get("area_equivalente")) for a in proprias}
-    cand = []
-    for a in POOL:
-        if a["laudo"] == laudo_nome or (a.get("preco"), a.get("area_equivalente")) in usadas: continue
-        if _n(a.get("cidade")) != _n(av.get("cidade")) or not a.get("area_equivalente") or not a.get("preco"): continue
-        d = abs(a["area_equivalente"] - av["area_equivalente"]) / av["area_equivalente"]
-        score = 0.7 * max(0, 1 - d) + 0.3 * (_n(a.get("bairro")) == _n(av.get("bairro")))
-        cand.append((score, a))
-    cand.sort(key=lambda x: -x[0]); vistos = set(); out = []
-    for _, a in cand:
-        k = (a["preco"], a["area_equivalente"])
-        if k in vistos: continue
-        vistos.add(k); out.append({k2: v for k2, v in a.items() if k2 not in ("laudo", "amostra")})
-        if len(out) == n: break
+    cand = [a for a in POOL if a["laudo"] != laudo_nome and (a.get("preco"), a.get("area_equivalente")) not in usadas
+            and _n(a.get("cidade")) == _n(av.get("cidade")) and a.get("area_equivalente") and a.get("preco")]
+    pesos = {"area": .7, "bairro": .3, "idade": 0, "padrao": 0, "terreno": 0, "data": 0} if ESTRATEGIA == "base" else None
+    esc = selecao_calc.selecionar(av, cand, n, pesos)
+    out = [{k: v for k, v in a.items() if k not in ("laudo", "amostra")} for a in esc]
+    terreno.completar(out, trocar_um=True)  # como em amostras.buscar: terreno/frente ausentes ou =1 são estimados
     return out
 
 BLANK = os.path.join(os.path.dirname(HERE), "data", "templates", "Homogeneização_Unidades Isoladas_2025_V22.xlsx")
 OBRIGATORIAS = ["XXX - Dados Calc", "Custo01", "Custo02", "Amostras01-04", "Amostras05-08", "INSPECTOS"]
-UF = {"acre":"ac","alagoas":"al","amapa":"ap","amazonas":"am","bahia":"ba","ceara":"ce","distrito federal":"df","espirito santo":"es",
-      "goias":"go","maranhao":"ma","mato grosso":"mt","mato grosso do sul":"ms","minas gerais":"mg","para":"pa","paraiba":"pb","parana":"pr",
-      "pernambuco":"pe","piaui":"pi","rio de janeiro":"rj","rio grande do norte":"rn","rio grande do sul":"rs","rondonia":"ro",
-      "roraima":"rr","santa catarina":"sc","sao paulo":"sp","sergipe":"se","tocantins":"to"}
-def sigla(nome):
-    n = unicodedata.normalize("NFD", str(nome).lower().strip()); n = "".join(c for c in n if unicodedata.category(c) != "Mn")
-    return n if len(n) == 2 else UF.get(n)
 
 paths = sorted(glob.glob(os.getenv("LAUDOS_DIR", "/laudos") + "/*/Concluidos/*/*-Homo-*.xlsx"))
 N = int(sys.argv[1]); TOL = float(sys.argv[2]) if len(sys.argv) > 2 else 15.0
 passo = max(1, len(paths) // N)
-res = []
+print('estratégia:', ESTRATEGIA)
+res = []; ERROS = []
 for k, p in enumerate(paths[::passo][: N * 3]):
     if len(res) >= N: break
     rf = openpyxl.load_workbook(p); rv = openpyxl.load_workbook(p, data_only=True)
@@ -79,6 +68,7 @@ for k, p in enumerate(paths[::passo][: N * 3]):
     dv, du = dif(real_v, meu_v), dif(real_u, meu_u)
     ok = dv is not None and abs(dv) <= TOL
     res.append(ok)
+    if dv is not None: ERROS.append(abs(dv))
     print(f"{'OK ' if ok else 'FALHA'} {nome} valor real={real_v} meu={meu_v if meu_v is None else round(meu_v)} ({dv if dv is None else round(dv,1)}%)  R$/m² real={real_u and round(real_u)} meu={meu_u and round(meu_u) if isinstance(meu_u,(int,float)) else meu_u} ({du if du is None else round(du,1)}%)  aviso={aviso}", flush=True)
-    print("     abas (fórmulas, com erro):", vazias, flush=True)
+    if os.getenv("VERBOSO"): print("     abas (fórmulas, com erro):", vazias, flush=True)
 print(f"\n{sum(res)}/{len(res)} dentro de ±{TOL}% no valor de mercado")

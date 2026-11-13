@@ -180,12 +180,20 @@ def preencher(req: PreencherRequest):
 
 CUB_AVISO = ("Tabela CUB/R8N mantida como no template (mar/2023): informe dados.cub {rotulo, referencia, valores:{UF: R$/m²}} para atualizar")
 
+def _estimar_terreno(valores):
+    """Amostras sem terreno/frente (ou com o valor-padrão 1) quebram o Custo01: estima pela proporção
+    observada nos laudos reais e avisa."""
+    import terreno
+    est = terreno.completar([a for a in valores.get("amostras") or [] if isinstance(a, dict)])
+    return [f"terreno/frente estimados em {len({i for i, _, _ in est})} amostra(s) sem esses dados (revisar)"] if est else []
+
+
 def _resolver_amostras(valores):
     """Se `dados.busca` veio e não há `amostras`, busca no VivaReal e preenche `amostras`.
     Devolve a lista de avisos. Remove `busca` de `valores`."""
     busca = valores.pop("busca", None)
     if not busca or valores.get("amostras"):
-        return []
+        return _estimar_terreno(valores)
     try:
         import amostras as amostras_mod
         encontradas, avisos = amostras_mod.buscar(busca)
