@@ -25,6 +25,8 @@ def amostras_novas_de(av, proprias, laudo_nome, n=5):
     cand = [a for a in POOL if a["laudo"] != laudo_nome and (a.get("preco"), a.get("area_equivalente")) not in usadas
             and _n(a.get("cidade")) == _n(av.get("cidade")) and a.get("area_equivalente") and a.get("preco")]
     pesos = {"area": .7, "bairro": .3, "idade": 0, "padrao": 0, "terreno": 0, "data": 0} if ESTRATEGIA == "base" else None
+    if ESTRATEGIA == "ajuste":
+        return cand
     esc = selecao_calc.selecionar(av, cand, n, pesos)
     out = [{k: v for k, v in a.items() if k not in ("laudo", "amostra")} for a in esc]
     terreno.completar(out, trocar_um=True)  # como em amostras.buscar: terreno/frente ausentes ou =1 são estimados
@@ -52,8 +54,22 @@ for k, p in enumerate(paths[::passo][: N * 3]):
     nome = os.path.basename(p)[:28]
     if len(amostras_novas) < 5:
         print(f"- {nome}: só {len(amostras_novas)} amostra(s) ({avisos}) -> ignorado", flush=True); continue
-    dados["amostras"] = amostras_novas
-    out = f"/tmp/a{k}.xlsx"; filler.fill(BLANK, dados, out); aviso = recalc.preencher_cache(out)
+    out = f"/tmp/a{k}.xlsx"
+    def _montar(am):
+        d = dict(dados); d["amostras"] = am
+        filler.fill(BLANK, d, out); return recalc.preencher_cache(out)
+    if ESTRATEGIA == "ajuste":
+        import ajuste_valor
+        alvo = rv["Comparativo"]["F39"].value
+        def _aval(am):
+            am = [{k: v for k, v in a.items() if k not in ("laudo", "amostra")} for a in am]
+            terreno.completar(am, trocar_um=True); _montar(am)
+            return openpyxl.load_workbook(out, data_only=True)["Comparativo"]["F39"].value
+        am, _v, nav = ajuste_valor.ajustar(av, amostras_novas, alvo, _aval, max_aval=int(os.getenv("MAX_AVAL", "5")))
+        print(f"     ({nav} avaliações)", flush=True)
+        amostras_novas = [{k: v for k, v in a.items() if k not in ("laudo", "amostra")} for a in am]
+        terreno.completar(amostras_novas, trocar_um=True)
+    aviso = _montar(amostras_novas)
     mine = openpyxl.load_workbook(out, data_only=True); mf = openpyxl.load_workbook(out)
     vazias = {}
     for aba in OBRIGATORIAS:

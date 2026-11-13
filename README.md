@@ -57,6 +57,10 @@ Detalhes completos: [`docs/05-mvp.md`](docs/05-mvp.md)
 | [03-arquitetura.md](docs/03-arquitetura.md) | Arquitetura, componentes, segurança e escalabilidade |
 | [04-modelo-de-dados.md](docs/04-modelo-de-dados.md) | Modelo de dados PostgreSQL (domínios e relacionamentos) |
 | [05-mvp.md](docs/05-mvp.md) | Escopo e planejamento do MVP da API |
+| [06-ml-preenchimento-planilhas.md](docs/06-ml-preenchimento-planilhas.md) | ML: reconhecimento e preenchimento das planilhas V22/V25 |
+| [07-deploy-azure.md](docs/07-deploy-azure.md) | Infraestrutura e deploy na Azure |
+| [08-guia-do-desenvolvedor.md](docs/08-guia-do-desenvolvedor.md) | Estrutura, execução local, testes e convenções |
+| [checkpoint.md](checkpoint.md) | Estado atual e pendências |
 
 ---
 

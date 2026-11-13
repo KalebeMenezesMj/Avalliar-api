@@ -156,6 +156,7 @@ def preencher(req: PreencherRequest):
 
     avisos = _resolver_amostras(req.dados)
     ext = os.path.splitext(TEMPLATE_FILES[req.template_id])[1]
+    avisos += _ajustar_valor(req.dados, template_path, ext)
     fd, out = tempfile.mkstemp(suffix=ext)
     os.close(fd)
     try:
@@ -194,14 +195,59 @@ def _resolver_amostras(valores):
     busca = valores.pop("busca", None)
     if not busca or valores.get("amostras"):
         return _estimar_terreno(valores)
+    if valores.get("valor_referencia"):
+        busca = dict(busca, top_n=max(int(busca.get("top_n", 5)), 12))  # candidatas para trocar amostras
     try:
         import amostras as amostras_mod
         encontradas, avisos = amostras_mod.buscar(busca)
     except Exception as e:  # a busca nunca deve derrubar o preenchimento do resto da planilha
         return [f"busca de amostras falhou ({type(e).__name__}: {e}); amostras não preenchidas"]
     if encontradas:
-        valores["amostras"] = encontradas
+        if valores.get("valor_referencia"):
+            valores["candidatas"] = encontradas
+        else:
+            valores["amostras"] = encontradas
     return avisos
+
+
+def _ajustar_valor(valores, base, ext):
+    """Com `valor_referencia` e `candidatas`, troca as 5 amostras até o valor de mercado (V22,
+    Comparativo!F39) chegar perto da referência. Devolve avisos. Cada tentativa recalcula a planilha."""
+    import ajuste_valor
+    ref = valores.pop("valor_referencia", None)
+    cands = [c for c in (valores.pop("candidatas", None) or []) if isinstance(c, dict)]
+    if not ref or not cands:
+        return []
+    try:
+        ref = float(ref)
+    except (TypeError, ValueError):
+        return ["valor_referencia inválido; amostras não ajustadas"]
+    av = dict(valores.get("avaliando") or {})
+    max_aval = int(valores.pop("max_avaliacoes", 4))
+    tmp = tempfile.mkstemp(suffix=ext)
+    os.close(tmp[0])
+
+    def aval(am):
+        import openpyxl
+        d = dict(valores, amostras=[dict(a) for a in am])
+        filler.fill(base, d, tmp[1])
+        if recalc.preencher_cache(tmp[1]):
+            return None
+        return openpyxl.load_workbook(tmp[1], data_only=True)["Comparativo"]["F39"].value
+    try:
+        import terreno
+        terreno.completar(cands, trocar_um=True)
+        am, v, n = ajuste_valor.ajustar(av, cands, ref, aval, max_aval=max_aval)
+    except Exception as e:
+        am, v, n = cands[:5], None, 0
+        valores["amostras"] = am
+        return [f"ajuste de amostras falhou ({type(e).__name__}); usadas as 5 mais parecidas"]
+    finally:
+        os.unlink(tmp[1])
+    valores["amostras"] = am
+    if v:
+        return [f"amostras trocadas em {n} tentativa(s): valor de mercado {v:,.0f} vs referência {ref:,.0f} ({100*(v-ref)/ref:+.1f}%)"]
+    return ["não foi possível calcular o valor para ajustar as amostras; usadas as 5 mais parecidas"]
 
 
 @app.post("/preencher-arquivo")
@@ -225,6 +271,7 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
 
     avisos = _resolver_amostras(valores)
     entrada = _salvar_upload(file)
+    avisos += _ajustar_valor(valores, entrada, ext)
     fd, out = tempfile.mkstemp(suffix=ext)
     os.close(fd)
     try:
