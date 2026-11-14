@@ -17,6 +17,9 @@ class CaptacaoRegrasTest {
         assertEquals(Optional.of("2026/0042"), CaptacaoEmailService.numeroOs("O.S. nº 2026/0042.", null));
         assertEquals(Optional.of("AB-778"), CaptacaoEmailService.numeroOs("Avaliação", "Segue a Ordem de Serviço: AB-778 para vistoria"));
         assertEquals(Optional.empty(), CaptacaoEmailService.numeroOs("Os documentos seguem anexos", "Bom dia"));
+        assertEquals(Optional.of("18031013"), CaptacaoEmailService.numeroOs("18031013 - Sara", null));
+        assertEquals(Optional.of("17908911"), CaptacaoEmailService.numeroOs("RES: 17908911 - Sara M", null));
+        assertEquals(Optional.of("17718498"), CaptacaoEmailService.numeroOs("17718498 -Sara -CGI", null));
     }
 
     @Test

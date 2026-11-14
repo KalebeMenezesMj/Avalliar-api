@@ -38,6 +38,7 @@ public class CaptacaoEmailService {
     /** "OS 12345", "O.S. nº 2026/0042", "Ordem de Serviço: AB-778". */
     private static final Pattern NUMERO_OS = Pattern.compile(
             "(?iu)\\b(?:O\\.?S\\.?|ordem\\s+de\\s+servi[çc]o)\\s*(?:n[º°o.]*|#|:|-)?\\s*([A-Za-z0-9][A-Za-z0-9./-]{2,49})");
+    private static final Pattern NUMERO_NO_INICIO = Pattern.compile("(?iu)^\\s*(?:RES?:\\s*)?(\\d{8})\\b");
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
     private static final Logger log = LoggerFactory.getLogger(CaptacaoEmailService.class);
 
@@ -180,6 +181,12 @@ public class CaptacaoEmailService {
     }
 
     static Optional<String> numeroOs(String assunto, String corpo) {
+        if (assunto != null) {
+            Matcher inicio = NUMERO_NO_INICIO.matcher(assunto);
+            if (inicio.find()) {
+                return Optional.of(inicio.group(1));
+            }
+        }
         for (String texto : new String[]{assunto, corpo}) {
             if (texto == null) {
                 continue;
