@@ -29,6 +29,17 @@ app:
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   ml:
     url: ${ML_URL:http://localhost:8000}
+  gmail:
+    # OAuth do Google Cloud (escopo gmail.readonly). Sem as três, a captação fica desligada.
+    client-id: ${GMAIL_CLIENT_ID:}
+    client-secret: ${GMAIL_CLIENT_SECRET:}
+    refresh-token: ${GMAIL_REFRESH_TOKEN:}
+    monitorar: ${GMAIL_MONITORAR:false}
+    intervalo-ms: ${GMAIL_INTERVALO_MS:60000}
+    busca: ${GMAIL_BUSCA:in:inbox newer_than:7d}
+    maximo-por-ciclo: ${GMAIL_MAXIMO_POR_CICLO:50}
+    api-url: ${GMAIL_API_URL:https://gmail.googleapis.com/gmail/v1/users/me}
+    token-url: ${GMAIL_TOKEN_URL:https://oauth2.googleapis.com/token}
 
 springdoc:
   api-docs:

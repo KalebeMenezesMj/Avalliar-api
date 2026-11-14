@@ -18,6 +18,7 @@ Estado do projeto Avalliar (FATEC Praia Grande) ao final desta sessão. Ver deta
 - Branches: `main` contém tudo do ML (a `feat/ml-planilhas` já está integrada); `feature/tela-de-configuracoes` (front) tem 2 commits ainda não integrados.
 
 - VivaReal funcionando na Azure (proxy + curl_cffi). Container 1 vCPU/2 GiB. Ao vivo + `valor_referencia`: 8/9 dentro de ±15%, erro médio 4,8%; sem referência ~19% (ver docs/06). Imagem atual `avalliar-ml:v24` (v23: `AMOSTRA DADOS` da V25 + orçamento de tempo da troca; v24: `$undefined` do VivaReal).
+- Captação de OS por e-mail (Gmail API + regras de captação), ver `docs/09`. Em produção (imagem `kalebemenezesmj/avalliar-api:captacao-2`); regra da Dexter ativa e 4 OS criadas. Pendências: redefinir o client secret do OAuth, publicar o app no Google (token de teste expira em 7 dias), SLA da Dexter a confirmar.
 
 ## Pendências (ordem sugerida)
 

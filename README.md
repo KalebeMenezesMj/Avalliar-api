@@ -60,6 +60,7 @@ Detalhes completos: [`docs/05-mvp.md`](docs/05-mvp.md)
 | [06-ml-preenchimento-planilhas.md](docs/06-ml-preenchimento-planilhas.md) | ML: reconhecimento e preenchimento das planilhas V22/V25 |
 | [07-deploy-azure.md](docs/07-deploy-azure.md) | Infraestrutura e deploy na Azure |
 | [08-guia-do-desenvolvedor.md](docs/08-guia-do-desenvolvedor.md) | Estrutura, execução local, testes e convenções |
+| [09-captacao-email.md](docs/09-captacao-email.md) | Captação de OS por e-mail (Gmail API + regras de captação) |
 | [checkpoint.md](checkpoint.md) | Estado atual e pendências |
 
 ---

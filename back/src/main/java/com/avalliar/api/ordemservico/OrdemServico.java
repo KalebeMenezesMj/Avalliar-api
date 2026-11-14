@@ -54,4 +54,8 @@ public class OrdemServico {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusOrdemServico status;
+
+    /** E-mail que originou a OS (null quando criada pelo app). */
+    @Column(name = "email_recebido_id")
+    private Long emailRecebidoId;
 }
