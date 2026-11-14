@@ -34,6 +34,14 @@ ml/
 ├── test_fields.py     # teste por campo (ML de verdade: entender -> extrair -> posicionar)
 ├── test_recognizer.py # teste do reconhecedor (inclui generalização)
 ├── test_v25_consistency.py # consistência do mapa de células do V25
+├── app.py           # serviço FastAPI (ver docs/06)
+├── calc.py          # Dados Calc, URLs, CUB, G3 (escrever/ler/converter anúncio em amostra)
+├── amostras.py      # busca no VivaReal, seleção das 5 amostras, idade, CEP, campos estimados
+├── terreno.py       # estima área de terreno/frente ausentes
+├── selecao_calc.py  # seleção por vários critérios (área, idade, padrão, bairro, terreno)
+├── ajuste_valor.py  # troca de amostras até o valor de mercado chegar perto de valor_referencia (V22)
+├── recalc.py        # LibreOffice: recalcula e grava os valores calculados nas fórmulas
+├── ferramentas/     # teste_aceite.py, teste_cache.py, teste_planilha_inteira.py
 ├── demo.py          # demo ponta a ponta
 ├── data/templates/  # planilhas de modelo (gitignored)
 ├── data/output/     # planilhas preenchidas (gitignored)
@@ -249,3 +257,21 @@ com os rótulos reais das planilhas: `cliente`, `numero_proposta`, `tipo_laudo`,
 **Idade aparente.** `POST /idade` (upload de foto) devolve `{"idade_aparente_anos": ...}`. Usa o modelo leve (`idade.py`, sem PyTorch) baixado do Blob no startup. Erro médio 4,2 anos em validação cruzada por laudo.
 
 Resultados no conjunto reservado (49 laudos que nunca entram no treino): reconhecedor 100%, mapeador rejeita 99,6% dos não-rótulos, extração 647/647 sem campos inventados (antes: 94,7% e 61 inventados).
+
+
+## Preenchimento completo e troca de amostras (v9/v10)
+
+**Abas calculadas.** `recalc.py` recalcula uma cópia da planilha no LibreOffice (headless, pt-BR) e grava o resultado como cache nas fórmulas do arquivo devolvido, então Dados Calc, Custo01/02, Amostras01-04/05-08 e INSPECTOS já abrem preenchidas (~40 s por chamada no container). Validado contra o Excel: 100% em 6 laudos (`ferramentas/teste_cache.py`).
+
+**Terreno e seleção.** `terreno.py` estima área de terreno/frente ausentes (um terreno `1` gerava R$/m² absurdo). `selecao_calc.py` escolhe as amostras por área, idade, padrão, bairro e terreno.
+
+**Troca de amostras (V22).** Se `dados` trouxer `valor_referencia` (e `candidatas`, ou `busca`), `ajuste_valor.py` testa combinações das 12 melhores candidatas e troca as 5 amostras até `Comparativo!F39` ficar a 3% ou menos da referência (máx. `max_avaliacoes`, padrão 4; cada tentativa recalcula a planilha). Não vale para a V25.
+
+**Teste de aceite** (`ferramentas/teste_aceite.py`): usa o imóvel de um laudo real, 5 amostras novas do acervo (`AMOSTRAS_JSON`) e compara o valor de mercado com o do laudo. `ESTRATEGIA=multi|base|ajuste`.
+
+| 24 laudos V22, 5 amostras novas | Dentro de ±15% | Erro médio |
+|---|---|---|
+| Só similaridade | 17–19 | 11–13% |
+| Com troca de amostras | 22 | 4,9% (mediana 2,9%) |
+
+No teste a referência é o valor do laudo real (oráculo): mede a troca, não a previsão às cegas.

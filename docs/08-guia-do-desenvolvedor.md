@@ -39,6 +39,9 @@ cd front && npm install && npx expo start
 | ML reconhecedor | `python test_recognizer.py` | |
 | ML ida e volta | `python test_roundtrip.py`, `test_learn.py`, `test_v25_consistency.py` | |
 | ML avaliação | `python test_avaliacao.py` | precisa do banco |
+| Aceite (5 amostras novas) | `ESTRATEGIA=ajuste python ml/ferramentas/teste_aceite.py 24` | precisa do acervo `AMOSTRAS_JSON` e dos laudos; usa LibreOffice (Docker) |
+| Cache de valores | `python ml/ferramentas/teste_cache.py` | compara o recálculo do LibreOffice com o Excel |
+| Terreno | `python ml/test_terreno.py` | |
 | Planilha inteira | `python ml/ferramentas/teste_planilha_inteira.py` | Windows + Excel (COM); compara toda célula, exceto Fotos/Croqui, com o laudo real |
 
 ## Convenções
