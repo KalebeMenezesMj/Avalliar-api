@@ -31,6 +31,9 @@ public class Cliente {
     @Column(name = "razao_social", nullable = false)
     private String razaoSocial;
 
+    @Column(name = "nome_fantasia")
+    private String nomeFantasia;
+
     @Column(name = "sla_padrao_horas")
     private Integer slaPadraoHoras;
 
@@ -40,6 +43,23 @@ public class Cliente {
     private String email;
 
     private String telefone;
+
+    // Endereço do cliente (cadastro completo)
+    @Column(length = 8)
+    private String cep;
+
+    private String logradouro;
+
+    private String numero;
+
+    private String complemento;
+
+    private String bairro;
+
+    private String cidade;
+
+    @Column(length = 2)
+    private String uf;
 
     @Builder.Default
     private Boolean ativo = true;

@@ -3,6 +3,7 @@ package com.avalliar.api.usuario;
 import com.avalliar.api.common.exception.ResourceNotFoundException;
 import com.avalliar.api.usuario.dto.UsuarioRequest;
 import com.avalliar.api.usuario.dto.UsuarioResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -59,6 +60,11 @@ public class UsuarioService {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário", id));
 
+        if (!request.email().equalsIgnoreCase(usuario.getEmail())
+                && usuarioRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("E-mail já cadastrado");
+        }
+
         usuario.setNome(request.nome());
         usuario.setEmail(request.email());
         if (request.role() != null) {
@@ -80,6 +86,11 @@ public class UsuarioService {
     public void excluir(Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário", id));
-        usuarioRepository.delete(usuario);
+        try {
+            usuarioRepository.delete(usuario);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalArgumentException(
+                    "Este funcionário está vinculado a laudos, vistorias ou eventos e não pode ser excluído.");
+        }
     }
 }

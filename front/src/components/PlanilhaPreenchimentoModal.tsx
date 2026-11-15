@@ -32,6 +32,94 @@ interface PlanilhaPreenchimentoModalProps {
 }
 
 type TabV25 = 'LAUDO' | 'LOCAL' | 'UNIDADE' | 'AREAS' | 'ESTADO';
+type TabV22 = 'LAUDO' | 'AVALIANDO' | 'AMOSTRAS' | 'CUB';
+type CampoSpec = { key: string; label: string; numerico?: boolean };
+
+const ABAS_V22: { id: TabV22; label: string }[] = [
+  { id: 'LAUDO', label: 'Laudo' },
+  { id: 'AVALIANDO', label: 'Avaliando (Dados Calc)' },
+  { id: 'AMOSTRAS', label: 'Amostras (1–5)' },
+  { id: 'CUB', label: 'CUB' },
+];
+
+// Aba "XXX - Dados Calc", coluna C (imóvel avaliado). Rótulo = linha da célula.
+const CAMPOS_AVALIANDO_V22: CampoSpec[] = [
+  { key: 'tipo_imovel', label: 'Tipo do imóvel (C35)' },
+  { key: 'padrao_construtivo', label: 'Padrão construtivo (C32)' },
+  { key: 'situacao', label: 'Situação (C50)' },
+  { key: 'zona_ibape', label: 'Zona IBAPE (C34)' },
+  { key: 'coluna_ibape', label: 'Coluna IBAPE (C95)', numerico: true },
+  { key: 'zoneamento', label: 'Zoneamento (C36)' },
+  { key: 'topografia', label: 'Topografia (C51)' },
+  { key: 'formato_terreno', label: 'Formato do terreno (C33)' },
+  { key: 'area_terreno', label: 'Área do terreno m² (C15)', numerico: true },
+  { key: 'frente_efetiva', label: 'Frente efetiva m (C16)', numerico: true },
+  { key: 'area_equivalente', label: 'Área equivalente m² (C17)', numerico: true },
+  { key: 'idade_aparente', label: 'Idade aparente (C18)', numerico: true },
+  { key: 'estado_conservacao', label: 'Estado de conservação (C19)', numerico: true },
+  { key: 'pavimentos', label: 'Pavimentos (C52)', numerico: true },
+  { key: 'dormitorios', label: 'Dormitórios (C53)', numerico: true },
+  { key: 'suites', label: 'Suítes (C54)', numerico: true },
+  { key: 'salas', label: 'Salas (C55)', numerico: true },
+  { key: 'cozinhas', label: 'Cozinhas (C56)', numerico: true },
+  { key: 'banheiros', label: 'Banheiros (C57)', numerico: true },
+  { key: 'lavabos', label: 'Lavabos (C58)', numerico: true },
+  { key: 'dep_empregada', label: 'Dep. empregada (C59)' },
+  { key: 'wc_empregada', label: 'WC empregada (C60)' },
+  { key: 'area_servico', label: 'Área de serviço (C61)', numerico: true },
+  { key: 'vagas', label: 'Vagas (C62)', numerico: true },
+  { key: 'tipo_endereco', label: 'Tipo logradouro (C37)' },
+  { key: 'logradouro', label: 'Logradouro (C38)' },
+  { key: 'numero', label: 'Número (C39)' },
+  { key: 'complemento', label: 'Complemento (C40)' },
+  { key: 'bairro', label: 'Bairro (C42)' },
+  { key: 'cep', label: 'CEP (C45)' },
+  { key: 'latitude', label: 'Latitude (C46)' },
+  { key: 'longitude', label: 'Longitude (C47)' },
+  { key: 'cidade', label: 'Cidade (C48)' },
+  { key: 'estado', label: 'Estado (C49)' },
+  { key: 'numero_foto', label: 'Nº da foto (C90)', numerico: true },
+];
+
+// Colunas D..H do "XXX - Dados Calc" (amostras 1..5) + URL na aba Amostras.
+const CAMPOS_AMOSTRA_V22: CampoSpec[] = [
+  { key: 'url', label: 'URL do anúncio' },
+  { key: 'preco', label: 'Preço R$ (C14)', numerico: true },
+  { key: 'data_referencia', label: 'Data de referência (C30)' },
+  { key: 'contato', label: 'Contato (C43)' },
+  { key: 'telefone', label: 'Telefone (C44)' },
+  { key: 'tipo_imovel', label: 'Tipo do imóvel (C35)' },
+  { key: 'padrao_construtivo', label: 'Padrão construtivo (C32)' },
+  { key: 'situacao', label: 'Situação (C50)' },
+  { key: 'zona_ibape', label: 'Zona IBAPE (C34)' },
+  { key: 'coluna_ibape', label: 'Coluna IBAPE (C95)', numerico: true },
+  { key: 'estado_conservacao', label: 'Estado de conservação (C19)', numerico: true },
+  { key: 'idade_aparente', label: 'Idade aparente (C18)', numerico: true },
+  { key: 'area_terreno', label: 'Área do terreno m² (C15)', numerico: true },
+  { key: 'frente_efetiva', label: 'Frente efetiva m (C16)', numerico: true },
+  { key: 'area_equivalente', label: 'Área equivalente m² (C17)', numerico: true },
+  { key: 'topografia', label: 'Topografia (C51)' },
+  { key: 'pavimentos', label: 'Pavimentos (C52)', numerico: true },
+  { key: 'dormitorios', label: 'Dormitórios (C53)', numerico: true },
+  { key: 'suites', label: 'Suítes (C54)', numerico: true },
+  { key: 'salas', label: 'Salas (C55)', numerico: true },
+  { key: 'cozinhas', label: 'Cozinhas (C56)', numerico: true },
+  { key: 'banheiros', label: 'Banheiros (C57)', numerico: true },
+  { key: 'lavabos', label: 'Lavabos (C58)', numerico: true },
+  { key: 'dep_empregada', label: 'Dep. empregada (C59)' },
+  { key: 'wc_empregada', label: 'WC empregada (C60)' },
+  { key: 'area_servico', label: 'Área de serviço (C61)', numerico: true },
+  { key: 'vagas', label: 'Vagas (C62)', numerico: true },
+  { key: 'tipo_endereco', label: 'Tipo logradouro (C37)' },
+  { key: 'logradouro', label: 'Logradouro (C38)' },
+  { key: 'numero', label: 'Número (C39)' },
+  { key: 'bairro', label: 'Bairro (C42)' },
+  { key: 'cep', label: 'CEP (C45)' },
+  { key: 'latitude', label: 'Latitude (C46)' },
+  { key: 'longitude', label: 'Longitude (C47)' },
+  { key: 'cidade', label: 'Cidade (C48)' },
+  { key: 'estado', label: 'Estado (C49)' },
+];
 
 export default function PlanilhaPreenchimentoModal({
   visible,
@@ -47,6 +135,32 @@ export default function PlanilhaPreenchimentoModal({
   const [templateDetectado, setTemplateDetectado] = useState<MlReconhecerResponse | null>(null);
   const [processandoPreenchimento, setProcessandoPreenchimento] = useState(false);
   const [tabAtivaV25, setTabAtivaV25] = useState<TabV25>('LAUDO');
+  const [tabAtivaV22, setTabAtivaV22] = useState<TabV22>('LAUDO');
+  const [avaliandoV22, setAvaliandoV22] = useState<Record<string, string>>({
+    tipo_imovel: 'Apartamento',
+    tipo_endereco: 'Rua',
+    numero: '1500',
+    bairro: 'Boqueirão',
+    cep: '01310-100',
+    cidade: 'São Paulo',
+    estado: 'SP',
+    area_equivalente: '72',
+    idade_aparente: '10',
+    pavimentos: '1',
+    dormitorios: '2',
+    suites: '1',
+    banheiros: '2',
+    salas: '1',
+    cozinhas: '1',
+    area_servico: '1',
+    vagas: '1',
+  });
+  // 5 amostras (colunas D..H do Dados Calc); vazias não são enviadas
+  const [amostrasV22, setAmostrasV22] = useState<Record<string, string>[]>(() =>
+    Array.from({ length: 5 }, () => ({}))
+  );
+  const [amostraAtivaV22, setAmostraAtivaV22] = useState(0);
+  const [cubV22, setCubV22] = useState({ rotulo: '', referencia: '', uf: 'SP', valor: '' });
   const [resultadoPreenchido, setResultadoPreenchido] = useState<{
     sucesso: boolean;
     nomeArquivo: string;
@@ -66,6 +180,7 @@ export default function PlanilhaPreenchimentoModal({
     cidade: 'São Paulo',
     uf: 'SP',
     data_laudo: new Date().toLocaleDateString('pt-BR'),
+    caracterizacao_imovel: '',
   });
 
   // Estados dos campos do V25 (31 campos canônicos)
@@ -118,6 +233,8 @@ export default function PlanilhaPreenchimentoModal({
       setResultadoPreenchido(null);
       setAvisoFeedback(null);
       setTabAtivaV25('LAUDO');
+      setTabAtivaV22('LAUDO');
+      setAmostraAtivaV22(0);
 
       const clientDefault = empresaNome || arquivo.empresaNome || 'Banco Exemplo S.A.';
       const respDefault = responsavel || arquivo.autor || 'Linux da Silva';
@@ -166,11 +283,48 @@ export default function PlanilhaPreenchimentoModal({
     }
   };
 
+  // Monta o payload do V22 no formato aceito por ml/fill.py:
+  // campos de topo + avaliando (Dados Calc C) + amostras (D..H) + cub (opcional)
+  const montarPayloadV22 = () => {
+    const converter = (obj: Record<string, string>, specs: CampoSpec[]) => {
+      const out: Record<string, any> = {};
+      for (const s of specs) {
+        const bruto = (obj[s.key] ?? '').trim();
+        if (bruto === '') continue;
+        const num = Number(bruto.replace(',', '.'));
+        out[s.key] = s.numerico && !Number.isNaN(num) ? num : bruto;
+      }
+      return out;
+    };
+
+    const payload: Record<string, any> = {};
+    for (const [k, v] of Object.entries(dadosV22)) {
+      if (String(v).trim() !== '') payload[k] = v;
+    }
+    payload.avaliando = converter(avaliandoV22, CAMPOS_AVALIANDO_V22);
+
+    const amostras = amostrasV22.map((a) => converter(a, CAMPOS_AMOSTRA_V22));
+    while (amostras.length && Object.keys(amostras[amostras.length - 1]).length === 0) {
+      amostras.pop();
+    }
+    if (amostras.length) payload.amostras = amostras;
+
+    if (cubV22.valor.trim() !== '') {
+      const uf = (cubV22.uf || 'SP').trim().toUpperCase();
+      payload.cub = {
+        rotulo: cubV22.rotulo.trim() || undefined,
+        referencia: cubV22.referencia.trim() || undefined,
+        valores: { [uf]: Number(cubV22.valor.replace(',', '.')) },
+      };
+    }
+    return payload;
+  };
+
   const handleSubmeterPreenchimento = async () => {
     if (!arquivo) return;
     const isV25 = templateDetectado?.template_id.includes('v25');
     const templateId = isV25 ? 'v25_unidades_padronizadas' : 'v22_unidades_isoladas';
-    const payload = isV25 ? dadosV25 : dadosV22;
+    const payload = isV25 ? dadosV25 : montarPayloadV22();
 
     setProcessandoPreenchimento(true);
     try {
@@ -271,6 +425,100 @@ export default function PlanilhaPreenchimentoModal({
   if (!arquivo) return null;
 
   const isV25 = templateDetectado?.template_id.includes('v25');
+
+  const renderGradeV22 = (
+    specs: CampoSpec[],
+    valores: Record<string, string>,
+    onCampo: (k: string, v: string) => void
+  ) => {
+    const linhas: React.ReactNode[] = [];
+    for (let i = 0; i < specs.length; i += 2) {
+      linhas.push(
+        <View key={`${specs[i].key}-${i}`} style={styles.rowTwoCols}>
+          {specs.slice(i, i + 2).map((s) => (
+            <View key={s.key} style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>{s.label}</Text>
+              <TextInput
+                style={styles.fieldInput}
+                value={valores[s.key] ?? ''}
+                keyboardType={s.numerico ? 'numeric' : 'default'}
+                onChangeText={(v) => onCampo(s.key, v)}
+              />
+            </View>
+          ))}
+        </View>
+      );
+    }
+    return linhas;
+  };
+
+  const setAvaliandoCampo = (k: string, v: string) =>
+    setAvaliandoV22((p) => ({ ...p, [k]: v }));
+
+  const setAmostraCampo = (k: string, v: string) =>
+    setAmostrasV22((p) => p.map((a, i) => (i === amostraAtivaV22 ? { ...a, [k]: v } : a)));
+
+  const renderAmostrasV22 = () => (
+    <>
+      <View style={styles.tabBarV25}>
+        {amostrasV22.map((_, i) => (
+          <Pressable
+            key={i}
+            style={[styles.tabBtnV25, amostraAtivaV22 === i && styles.tabBtnV25Active]}
+            onPress={() => setAmostraAtivaV22(i)}
+          >
+            <Text style={[styles.tabTextV25, amostraAtivaV22 === i && styles.tabTextV25Active]}>
+              Amostra {i + 1}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {renderGradeV22(CAMPOS_AMOSTRA_V22, amostrasV22[amostraAtivaV22] ?? {}, setAmostraCampo)}
+    </>
+  );
+
+  const renderCubV22 = () => (
+    <>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Rótulo da tabela CUB (D27)</Text>
+        <TextInput
+          style={styles.fieldInput}
+          value={cubV22.rotulo}
+          onChangeText={(v) => setCubV22((p) => ({ ...p, rotulo: v }))}
+        />
+      </View>
+      <View style={styles.rowTwoCols}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.fieldLabel}>Competência / referência (H)</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={cubV22.referencia}
+            onChangeText={(v) => setCubV22((p) => ({ ...p, referencia: v }))}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.fieldLabel}>UF (linha da tabela)</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={cubV22.uf}
+            onChangeText={(v) => setCubV22((p) => ({ ...p, uf: v }))}
+          />
+        </View>
+      </View>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Custo R$/m² da UF (G)</Text>
+        <TextInput
+          style={styles.fieldInput}
+          keyboardType="numeric"
+          value={cubV22.valor}
+          onChangeText={(v) => setCubV22((p) => ({ ...p, valor: v }))}
+        />
+      </View>
+      <Text style={styles.formHint}>
+        Atualiza só a UF informada; as demais linhas mantêm o valor do template.
+      </Text>
+    </>
+  );
 
   return (
     <Modal
@@ -376,6 +624,24 @@ export default function PlanilhaPreenchimentoModal({
               </Text>
 
               {/* Se for V25: Navegação por Abas para os 31 campos */}
+              {!isV25 && (
+                <View style={styles.tabBarV25}>
+                  {ABAS_V22.map((t) => (
+                    <Pressable
+                      key={t.id}
+                      style={[styles.tabBtnV25, tabAtivaV22 === t.id && styles.tabBtnV25Active]}
+                      onPress={() => setTabAtivaV22(t.id)}
+                    >
+                      <Text
+                        style={[styles.tabTextV25, tabAtivaV22 === t.id && styles.tabTextV25Active]}
+                      >
+                        {t.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+
               {isV25 && (
                 <View style={styles.tabBarV25}>
                   {(
@@ -411,8 +677,10 @@ export default function PlanilhaPreenchimentoModal({
                 showsVerticalScrollIndicator={true}
               >
                 {!isV25 ? (
-                  /* ================= FORMULÁRIO V22 (9 Campos) ================= */
+                  /* ================= FORMULÁRIO V22 (abas: Laudo, Avaliando, Amostras, CUB) ================= */
                   <>
+                    {tabAtivaV22 === 'LAUDO' && (
+                    <>
                     <View style={styles.fieldGroup}>
                       <Text style={styles.fieldLabel}>Cliente / Empresa (P6)</Text>
                       <TextInput
@@ -496,6 +764,21 @@ export default function PlanilhaPreenchimentoModal({
                         />
                       </View>
                     </View>
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Caracterização do imóvel (Dados Laudo G3)</Text>
+                      <TextInput
+                        style={styles.fieldInput}
+                        value={dadosV22.caracterizacao_imovel}
+                        onChangeText={(v) => setDadosV22({ ...dadosV22, caracterizacao_imovel: v })}
+                      />
+                    </View>
+                    </>
+                    )}
+
+                    {tabAtivaV22 === 'AVALIANDO' &&
+                      renderGradeV22(CAMPOS_AVALIANDO_V22, avaliandoV22, setAvaliandoCampo)}
+                    {tabAtivaV22 === 'AMOSTRAS' && renderAmostrasV22()}
+                    {tabAtivaV22 === 'CUB' && renderCubV22()}
                   </>
                 ) : (
                   /* ================= FORMULÁRIO V25 (31 Campos em Abas) ================= */
