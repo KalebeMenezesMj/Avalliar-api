@@ -37,11 +37,12 @@ ml/
 ├── app.py           # serviço FastAPI (ver docs/06)
 ├── calc.py          # Dados Calc, URLs, CUB, G3 (escrever/ler/converter anúncio em amostra)
 ├── amostras.py      # busca no VivaReal, seleção das 5 amostras, idade, CEP, campos estimados
+├── vivareal.py      # cliente do VivaReal; busca o HTML por cadeia de fontes anti-bloqueio (docs/07)
 ├── terreno.py       # estima área de terreno/frente ausentes
 ├── selecao_calc.py  # seleção por vários critérios (área, idade, padrão, bairro, terreno)
 ├── ajuste_valor.py  # troca de amostras até o valor de mercado chegar perto de valor_referencia (V22)
 ├── recalc.py        # LibreOffice: recalcula e grava os valores calculados nas fórmulas
-├── ferramentas/     # teste_aceite.py, teste_cache.py, teste_planilha_inteira.py
+├── ferramentas/     # teste_aceite.py, teste_cache.py, teste_planilha_inteira.py, teste_vivareal.py (diagnóstico das fontes de busca)
 ├── demo.py          # demo ponta a ponta
 ├── data/templates/  # planilhas de modelo (gitignored)
 ├── data/output/     # planilhas preenchidas (gitignored)

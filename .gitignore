@@ -15,6 +15,13 @@ target/
 .DS_Store
 Thumbs.db
 
+# Binário baixado pelo infra\subir-relay.bat na 1a execucao
+infra/cloudflared.exe
+
+# Python
+__pycache__/
+*.pyc
+
 # Env / secrets
 .env
 .env.*

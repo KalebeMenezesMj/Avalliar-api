@@ -9,7 +9,7 @@ Estado do projeto Avalliar (FATEC Praia Grande) ao final desta sessão. Ver deta
   Custo/Comparativo/INSPECTOS são fórmulas e recalculam no Excel.
 - Busca de amostras no VivaReal + idade pela foto + CEP (ViaCEP) + estimadores de estado e coluna IBAPE.
 - Validação: planilha inteira 99,99–100%; Dados Calc ida e volta 100% (141 laudos); `test_fields` 90/90.
-- Deploy: ML `avalliar-ml:v10` (LibreOffice, valores calculados, estimativa de terreno, seleção por critérios e troca de amostras até o valor de referência), API `avalliar-api:v3`. Commits `d59b0bc` e `21d5188` em `main`.
+- Deploy: ML `avalliar-ml:v17` (scrapper do VivaReal 100% na VPS via proxies residenciais DataImpulse já no secret `vivareal-proxy`, com `curl_cffi`; relay local fica só de fallback não configurado; cache 30 min e `/diag/vivareal`), API `avalliar-api:v3`. Commits `d59b0bc` e `21d5188` em `main` (mudanças do VivaReal ainda não commitadas).
 - Aceite (24 laudos, 5 amostras novas): 22/24 dentro de ±15%, erro médio 4,9% com troca de amostras (`valor_referencia`); só similaridade: 17–19/24.
 - Upload multipart do Spring em 30 MB.
 - PDF-resumo na área de trabalho: `Avalliar-ML-Resumo-Alteracoes.pdf`.
@@ -21,7 +21,7 @@ Estado do projeto Avalliar (FATEC Praia Grande) ao final desta sessão. Ver deta
 
 0. **V25: preencher `AMOSTRA DADOS`** (alimenta as demais abas) e estender a troca de amostras à V25. Subir CPU do ML (40 s por avaliação; com troca passa de 2 min e pode estourar o timeout do ingress).
 1. **Conferir `campos_amostra.joblib` no Blob** (comando em `docs/07`); sem ele, estado = 3 e IBAPE = padrão.
-2. **VivaReal bloqueado na Azure**: decidir busca no cliente (front/middleware envia `amostras`/`candidatas`) ou proxy com IP residencial. Definir também quem informa `valor_referencia`.
+2. **VivaReal bloqueado na Azure**: RESOLVIDO na v17 (15/11) — 100% na VPS via **proxies residenciais DataImpulse** (secret `vivareal-proxy`) com fingerprint de Chrome (`curl_cffi`); cadeia agora é proxy → (relay opcional, removido da produção) → direta; cache 30 min; `/diag/vivareal` confirma busca OK via `proxy[0]`. Restam: (a) definir quem informa `valor_referencia`; (b) commitar as mudanças; (c) confirmar se a conta DataImpulse é gratuita/permanente — se expirar, criar ScrapingAnt grátis (sem cartão) e setar `VIVAREAL_SCRAPIANT`.
    - Definir o critério de aceite oficial (±15% foi adotado nos testes).
 3. **CUB atual**: definir fonte; hoje o template tem mar/2023 e a resposta traz aviso.
 4. **Remover o fallback que inventa planilha** em `/preencher` (`_gerar_planilha_bytes`, valores como "PROP-2026-0842").

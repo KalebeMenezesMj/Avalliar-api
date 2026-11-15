@@ -21,6 +21,12 @@ services:
       context: ./ml
       dockerfile: Dockerfile
     container_name: avalliar-ml
+    environment:
+      # Fontes de busca do VivaReal (docs/07): preencha no .env da raiz do repo.
+      VIVAREAL_RELAY: ${VIVAREAL_RELAY:-}
+      VIVAREAL_RELAY_KEY: ${VIVAREAL_RELAY_KEY:-}
+      VIVAREAL_PROXY: ${VIVAREAL_PROXY:-}
+      VIVAREAL_SCRAPIANT: ${VIVAREAL_SCRAPIANT:-}
     ports:
       - "8000:8000"
 

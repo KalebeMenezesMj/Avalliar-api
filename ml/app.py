@@ -116,6 +116,21 @@ def health():
             "idade_aparente": idade.disponivel()}
 
 
+@app.get("/diag/vivareal")
+def diag_vivareal(uf: str = None, cidade: str = None, tipo: str = "casa"):
+    """Diagnóstico das fontes de busca do VivaReal (docs/07). Com uf/cidade,
+    roda uma busca real e devolve a fonte usada e o total de anúncios."""
+    import vivareal
+    if uf and cidade:
+        try:
+            anuncios = vivareal.buscar(uf, cidade, tipo)
+            busca = {"status": "ok", "total_anuncios": len(anuncios)}
+        except Exception as e:
+            busca = {"status": "falha", "erro": str(e)}
+        return {"fontes_configuradas": vivareal.resumo_fontes(), **vivareal.estado(), "busca": busca}
+    return {"fontes_configuradas": vivareal.resumo_fontes(), **vivareal.estado()}
+
+
 @app.post("/reconhecer")
 def reconhecer(file: UploadFile = File(...)):
     tmp = _salvar_upload(file)
