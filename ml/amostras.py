@@ -75,7 +75,9 @@ def buscar(busca, completar=True):
 
     alvo = {"area": busca.get("area"), "tipo": tipo, "quartos": busca.get("quartos"),
             "vagas": busca.get("vagas"), "bairro": busca.get("bairro")}
-    top_n = min(int(busca.get("top_n", 5)), len(calc.COLUNAS_AMOSTRAS))
+    top_n = int(busca.get("top_n", 5))
+    if not ampla:  # sem pedido de candidatas, só cabem as colunas da planilha
+        top_n = min(top_n, len(calc.COLUNAS_AMOSTRAS))
     escolhidas = selecao.selecionar(alvo, anuncios, top_n=top_n,
                                     faixa_area=float(busca.get("faixa_area", 1.0 if ampla else 0.6)))
     if len(escolhidas) < top_n:
