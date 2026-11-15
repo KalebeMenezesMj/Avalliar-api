@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -19,7 +20,7 @@ import {
 import { fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
-import { userService } from '../services/userService';
+import { userService, ClienteDTO } from '../services/userService';
 
 export type UserTypeFilter = 'TODOS' | 'FUNCIONARIOS' | 'CLIENTES';
 
@@ -34,6 +35,8 @@ export interface UsuarioItem {
   avatarBg: string;
   avatarIcon: keyof typeof Ionicons.glyphMap;
   ativo: boolean; // Para clientes: true = Contrato Ativo, false = Contrato Finalizado
+  backendId?: number; // id no banco (tabela usuario ou cliente); ausente em itens só locais
+  cnpj?: string;
 }
 
 const USUARIOS_INICIAIS: UsuarioItem[] = [
@@ -158,6 +161,7 @@ export default function UsuariosScreen({
   const [dropdownEmpresaAberto, setDropdownEmpresaAberto] = useState(false);
   const [formAtivo, setFormAtivo] = useState(true);
   const [formCnpj, setFormCnpj] = useState('');
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
 
   const userName = currentUser?.nome || 'Linux da Silva';
   const userEmail = currentUser?.email || 'linux.silva@fatec.sp.gov.br';
@@ -212,6 +216,7 @@ export default function UsuariosScreen({
           resFuncs.value.forEach((f, idx) => {
             listaMapeada.push({
               id: `func-${f.id}`,
+              backendId: Number(f.id),
               nome: f.nome,
               email: f.email,
               tipo: 'FUNCIONARIO',
@@ -230,6 +235,8 @@ export default function UsuariosScreen({
           resClis.value.forEach((c, idx) => {
             listaMapeada.push({
               id: `cli-${c.id}`,
+              backendId: Number(c.id),
+              cnpj: c.cnpj,
               nome: c.nomeContato || c.razaoSocial,
               email: c.email || 'contato@empresa.com.br',
               tipo: 'CLIENTE',
@@ -307,6 +314,8 @@ export default function UsuariosScreen({
     setFormAtivo(user.ativo);
     setFormNovaEmpresaModo(false);
     setDropdownEmpresaAberto(false);
+    setConfirmandoExclusao(false);
+    setFormCnpj(user.cnpj ?? '');
     if (user.tipo === 'CLIENTE') {
       setFormEmpresa(user.empresaVinculada || 'Doors LTDA');
       setFormCargo('');
@@ -328,30 +337,51 @@ export default function UsuariosScreen({
         ? `Cliente • ${empresaFinal}`
         : formCargo.trim() || 'Vistoriador';
 
-    // Gravação real no banco de dados via API
+    // Gravação real no banco: atualiza o registro existente ou cria um novo
+    const editando = usuarioEditando;
+    const tipoFinal = editando ? editando.tipo : formTipo;
+    const cnpjLimpo = formCnpj.replace(/[^A-Za-z0-9]/g, '');
+    if (tipoFinal === 'CLIENTE' && cnpjLimpo.length > 0 && cnpjLimpo.length !== 14) {
+      Alert.alert('Atenção', 'O CNPJ deve ter 14 caracteres (com ou sem pontuação).');
+      return;
+    }
+
+    let novoBackendId: number | undefined = editando?.backendId;
     try {
-      if (formTipo === 'FUNCIONARIO') {
-        // Tabela usuario
-        await userService.criarFuncionario({
+      if (tipoFinal === 'FUNCIONARIO') {
+        // Tabela usuario (na atualização o perfil de acesso não é alterado)
+        const dados = {
           nome: formNome.trim(),
           email: formEmail.trim(),
           telefone: formTelefone.trim(),
           cargo: formCargo.trim() || 'Vistoriador',
-          role: 'OPERACIONAL',
-        });
+        };
+        if (editando?.backendId) {
+          await userService.atualizarFuncionario(editando.backendId, dados);
+        } else {
+          const criado = await userService.criarFuncionario({ ...dados, role: 'OPERACIONAL' });
+          novoBackendId = criado.id ? Number(criado.id) : undefined;
+        }
       } else {
         // Tabela cliente (Organização de contratos)
-        await userService.criarCliente({
+        const dados: ClienteDTO = {
           razaoSocial: empresaFinal,
           nomeContato: formNome.trim(),
           email: formEmail.trim(),
           telefone: formTelefone.trim(),
           ativo: formAtivo,
           cnpj: formCnpj.trim() || undefined,
-        });
+        };
+        if (editando?.backendId) {
+          await userService.atualizarCliente(editando.backendId, dados);
+        } else {
+          const criado = await userService.criarCliente(dados);
+          novoBackendId = criado.id ? Number(criado.id) : undefined;
+        }
       }
     } catch (err) {
-      // Continua e atualiza a UI localmente caso offline
+      Alert.alert('Não foi possível salvar', err instanceof Error ? err.message : 'Tente novamente.');
+      return;
     }
 
     if (usuarioEditando) {
@@ -360,6 +390,8 @@ export default function UsuariosScreen({
           u.id === usuarioEditando.id
             ? {
                 ...u,
+                backendId: novoBackendId ?? u.backendId,
+                cnpj: tipoFinal === 'CLIENTE' ? formCnpj.trim() || undefined : u.cnpj,
                 nome: formNome.trim(),
                 email: formEmail.trim(),
                 telefone: formTelefone.trim(),
@@ -376,7 +408,11 @@ export default function UsuariosScreen({
       const corSorteada = cores[Math.floor(Math.random() * cores.length)];
 
       const novo: UsuarioItem = {
-        id: `user-${Date.now()}`,
+        id: novoBackendId
+          ? `${formTipo === 'CLIENTE' ? 'cli' : 'func'}-${novoBackendId}`
+          : `user-${Date.now()}`,
+        backendId: novoBackendId,
+        cnpj: formTipo === 'CLIENTE' ? formCnpj.trim() || undefined : undefined,
         nome: formNome.trim(),
         email: formEmail.trim(),
         telefone: formTelefone.trim() || '(11) 99999-0000',
@@ -392,6 +428,27 @@ export default function UsuariosScreen({
     }
 
     setUsuarioModalVisible(false);
+  };
+
+  // Exclusão do funcionário ou empresa aberto no modal (só após confirmação)
+  const handleExcluirUsuario = async () => {
+    const alvo = usuarioEditando;
+    if (!alvo) return;
+    try {
+      if (alvo.backendId) {
+        if (alvo.tipo === 'CLIENTE') {
+          await userService.excluirCliente(alvo.backendId);
+        } else {
+          await userService.excluirFuncionario(alvo.backendId);
+        }
+      }
+      setUsuarios((prev) => prev.filter((u) => u.id !== alvo.id));
+      setConfirmandoExclusao(false);
+      setUsuarioModalVisible(false);
+    } catch (err) {
+      Alert.alert('Não foi possível excluir', err instanceof Error ? err.message : 'Tente novamente.');
+      setConfirmandoExclusao(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -1002,6 +1059,34 @@ export default function UsuariosScreen({
                     </Pressable>
                   </View>
                 </>
+              )}
+
+              {/* Excluir (somente na edição, com confirmação) */}
+              {usuarioEditando && (
+                confirmandoExclusao ? (
+                  <View style={styles.confirmExclusaoBox}>
+                    <Text style={styles.confirmExclusaoText}>
+                      Excluir {usuarioEditando.tipo === 'CLIENTE' ? 'a empresa' : 'o funcionário'}{' '}
+                      "{usuarioEditando.tipo === 'CLIENTE' ? usuarioEditando.empresaVinculada : usuarioEditando.nome}"?
+                      Esta ação não pode ser desfeita.
+                    </Text>
+                    <View style={styles.modalActions}>
+                      <Pressable style={styles.cancelButton} onPress={() => setConfirmandoExclusao(false)}>
+                        <Text style={styles.cancelButtonText}>Não, manter</Text>
+                      </Pressable>
+                      <Pressable style={styles.deleteConfirmButton} onPress={handleExcluirUsuario}>
+                        <Text style={styles.confirmButtonText}>Sim, excluir</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Pressable style={styles.deleteButton} onPress={() => setConfirmandoExclusao(true)}>
+                    <Ionicons name="trash-outline" size={16} color="#C61010" />
+                    <Text style={styles.deleteButtonText}>
+                      Excluir {usuarioEditando.tipo === 'CLIENTE' ? 'empresa' : 'funcionário'}
+                    </Text>
+                  </Pressable>
+                )
               )}
 
               {/* Botões do Modal */}
@@ -1764,6 +1849,42 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 13,
     color: '#64748B',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: spacing.xl,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deleteButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: '#C61010',
+  },
+  confirmExclusaoBox: {
+    marginTop: spacing.xl,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    backgroundColor: '#FEF2F2',
+  },
+  confirmExclusaoText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: '#7F1D1D',
+  },
+  deleteConfirmButton: {
+    backgroundColor: '#991B1B',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   confirmButton: {
     backgroundColor: '#C61010',

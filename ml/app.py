@@ -182,11 +182,33 @@ def preencher(req: PreencherRequest):
 CUB_AVISO = ("Tabela CUB/R8N mantida como no template (mar/2023): informe dados.cub {rotulo, referencia, valores:{UF: R$/m²}} para atualizar")
 
 def _estimar_terreno(valores):
-    """Amostras sem terreno/frente (ou com o valor-padrão 1) quebram o Custo01: estima pela proporção
-    observada nos laudos reais e avisa."""
+    """Amostras informadas à mão: estima terreno/frente (quebram o Custo01) e estado_conservacao
+    (código 1..8; sem ele a aba Amostras fica com #N/D). Mesma regra de amostras.buscar(), que o
+    VivaReal já usa. Avisa o que foi estimado e o que continua vazio."""
+    import campos
     import terreno
-    est = terreno.completar([a for a in valores.get("amostras") or [] if isinstance(a, dict)])
-    return [f"terreno/frente estimados em {len({i for i, _, _ in est})} amostra(s) sem esses dados (revisar)"] if est else []
+    amostras = [a for a in valores.get("amostras") or [] if isinstance(a, dict)]
+    if not amostras:
+        return []
+    avisos = []
+    est_terreno = terreno.completar(amostras)
+    if est_terreno:
+        avisos.append(f"terreno/frente estimados em {len({i for i, _, _ in est_terreno})} amostra(s) sem esses dados (revisar)")
+    est_campos = campos.completar(amostras)
+    if est_campos:
+        avisos.append("campos estimados pelo modelo (revisar): " + ", ".join(sorted({c for _, c, _ in est_campos})))
+    reserva = [i + 1 for i, a in enumerate(amostras) if a.get("estado_conservacao") in (None, "")]
+    for a in amostras:
+        if a.get("estado_conservacao") in (None, ""):
+            a["estado_conservacao"] = 3  # mesma reserva de amostras.buscar()
+    if reserva:
+        avisos.append(f"estado de conservação não informado nas amostras {reserva}; usado 3 (Regular) como reserva")
+    sem_preco = [i + 1 for i, a in enumerate(amostras) if a.get("preco") in (None, "", 0)]
+    if sem_preco:
+        avisos.append(f"amostra(s) {sem_preco} sem preço: as abas Amostras e BD ATHENA ficam com #N/D nelas")
+    if len(amostras) < 5:
+        avisos.append(f"só {len(amostras)} de 5 amostras informadas: as colunas restantes geram #N/D nas abas Amostras")
+    return avisos
 
 
 def _resolver_amostras(valores):

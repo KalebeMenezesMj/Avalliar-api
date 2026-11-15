@@ -36,6 +36,101 @@ interface NovaDemandaScreenProps {
   empresaPreSelecionada?: string;
 }
 
+// Cadastro completo de uma empresa contratante nova (campos da tabela cliente + endereço)
+interface NovaEmpresaForm {
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  slaPadraoHoras: string;
+  nomeContato: string;
+  email: string;
+  telefone: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+const NOVA_EMPRESA_VAZIA: NovaEmpresaForm = {
+  razaoSocial: '',
+  nomeFantasia: '',
+  cnpj: '',
+  slaPadraoHoras: '',
+  nomeContato: '',
+  email: '',
+  telefone: '',
+  cep: '',
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
+};
+
+const normalizarCnpjInput = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 14);
+
+const formatarCepInput = (v: string) => {
+  const d = v.replace(/\D/g, '').slice(0, 8);
+  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
+};
+
+/** Mensagem de erro do primeiro problema encontrado, ou null se o cadastro está completo. */
+function validarNovaEmpresa(f: NovaEmpresaForm, empresasExistentes: string[]): string | null {
+  const obrigatorios: [keyof NovaEmpresaForm, string][] = [
+    ['razaoSocial', 'Razão social'],
+    ['cnpj', 'CNPJ'],
+    ['nomeContato', 'Nome do contato'],
+    ['email', 'E-mail'],
+    ['telefone', 'Telefone / WhatsApp'],
+    ['cep', 'CEP'],
+    ['logradouro', 'Logradouro'],
+    ['numero', 'Número'],
+    ['bairro', 'Bairro'],
+    ['cidade', 'Cidade'],
+    ['uf', 'UF'],
+  ];
+  for (const [campo, nome] of obrigatorios) {
+    if (!f[campo].trim()) return `Preencha o campo obrigatório: ${nome}.`;
+  }
+  if (f.cnpj.length !== 14) return 'O CNPJ deve ter 14 caracteres (com ou sem pontuação).';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return 'E-mail inválido.';
+  if (f.cep.replace(/\D/g, '').length !== 8) return 'O CEP deve ter 8 dígitos.';
+  if (!/^[A-Za-z]{2}$/.test(f.uf.trim())) return 'A UF deve ter 2 letras.';
+  if (f.slaPadraoHoras.trim() && !(Number(f.slaPadraoHoras) > 0)) {
+    return 'O SLA deve ser um número de horas maior que zero.';
+  }
+  const nome = f.razaoSocial.trim().toLowerCase();
+  if (empresasExistentes.some((e) => e.trim().toLowerCase() === nome)) {
+    return 'Já existe uma empresa com esta razão social. Selecione-a na lista de empresas.';
+  }
+  return null;
+}
+
+function montarClienteDTO(f: NovaEmpresaForm): ClienteDTO {
+  const opt = (v: string) => v.trim() || undefined;
+  return {
+    razaoSocial: f.razaoSocial.trim(),
+    nomeFantasia: opt(f.nomeFantasia),
+    cnpj: f.cnpj,
+    slaPadraoHoras: f.slaPadraoHoras.trim() ? Number(f.slaPadraoHoras) : undefined,
+    nomeContato: f.nomeContato.trim(),
+    email: f.email.trim(),
+    telefone: f.telefone.trim(),
+    cep: f.cep.replace(/\D/g, ''),
+    logradouro: f.logradouro.trim(),
+    numero: f.numero.trim(),
+    complemento: opt(f.complemento),
+    bairro: f.bairro.trim(),
+    cidade: f.cidade.trim(),
+    uf: f.uf.trim().toUpperCase(),
+    ativo: true,
+  };
+}
+
 export default function NovaDemandaScreen({
   currentUser,
   onBack,
@@ -48,7 +143,8 @@ export default function NovaDemandaScreen({
   // Dados do formulário
   const [empresa, setEmpresa] = useState(empresaPreSelecionada || 'Doors LTDA');
   const [novaEmpresaModo, setNovaEmpresaModo] = useState(false);
-  const [novaEmpresaNome, setNovaEmpresaNome] = useState('');
+  const [novaEmpresa, setNovaEmpresa] = useState<NovaEmpresaForm>(NOVA_EMPRESA_VAZIA);
+  const novaEmpresaNome = novaEmpresa.razaoSocial;
   const [dropdownEmpresaAberto, setDropdownEmpresaAberto] = useState(false);
 
   const [titulo, setTitulo] = useState('');
@@ -147,6 +243,115 @@ export default function NovaDemandaScreen({
     return fallback;
   }, [funcionarios]);
 
+  const atualizarNovaEmpresa = (campo: keyof NovaEmpresaForm, valor: string) =>
+    setNovaEmpresa((prev) => ({ ...prev, [campo]: valor }));
+
+  const campoNovaEmpresa = (
+    label: string,
+    campo: keyof NovaEmpresaForm,
+    opcoes: {
+      obrigatorio?: boolean;
+      placeholder?: string;
+      keyboardType?: 'default' | 'numeric' | 'email-address' | 'phone-pad';
+      formatar?: (v: string) => string;
+      maxLength?: number;
+      autoCapitalize?: 'none' | 'sentences' | 'characters';
+      autoFocus?: boolean;
+    } = {}
+  ) => (
+    <View style={{ flex: 1, marginTop: 8 }}>
+      <Text style={styles.novaEmpresaLabel}>
+        {label} {opcoes.obrigatorio && <Text style={styles.requiredAsterisk}>*</Text>}
+      </Text>
+      <TextInput
+        style={styles.textInput}
+        placeholder={opcoes.placeholder}
+        placeholderTextColor="#94A3B8"
+        value={novaEmpresa[campo]}
+        keyboardType={opcoes.keyboardType ?? 'default'}
+        autoCapitalize={opcoes.autoCapitalize ?? 'sentences'}
+        maxLength={opcoes.maxLength}
+        autoFocus={opcoes.autoFocus}
+        onChangeText={(v) => atualizarNovaEmpresa(campo, opcoes.formatar ? opcoes.formatar(v) : v)}
+      />
+    </View>
+  );
+
+  const renderFormNovaEmpresa = () => (
+    <View style={styles.novaEmpresaBox}>
+      <Text style={styles.novaEmpresaLabel}>
+        Cadastro da nova empresa contratante (campos com * são obrigatórios)
+      </Text>
+
+      {campoNovaEmpresa('Razão Social', 'razaoSocial', {
+        obrigatorio: true,
+        placeholder: 'Ex: Alvorada Engenharia & Vistorias Ltda',
+        autoFocus: true,
+      })}
+      {campoNovaEmpresa('Nome Fantasia', 'nomeFantasia', { placeholder: 'Opcional' })}
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {campoNovaEmpresa('CNPJ', 'cnpj', {
+          obrigatorio: true,
+          placeholder: '00.000.000/0000-00',
+          formatar: normalizarCnpjInput,
+          maxLength: 18,
+          autoCapitalize: 'characters',
+        })}
+        {campoNovaEmpresa('SLA (horas)', 'slaPadraoHoras', {
+          placeholder: '48',
+          keyboardType: 'numeric',
+        })}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {campoNovaEmpresa('Nome do Contato', 'nomeContato', { obrigatorio: true })}
+        {campoNovaEmpresa('E-mail', 'email', {
+          obrigatorio: true,
+          keyboardType: 'email-address',
+          autoCapitalize: 'none',
+        })}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {campoNovaEmpresa('Telefone / WhatsApp', 'telefone', {
+          obrigatorio: true,
+          keyboardType: 'phone-pad',
+        })}
+        {campoNovaEmpresa('CEP', 'cep', {
+          obrigatorio: true,
+          keyboardType: 'numeric',
+          placeholder: '00000-000',
+          formatar: formatarCepInput,
+          maxLength: 9,
+        })}
+      </View>
+
+      {campoNovaEmpresa('Logradouro', 'logradouro', { obrigatorio: true, placeholder: 'Rua, avenida...' })}
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {campoNovaEmpresa('Número', 'numero', { obrigatorio: true, maxLength: 10, placeholder: 'Ex: 1500' })}
+        {campoNovaEmpresa('Complemento', 'complemento', { placeholder: 'Opcional' })}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {campoNovaEmpresa('Bairro', 'bairro', { obrigatorio: true })}
+        {campoNovaEmpresa('Cidade', 'cidade', { obrigatorio: true })}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        {campoNovaEmpresa('UF', 'uf', {
+          obrigatorio: true,
+          placeholder: 'SP',
+          maxLength: 2,
+          autoCapitalize: 'characters',
+          formatar: (v) => v.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2),
+        })}
+        <View style={{ flex: 1 }} />
+      </View>
+    </View>
+  );
+
   // Submissão do formulário
   const handleSubmit = async () => {
     const empresaFinal = novaEmpresaModo ? novaEmpresaNome.trim() : empresa.trim();
@@ -161,16 +366,30 @@ export default function NovaDemandaScreen({
       return;
     }
 
+    if (novaEmpresaModo) {
+      const erroEmpresa = validarNovaEmpresa(novaEmpresa, listaEmpresas);
+      if (erroEmpresa) {
+        Alert.alert('Atenção', erroEmpresa);
+        return;
+      }
+    }
+
     setSalvando(true);
+    let cadastrou = true;
 
     try {
-      // 1. Se cadastrou uma nova empresa na criação da demanda, persiste na tabela de clientes
-      if (novaEmpresaModo && novaEmpresaNome.trim()) {
-        await userService.criarCliente({
-          razaoSocial: novaEmpresaNome.trim(),
-          ativo: true,
-          nomeContato: responsavel,
-        }).catch(() => {});
+      // 1. Nova empresa: cadastro completo na tabela de clientes antes de criar a demanda
+      if (novaEmpresaModo) {
+        try {
+          await userService.criarCliente(montarClienteDTO(novaEmpresa));
+        } catch (err) {
+          cadastrou = false;
+          Alert.alert(
+            'Não foi possível cadastrar a empresa',
+            err instanceof Error ? err.message : 'Tente novamente.'
+          );
+          return;
+        }
       }
 
       // 2. Salva e atribui a demanda na empresa via demandaService
@@ -189,7 +408,7 @@ export default function NovaDemandaScreen({
       // Continua caso offline
     } finally {
       setSalvando(false);
-      setModalSucesso(true);
+      if (cadastrou) setModalSucesso(true);
     }
   };
 
@@ -350,19 +569,7 @@ export default function NovaDemandaScreen({
           )}
 
           {/* Se estiver no modo de nova empresa */}
-          {novaEmpresaModo && (
-            <View style={styles.novaEmpresaBox}>
-              <Text style={styles.novaEmpresaLabel}>Nome da Nova Empresa Contratante:</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Ex: Alvorada Engenharia & Vistorias..."
-                placeholderTextColor="#94A3B8"
-                value={novaEmpresaNome}
-                onChangeText={setNovaEmpresaNome}
-                autoFocus
-              />
-            </View>
-          )}
+          {novaEmpresaModo && renderFormNovaEmpresa()}
 
           {/* B. Título / Descrição da Demanda */}
           <Text style={styles.fieldLabel}>

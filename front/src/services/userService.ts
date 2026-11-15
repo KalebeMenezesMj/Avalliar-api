@@ -14,10 +14,18 @@ export interface ClienteDTO {
   id?: number | string;
   cnpj?: string;
   razaoSocial: string;
+  nomeFantasia?: string;
   slaPadraoHoras?: number;
   nomeContato?: string;
   email?: string;
   telefone?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
   ativo?: boolean;
 }
 
@@ -32,6 +40,17 @@ export const userService = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  async atualizarFuncionario(id: number | string, data: UsuarioDTO): Promise<UsuarioDTO> {
+    return request<UsuarioDTO>(`/api/usuarios/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async excluirFuncionario(id: number | string): Promise<void> {
+    await request<void>(`/api/usuarios/${id}`, { method: 'DELETE' });
   },
 
   // Clientes (Tabela cliente - Contratos)
@@ -51,5 +70,9 @@ export const userService = {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  },
+
+  async excluirCliente(id: number | string): Promise<void> {
+    await request<void>(`/api/clientes/${id}`, { method: 'DELETE' });
   },
 };
