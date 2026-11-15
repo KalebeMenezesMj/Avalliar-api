@@ -62,6 +62,12 @@ def buscar(busca, completar=True):
     filtros = {k: busca[k] for k in ("area_min", "area_max") if busca.get(k) is not None}
     try:
         anuncios = vivareal.buscar(uf, cidade, tipo, busca.get("bairro"), **filtros)
+        ampla = int(busca.get("top_n", 5)) > 5  # pedido de candidatas (troca de amostras): precisa de muitas opções
+        if (ampla or len(anuncios) < 5) and busca.get("bairro"):  # poucos anúncios no bairro: amplia para a cidade
+            mais = vivareal.buscar(uf, cidade, tipo, None, **filtros)
+            vistos = {a.get("id") for a in anuncios}
+            anuncios += [a for a in mais if a.get("id") not in vistos]
+            avisos.append(f"busca ampliada do bairro '{busca['bairro']}' para a cidade (mais candidatas)")
     except Exception as e:
         return [], [f"VivaReal indisponível ({e}); amostras não preenchidas"]
     if not anuncios:
@@ -69,9 +75,11 @@ def buscar(busca, completar=True):
 
     alvo = {"area": busca.get("area"), "tipo": tipo, "quartos": busca.get("quartos"),
             "vagas": busca.get("vagas"), "bairro": busca.get("bairro")}
-    top_n = min(int(busca.get("top_n", 5)), len(calc.COLUNAS_AMOSTRAS))
+    top_n = int(busca.get("top_n", 5))
+    if not ampla:  # sem pedido de candidatas, só cabem as colunas da planilha
+        top_n = min(top_n, len(calc.COLUNAS_AMOSTRAS))
     escolhidas = selecao.selecionar(alvo, anuncios, top_n=top_n,
-                                    faixa_area=float(busca.get("faixa_area", 0.6)))
+                                    faixa_area=float(busca.get("faixa_area", 1.0 if ampla else 0.6)))
     if len(escolhidas) < top_n:
         avisos.append(f"só {len(escolhidas)} amostra(s) compatíveis de {top_n} pedidas")
 

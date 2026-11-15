@@ -315,8 +315,29 @@ def buscar(uf, cidade, tipo, bairro=None, pagina=1, _fonte="auto", **filtros):
     específica (usado no teste de diagnóstico).
     """
     url = montar_url(uf, cidade, tipo, bairro, **filtros)
-    html, _ = _obter_html(url, fonte_obrigatoria=_fonte)
+    anuncios = _buscar_url(url, _fonte)
+    if not anuncios and (filtros.get("area_min") or filtros.get("area_max")):
+        # a página veio sem anúncios (filtro estreito ou resposta vazia intermitente): tenta sem o filtro
+        # de área e deixa a seleção por similaridade descartar o que não serve
+        sem_area = {k: v for k, v in filtros.items() if k not in ("area_min", "area_max")}
+        anuncios = _buscar_url(montar_url(uf, cidade, tipo, bairro, **sem_area), _fonte)
+    return anuncios
 
+
+def _buscar_url(url, _fonte="auto", tentativas=3):
+    """Baixa e extrai os anúncios; página sem anúncios não fica no cache e é tentada de novo."""
+    for _ in range(tentativas):
+        html, _nome = _obter_html(url, fonte_obrigatoria=_fonte)
+        anuncios = _listar(html)
+        if anuncios:
+            return anuncios
+        _cache.pop(url, None)
+    return []
+
+
+
+def _listar(html):
+    """Extrai os anúncios do HTML de resultados ([] se a página veio sem eles)."""
     chunks = _extrair_chunks(html)
     flight = "\n".join(chunks)
     # linha RSC com os dados da busca (seção 15.2 da doc)

@@ -226,7 +226,39 @@ def _estimar_terreno(valores):
     return avisos
 
 
+def _completar_avaliando(valores):
+    """Terreno/frente do imóvel avaliado ausentes ou 0 geram #DIV/0! no Dados Calc e no Custo01.
+    Estima a partir da área equivalente (mesma regra das amostras) e avisa para revisão."""
+    import terreno
+    av = valores.get("avaliando")
+    if not isinstance(av, dict):
+        return []
+    try:
+        area = float(av.get("area_equivalente") or 0)
+    except (TypeError, ValueError):
+        return []
+    if area <= 0:
+        return ["área equivalente do avaliado ausente: informe avaliando.area_equivalente (terreno/frente não estimados)"]
+    avisos = []
+    def _num(k):
+        try:
+            return float(av.get(k) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    if _num("area_terreno") <= 0:
+        av["area_terreno"] = round(area * terreno.RAZAO_TERRENO, 2)
+        avisos.append(f"area_terreno do avaliado ausente: estimada em {av['area_terreno']} m² (revisar)")
+    if _num("frente_efetiva") <= 0:
+        av["frente_efetiva"] = round(terreno.K_FRENTE * av["area_terreno"] ** 0.5 if _num("area_terreno") <= 0 else terreno.K_FRENTE * _num("area_terreno") ** 0.5, 2)
+        avisos.append(f"frente_efetiva do avaliado ausente: estimada em {av['frente_efetiva']} m (revisar)")
+    return avisos
+
+
 def _resolver_amostras(valores):
+    return _completar_avaliando(valores) + _resolver_amostras_busca(valores)
+
+
+def _resolver_amostras_busca(valores):
     """Se `dados.busca` veio e não há `amostras`, busca no VivaReal e preenche `amostras`.
     Devolve a lista de avisos. Remove `busca` de `valores`."""
     busca = valores.pop("busca", None)
