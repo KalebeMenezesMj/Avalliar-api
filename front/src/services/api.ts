@@ -1,34 +1,21 @@
-import { NativeModules, Platform } from 'react-native';
-
-const PORT = 8080;
-// IP da sua máquina na rede local Wi-Fi (usado para conectar do celular físico)
-const LAN_IP = '192.168.3.12';
+import { Platform } from 'react-native';
 
 /**
- * Retorna a URL base de acordo com a plataforma/ambiente:
- * - Web no PC: localhost:8080
- * - Celular Físico / Expo Go: extrai o IP da máquina onde o Metro está rodando (ex: 192.168.3.12:8080)
- * - Emulador Android: 10.0.2.2:8080
+ * URLs oficiais da infraestrutura em produção na Microsoft Azure (Container Apps):
+ * - API Java Spring Boot: porta padrão 8080 no container
+ * - Serviço ML FastAPI: porta padrão 8000 no container
+ */
+export const AZURE_API_URL =
+  'https://avalliar-api.politefield-70f0caa0.centralus.azurecontainerapps.io';
+
+export const AZURE_ML_URL =
+  'https://avalliar-ml.politefield-70f0caa0.centralus.azurecontainerapps.io';
+
+/**
+ * Retorna a URL base da API Spring Boot hospedada na Azure.
  */
 export const getBaseUrl = (): string => {
-  if (Platform.OS === 'web') {
-    return `http://localhost:${PORT}`;
-  }
-
-  // Tenta extrair o IP automaticamente da URL de onde o app carregou o bundle no Expo
-  const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
-  if (scriptURL) {
-    const match = scriptURL.match(/^https?:\/\/([^:/]+)/);
-    if (match && match[1]) {
-      const host = match[1];
-      if (host !== 'localhost' && host !== '127.0.0.1') {
-        return `http://${host}:${PORT}`;
-      }
-    }
-  }
-
-  // Se estiver em dispositivo móvel físico (iOS/Android), usa o IP da rede local
-  return `http://${LAN_IP}:${PORT}`;
+  return AZURE_API_URL;
 };
 
 export const API_BASE_URL = getBaseUrl();

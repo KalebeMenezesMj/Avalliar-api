@@ -3,6 +3,7 @@ import { Linking, NativeModules, Platform, TurboModuleRegistry } from 'react-nat
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import { ArquivoAnexo, CategoriaArquivo } from '../services/demandaService';
 import { mlService } from '../services/mlService';
+import { AZURE_ML_URL } from '../services/api';
 
 const DEFAULT_LAN_IP = '192.168.3.12';
 const DEFAULT_METRO_PORT = '8081';
@@ -179,47 +180,12 @@ function getHostAndMetroPort(): { host: string; metroPort: string } {
 }
 
 /**
- * Descobre qual servidor HTTP está ativo na rede local para servir o documento na aba do navegador / download no celular:
- * 1º Tenta o middleware integrado ao Metro Bundler (:8081)
- * 2º Tenta o servidor FastAPI de Machine Learning (:8000)
+ * Descobre o servidor HTTP ativo para servir documentos e downloads:
+ * Prioriza diretamente a infraestrutura do Machine Learning na nuvem (Azure Container Apps).
  */
 async function resolveMobileFileServerUrl(): Promise<string> {
-  const { host, metroPort } = getHostAndMetroPort();
-  const metroBase = `http://${host}:${metroPort}`;
-  const mlBase = `http://${host}:${DEFAULT_ML_PORT}`;
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1200);
-    const res = await fetch(`${metroBase}/arquivos/visualizar?nome=ping.pdf&raw=1`, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    const ct = res.headers.get('content-type') || '';
-    if (res.ok && (ct.includes('pdf') || ct.includes('html'))) {
-      return metroBase;
-    }
-  } catch {
-    // continua para testar o servidor ML
-  }
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1200);
-    const res = await fetch(`${mlBase}/health`, {
-      method: 'GET',
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (res.ok) {
-      return mlBase;
-    }
-  } catch {
-    // fallback padrão
-  }
-
-  return metroBase;
+  // Retorna diretamente o servidor em produção na Azure
+  return AZURE_ML_URL;
 }
 
 /**
