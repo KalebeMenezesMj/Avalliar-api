@@ -62,6 +62,11 @@ def buscar(busca, completar=True):
     filtros = {k: busca[k] for k in ("area_min", "area_max") if busca.get(k) is not None}
     try:
         anuncios = vivareal.buscar(uf, cidade, tipo, busca.get("bairro"), **filtros)
+        if len(anuncios) < 5 and busca.get("bairro"):  # bairro com poucos anúncios: amplia para a cidade
+            mais = vivareal.buscar(uf, cidade, tipo, None, **filtros)
+            vistos = {a.get("id") for a in anuncios}
+            anuncios += [a for a in mais if a.get("id") not in vistos]
+            avisos.append(f"poucos anúncios no bairro '{busca['bairro']}': busca ampliada para a cidade")
     except Exception as e:
         return [], [f"VivaReal indisponível ({e}); amostras não preenchidas"]
     if not anuncios:
