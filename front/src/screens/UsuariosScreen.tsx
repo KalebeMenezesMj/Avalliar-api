@@ -1294,7 +1294,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: 110,
   },
   backButtonContainer: {
     marginBottom: spacing.sm,

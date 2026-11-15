@@ -96,7 +96,8 @@ export default function App() {
 
   const handleTabSelect = (tab: TabType) => {
     setActiveTab(tab);
-    setCurrentScreen(tab);
+    // "Tarefas" da barra abre a lista de demandas, que já traz as tarefas reais.
+    setCurrentScreen(tab === 'tarefas' ? 'demandas' : (tab as CurrentScreen));
   };
 
   return (

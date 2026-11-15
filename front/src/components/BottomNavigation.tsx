@@ -1,159 +1,70 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Pressable,
-  Animated,
-  Platform,
-  LayoutChangeEvent,
-} from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet, View, Pressable, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-export type TabType = 'dashboard' | 'painel' | 'home' | 'demandas' | 'tarefas' | 'configuracoes';
+// Telas que usam a barra. "demandas" são as telas de tarefas e destacam a aba Tarefas.
+export type TabType = 'painel' | 'home' | 'demandas' | 'tarefas' | 'configuracoes';
+
+type NavKey = 'painel' | 'home' | 'tarefas' | 'configuracoes';
+
+const TAB_ALIAS: Record<TabType, NavKey> = {
+  painel: 'painel',
+  home: 'home',
+  demandas: 'tarefas',
+  tarefas: 'tarefas',
+  configuracoes: 'configuracoes',
+};
+
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface NavItemConfig {
+  key: NavKey;
+  label: string;
+  icon: IoniconName;
+  iconOutline: IoniconName;
+}
+
+// Quatro ícones, sem texto, em pílula flutuante vermelha (estilo Instagram).
+const NAV_ITEMS: NavItemConfig[] = [
+  { key: 'painel', label: 'Métricas', icon: 'stats-chart', iconOutline: 'stats-chart-outline' },
+  { key: 'home', label: 'Início', icon: 'home', iconOutline: 'home-outline' },
+  { key: 'tarefas', label: 'Tarefas', icon: 'clipboard', iconOutline: 'clipboard-outline' },
+  { key: 'configuracoes', label: 'Configurações', icon: 'settings', iconOutline: 'settings-outline' },
+];
+
+const BRAND = '#C61010';
 
 interface BottomNavigationProps {
   activeTab: TabType;
   onSelectTab: (tab: TabType) => void;
 }
 
-interface NavItemConfig {
-  key: TabType;
-  label: string;
-  renderIcon: (color: string, size: number) => React.ReactNode;
-}
-
-// 5 Abas com a ordem idêntica ao protótipo do Figma:
-// 1. Dashboard (Grade) | 2. Painel (Gráfico) | 3. Home (Centro) | 4. Demandas (Prancheta) | 5. Ajustes (Engrenagem)
-const NAV_ITEMS: NavItemConfig[] = [
-  {
-    key: 'dashboard',
-    label: 'Dashboard',
-    renderIcon: (color, size) => (
-      <MaterialCommunityIcons name="view-grid-outline" size={size} color={color} />
-    ),
-  },
-  {
-    key: 'painel',
-    label: 'Painel',
-    renderIcon: (color, size) => (
-      <Ionicons name="stats-chart-outline" size={size} color={color} />
-    ),
-  },
-  {
-    key: 'home',
-    label: 'Home',
-    renderIcon: (color, size) => (
-      <Ionicons name="home" size={size} color={color} />
-    ),
-  },
-  {
-    key: 'demandas',
-    label: 'Demandas',
-    renderIcon: (color, size) => (
-      <MaterialCommunityIcons name="clipboard-text-outline" size={size} color={color} />
-    ),
-  },
-  {
-    key: 'configuracoes',
-    label: 'Ajustes',
-    renderIcon: (color, size) => (
-      <Ionicons name="settings-outline" size={size} color={color} />
-    ),
-  },
-];
-
-const CIRCLE_SIZE = 58;
-
+// Flutua sobre o conteúdo, sem faixa de fundo: a área fora da pílula é transparente.
+// As telas com esta barra já têm margem inferior (110px) para o conteúdo não ficar atrás dela.
 export default function BottomNavigation({ activeTab, onSelectTab }: BottomNavigationProps) {
-  const [barWidth, setBarWidth] = useState(0);
-
-  const activeIndex = Math.max(
-    0,
-    NAV_ITEMS.findIndex((item) => item.key === activeTab)
-  );
-
-  const animatedX = useRef(new Animated.Value(0)).current;
-  const animatedScale = useRef(new Animated.Value(1)).current;
-
-  const tabWidth = barWidth > 0 ? barWidth / NAV_ITEMS.length : 0;
-
-  useEffect(() => {
-    if (tabWidth > 0) {
-      const targetX = activeIndex * tabWidth + (tabWidth - CIRCLE_SIZE) / 2;
-
-      Animated.parallel([
-        Animated.spring(animatedX, {
-          toValue: targetX,
-          friction: 8,
-          tension: 65,
-          useNativeDriver: false,
-        }),
-        Animated.sequence([
-          Animated.timing(animatedScale, {
-            toValue: 0.88,
-            duration: 80,
-            useNativeDriver: false,
-          }),
-          Animated.spring(animatedScale, {
-            toValue: 1,
-            friction: 5,
-            tension: 80,
-            useNativeDriver: false,
-          }),
-        ]),
-      ]).start();
-    }
-  }, [activeIndex, tabWidth]);
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const width = event.nativeEvent.layout.width;
-    if (width > 0 && width !== barWidth) {
-      setBarWidth(width);
-      const initialTabWidth = width / NAV_ITEMS.length;
-      animatedX.setValue(activeIndex * initialTabWidth + (initialTabWidth - CIRCLE_SIZE) / 2);
-    }
-  };
-
-  const currentActiveItem = NAV_ITEMS[activeIndex] || NAV_ITEMS[2];
+  const active = TAB_ALIAS[activeTab] ?? 'home';
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
-      {/* Círculo animado em vermelho com borda branca que desliza suavemente */}
-      {barWidth > 0 && (
-        <Animated.View
-          style={[
-            styles.animatedBubble,
-            {
-              left: animatedX,
-              transform: [{ scale: animatedScale }],
-            },
-          ]}
-          pointerEvents="none"
-        >
-          <View style={styles.bubbleInner}>
-            {/* Ícone ativo perfeitamente centralizado sem vazar texto */}
-            {currentActiveItem.renderIcon('#FFFFFF', 28)}
-          </View>
-        </Animated.View>
-      )}
-
-      {/* Barra vermelha de navegação clássica */}
-      <View style={styles.bar}>
-        {NAV_ITEMS.map((item, index) => {
-          const isActive = activeIndex === index;
-
+    <View style={styles.dock} pointerEvents="box-none">
+      <View style={styles.pill}>
+        {NAV_ITEMS.map((item) => {
+          const isActive = item.key === active;
           return (
             <Pressable
               key={item.key}
-              style={styles.navItemSlot}
-              onPress={() => onSelectTab(item.key)}
-              accessibilityRole="button"
+              style={styles.slot}
+              onPress={() => onSelectTab(item.key as TabType)}
+              accessibilityRole="tab"
               accessibilityLabel={item.label}
-              hitSlop={8}
+              accessibilityState={{ selected: isActive }}
+              hitSlop={6}
             >
-              <View style={[styles.slotContent, isActive && { opacity: 0 }]}>
-                {item.renderIcon('rgba(255, 255, 255, 0.72)', 24)}
-              </View>
+              <Ionicons
+                name={isActive ? item.icon : item.iconOutline}
+                size={26}
+                color={isActive ? '#FFFFFF' : 'rgba(255,255,255,0.7)'}
+              />
+              <View style={[styles.activeDot, isActive && styles.activeDotVisible]} />
             </Pressable>
           );
         })}
@@ -163,75 +74,52 @@ export default function BottomNavigation({ activeTab, onSelectTab }: BottomNavig
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
+  dock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
     backgroundColor: 'transparent',
-    alignItems: 'center',
-    position: 'relative',
     zIndex: 20,
   },
-  bar: {
-    width: '100%',
-    height: 60,
-    backgroundColor: '#C61010',
+  pill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 4,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: BRAND,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.18,
-        shadowRadius: 5,
-      },
-      android: {
-        elevation: 10,
-      },
-      web: {
-        boxShadow: '0 -2px 10px rgba(0,0,0,0.18)',
-      },
-    }),
-  },
-  navItemSlot: {
-    flex: 1,
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  slotContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  animatedBubble: {
-    position: 'absolute',
-    top: -20,
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    zIndex: 30,
-  },
-  bubbleInner: {
-    width: CIRCLE_SIZE,
-    height: CIRCLE_SIZE,
-    borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: '#C61010',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3.5,
-    borderColor: '#FFFFFF',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.28,
-        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
       },
       android: {
         elevation: 12,
       },
       web: {
-        boxShadow: '0 4px 12px rgba(0,0,0,0.28)',
+        boxShadow: '0 6px 16px rgba(198,16,16,0.35)',
       },
     }),
+  },
+  slot: {
+    flex: 1,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'transparent',
+  },
+  activeDotVisible: {
+    backgroundColor: '#FFFFFF',
   },
 });

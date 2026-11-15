@@ -15,13 +15,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Ionicons,
   MaterialCommunityIcons,
-  MaterialIcons,
   Feather,
 } from '@expo/vector-icons';
 
 import { fonts, spacing } from '../theme';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
+import SegmentedControl from '../components/SegmentedControl';
+import RankedBarChart from '../components/charts/RankedBarChart';
+import StackedColumnChart from '../components/charts/StackedColumnChart';
+import MeterList, { MeterItem } from '../components/charts/MeterList';
+import { chartColors } from '../components/charts/palette';
+import RelatorioEmpresas from '../components/dashboard/RelatorioEmpresas';
+import { PERIODOS, Periodo, resumoDoPeriodo } from '../utils/periodo';
 import { AuthResponse } from '../services/authService';
 import {
   demandaService,
@@ -46,6 +52,22 @@ interface PainelScreenProps {
   activeTab?: TabType;
 }
 
+type TipoGrafico = 'colunas' | 'barras' | 'medidores';
+
+const TIPOS_GRAFICO: Array<{ key: TipoGrafico; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = [
+  { key: 'colunas', label: 'Colunas', icon: 'bar-chart-outline' },
+  { key: 'barras', label: 'Barras', icon: 'reorder-three-outline' },
+  { key: 'medidores', label: 'Medidores', icon: 'speedometer-outline' },
+];
+
+const BRAND = '#C61010';
+const ML = '#6D28D9';
+const INK = '#0F172A';
+const INK_2 = '#475569';
+const MUTED = '#64748B';
+const LINE = '#E2E8F0';
+const SURFACE_SOFT = '#F8FAFC';
+
 export default function PainelScreen({
   currentUser,
   onBack,
@@ -55,22 +77,26 @@ export default function PainelScreen({
 }: PainelScreenProps) {
   const userName = currentUser?.nome || 'Linux da Silva';
 
-  // Aba interna do Dashboard: Visão Geral (Demandas) vs Inteligência Artificial (ML)
+  // Aba interna: Visão Geral (Demandas) vs Inteligência Artificial (ML)
   const [secaoAtiva, setSecaoAtiva] = useState<'OPERACIONAL' | 'MACHINE_LEARNING'>('OPERACIONAL');
 
-  // 1. Estado das Métricas de Conclusão de Demandas
+  // Filtro de período dos cards e tipo de gráfico das métricas gerais
+  const [periodo, setPeriodo] = useState<Periodo>('semana');
+  const [tipoGrafico, setTipoGrafico] = useState<TipoGrafico>('colunas');
+
+  // 1. Métricas de conclusão de demandas
   const [metricasDemandas, setMetricasDemandas] = useState<MetricasDashboard>(() =>
     demandaService.obterMetricasDashboard()
   );
 
-  // 2. Estados da Integração com o Serviço de Machine Learning
+  // 2. Integração com o serviço de Machine Learning
   const [mlHealth, setMlHealth] = useState<MlHealthResponse | null>(null);
   const [mlHistorico, setMlHistorico] = useState<MlRunMetric[]>([]);
   const [carregandoMl, setCarregandoMl] = useState(false);
 
   // Planilhas disponíveis nas demandas para processamento ML
   const [planilhasDemandas, setPlanilhasDemandas] = useState<ArquivoAnexo[]>([]);
-  const [processandoArqId, setProcessandoArqId] = useState<string | null>(null);
+  const [processandoArqId] = useState<string | null>(null);
   const [planilhaModalPreenchimento, setPlanilhaModalPreenchimento] = useState<{
     visivel: boolean;
     arquivo: ArquivoAnexo | null;
@@ -84,12 +110,12 @@ export default function PainelScreen({
     nomeArquivoSaida?: string;
   } | null>(null);
 
-  // Estado da Consulta RAG BM25 (/consultar)
+  // Consulta RAG BM25 (/consultar)
   const [queryRag, setQueryRag] = useState('Tabela R8N Sao Paulo');
   const [resultadosRag, setResultadosRag] = useState<MlRagResultItem[]>([]);
   const [buscandoRag, setBuscandoRag] = useState(false);
 
-  // Estado do Estimador de Idade Aparente (/idade)
+  // Estimador de idade aparente (/idade)
   const [resultadoIdade, setResultadoIdade] = useState<MlIdadeResponse | null>({
     idade_aparente_anos: 11.5,
     arquivo: 'Fachada_Edificio_VilaMariana.jpg',
@@ -135,12 +161,6 @@ export default function PainelScreen({
     } finally {
       setCarregandoMl(false);
     }
-  };
-
-  // Alternar conclusão de demanda direto no painel e recalcular todas as métricas na hora
-  const handleToggleDemandaRapida = (empresaId: string, empresaNome: string, tarefaId: string) => {
-    demandaService.toggleDemandaConcluida(empresaId, empresaNome, tarefaId);
-    atualizarDadosPainel();
   };
 
   // Executar pipeline de ML (Reconhecer -> Extrair -> Preencher) em uma planilha das demandas
@@ -228,11 +248,7 @@ export default function PainelScreen({
 
   // Download da planilha preenchida quando houver base64 na Web
   const handleBaixarPlanilhaBase64 = () => {
-    if (
-      Platform.OS === 'web' &&
-      modalResultadoMl?.base64 &&
-      typeof document !== 'undefined'
-    ) {
+    if (Platform.OS === 'web' && modalResultadoMl?.base64 && typeof document !== 'undefined') {
       const link = document.createElement('a');
       link.href = `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${modalResultadoMl.base64}`;
       link.download = modalResultadoMl.nomeArquivoSaida || 'Laudo_Preenchido_ML.xlsx';
@@ -240,16 +256,63 @@ export default function PainelScreen({
     }
   };
 
-  const ultimaAvaliacaoMl =
-    mlHistorico.length > 0 ? mlHistorico[mlHistorico.length - 1] : null;
+  const ultimaAvaliacaoMl = mlHistorico.length > 0 ? mlHistorico[mlHistorico.length - 1] : null;
+
+  const isML = secaoAtiva === 'MACHINE_LEARNING';
+  const acuraciaPct = Math.round((ultimaAvaliacaoMl?.nota || 0.999) * 1000) / 10;
+  const m = metricasDemandas;
+  const agora = new Date();
+  const resumoPeriodo = resumoDoPeriodo(m.ultimasDemandas, periodo, agora);
+  const descricaoPeriodo = PERIODOS.find((p) => p.key === periodo)?.descricao ?? '';
+
+  // Base das métricas gerais: um item por vistoriador
+  const itensResponsaveis = m.porResponsavel.map((r) => ({
+    id: r.nome,
+    label: r.nome,
+    concluidas: r.concluidas,
+    pendentes: r.pendentes,
+    total: r.total,
+    taxa: r.taxaConclusao,
+  }));
+
+  // Cumprimento por urgência (medidor por nível de SLA)
+  const medidoresUrgencia: MeterItem[] = [
+    {
+      id: 'ALTA',
+      label: 'Urgência alta',
+      hint: 'SLA de 24 horas',
+      icon: 'alert-circle',
+      color: chartColors.urgencia.ALTA,
+      done: m.porUrgencia.ALTA.concluidas,
+      total: m.porUrgencia.ALTA.total,
+    },
+    {
+      id: 'MEDIA',
+      label: 'Urgência média',
+      hint: 'SLA de 48 horas',
+      icon: 'time',
+      color: chartColors.urgencia.MEDIA,
+      done: m.porUrgencia.MEDIA.concluidas,
+      total: m.porUrgencia.MEDIA.total,
+    },
+    {
+      id: 'BAIXA',
+      label: 'Urgência baixa',
+      hint: 'SLA de 7 dias',
+      icon: 'checkmark-circle',
+      color: chartColors.urgencia.BAIXA,
+      done: m.porUrgencia.BAIXA.concluidas,
+      total: m.porUrgencia.BAIXA.total,
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      {/* 1. Header Vermelho Oficial */}
+      {/* Cabeçalho vermelho da marca */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.welcomeText}>
-            Painel & IA • <Text style={styles.userNameText}>{userName}</Text>
+            Dashboard • <Text style={styles.userNameText}>{userName}</Text>
           </Text>
         </View>
         <Ionicons name="analytics-outline" size={26} color="#FFFFFF" />
@@ -260,66 +323,28 @@ export default function PainelScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Topo com Botão Voltar e Seletor de Visão (Demandas vs Machine Learning) */}
+        {/* Topo: voltar + seletor de visão */}
         <View style={styles.topRow}>
           <Pressable style={styles.backButtonCircle} onPress={onBack} hitSlop={8}>
-            <Ionicons name="chevron-back" size={20} color="#DC2626" />
+            <Ionicons name="chevron-back" size={20} color={BRAND} />
           </Pressable>
 
-          <View style={styles.segmentedTabs}>
-            <Pressable
-              style={[
-                styles.segmentBtn,
-                secaoAtiva === 'OPERACIONAL' && styles.segmentBtnActive,
+          <View style={{ flex: 1 }}>
+            <SegmentedControl
+              options={[
+                { key: 'OPERACIONAL', label: 'Demandas', icon: 'checkmark-done-outline' },
+                { key: 'MACHINE_LEARNING', label: 'Inteligência (IA)', icon: 'hardware-chip-outline' },
               ]}
-              onPress={() => setSecaoAtiva('OPERACIONAL')}
-            >
-              <MaterialIcons
-                name="fact-check"
-                size={15}
-                color={secaoAtiva === 'OPERACIONAL' ? '#FFFFFF' : '#475569'}
-              />
-              <Text
-                style={[
-                  styles.segmentBtnText,
-                  secaoAtiva === 'OPERACIONAL' && styles.segmentBtnTextActive,
-                ]}
-              >
-                Métricas de Demandas
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.segmentBtn,
-                secaoAtiva === 'MACHINE_LEARNING' && styles.segmentBtnActivePurple,
-              ]}
-              onPress={() => setSecaoAtiva('MACHINE_LEARNING')}
-            >
-              <MaterialCommunityIcons
-                name="robot-outline"
-                size={16}
-                color={secaoAtiva === 'MACHINE_LEARNING' ? '#FFFFFF' : '#475569'}
-              />
-              <Text
-                style={[
-                  styles.segmentBtnText,
-                  secaoAtiva === 'MACHINE_LEARNING' && styles.segmentBtnTextActive,
-                ]}
-              >
-                Machine Learning (IA)
-              </Text>
-            </Pressable>
+              value={secaoAtiva}
+              onChange={setSecaoAtiva}
+              activeColor={isML ? ML : BRAND}
+            />
           </View>
         </View>
 
-        {/* 3. Card Hero Resumo Global (Integra Conclusão de Demandas + Motor ML) */}
+        {/* Hero: resumo global */}
         <LinearGradient
-          colors={
-            secaoAtiva === 'MACHINE_LEARNING'
-              ? ['#4C1D95', '#6D28D9', '#7C3AED']
-              : ['#991B1B', '#C61010', '#E84141']
-          }
+          colors={isML ? ['#4C1D95', '#6D28D9', '#7C3AED'] : ['#991B1B', '#C61010', '#E84141']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.heroCard}
@@ -327,334 +352,203 @@ export default function PainelScreen({
           <View style={styles.heroHeaderRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.heroEyebrow}>
-                {secaoAtiva === 'MACHINE_LEARNING'
-                  ? 'MOTOR DE INTELIGÊNCIA ARTIFICIAL AVALLIAR'
-                  : 'INDICADOR DE CONCLUSÃO DE DEMANDAS'}
+                {isML ? 'MOTOR DE INTELIGÊNCIA ARTIFICIAL' : 'TAXA GERAL DE CONCLUSÃO'}
               </Text>
               <Text style={styles.heroBigValue}>
-                {secaoAtiva === 'MACHINE_LEARNING'
-                  ? `${Math.round((ultimaAvaliacaoMl?.nota || 0.999) * 1000) / 10}% Acurácia`
-                  : `${metricasDemandas.taxaConclusao}% Concluídas`}
+                {isML ? `${acuraciaPct}%` : `${m.taxaConclusao}%`}
               </Text>
               <Text style={styles.heroSubtitle}>
-                {secaoAtiva === 'MACHINE_LEARNING'
-                  ? `Reconhecedor V22/V25 (100%) • Extração sem erros • ${metricasDemandas.arquivosResumo.processadosMl} planilhas preenchidas`
-                  : `${metricasDemandas.demandasConcluidas} de ${metricasDemandas.totalDemandas} demandas finalizadas • ${metricasDemandas.demandasPendentes} em andamento`}
+                {isML
+                  ? `Acurácia do reconhecedor V22/V25 • ${m.arquivosResumo.processadosMl} planilhas preenchidas`
+                  : `${m.demandasConcluidas} de ${m.totalDemandas} demandas finalizadas`}
               </Text>
             </View>
-
             <View style={styles.heroBadgeCircle}>
-              <MaterialCommunityIcons
-                name={
-                  secaoAtiva === 'MACHINE_LEARNING'
-                    ? 'brain'
-                    : 'chart-donut'
-                }
-                size={30}
-                color="#FFFFFF"
-              />
+              <MaterialCommunityIcons name={isML ? 'brain' : 'chart-donut'} size={28} color="#FFFFFF" />
             </View>
           </View>
 
-          {/* Barra de Progresso Global */}
+          <View style={styles.heroStatsRow}>
+            {isML ? (
+              <>
+                <HeroStat value={`${m.arquivosResumo.processadosMl}`} label="Preenchidas" />
+                <HeroStat value={`${m.arquivosResumo.planilhas}`} label="Planilhas" />
+                <HeroStat value={mlHealth?.status === 'UP' ? 'Online' : 'Ativo'} label="Serviço" />
+              </>
+            ) : (
+              <>
+                <HeroStat value={`${m.demandasConcluidas}`} label="Concluídas" />
+                <HeroStat value={`${m.demandasPendentes}`} label="Pendentes" />
+                <HeroStat value={`${m.totalDemandas}`} label="Total" />
+              </>
+            )}
+          </View>
+
           <View style={styles.heroProgressTrack}>
             <View
               style={[
                 styles.heroProgressFill,
                 {
-                  width: `${
-                    secaoAtiva === 'MACHINE_LEARNING'
-                      ? Math.round((ultimaAvaliacaoMl?.nota || 0.999) * 100)
-                      : metricasDemandas.taxaConclusao
-                  }%`,
+                  width: `${isML ? Math.round((ultimaAvaliacaoMl?.nota || 0.999) * 100) : m.taxaConclusao}%`,
                 },
               ]}
             />
           </View>
         </LinearGradient>
 
-        {secaoAtiva === 'OPERACIONAL' ? (
+        {!isML ? (
           <>
-            {/* 4. Grade de 4 KPIs Calculados pela Conclusão de Demandas */}
+            {/* 1. Cards de tarefas com filtro de período */}
+            <View style={styles.periodoRow}>
+              <Text style={styles.sectionLabel}>Resumo de tarefas</Text>
+              <SegmentedControl
+                options={PERIODOS.map((p) => ({ key: p.key, label: p.label }))}
+                value={periodo}
+                onChange={setPeriodo}
+              />
+              <Text style={styles.periodoHint}>Período: {descricaoPeriodo}</Text>
+            </View>
+
             <View style={styles.kpiGrid}>
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#DCFCE7' }]}>
-                  <Ionicons name="checkmark-done-circle" size={22} color="#15803D" />
-                </View>
-                <Text style={styles.kpiValue}>{metricasDemandas.demandasConcluidas}</Text>
-                <Text style={styles.kpiLabel}>Demandas Concluídas</Text>
-              </View>
-
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="time" size={22} color="#B45309" />
-                </View>
-                <Text style={styles.kpiValue}>{metricasDemandas.demandasPendentes}</Text>
-                <Text style={styles.kpiLabel}>Demandas Pendentes</Text>
-              </View>
-
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="document-attach" size={20} color="#1D4ED8" />
-                </View>
-                <Text style={styles.kpiValue}>
-                  {metricasDemandas.arquivosResumo.total}
-                </Text>
-                <Text style={styles.kpiLabel}>Arquivos & Relatórios</Text>
-              </View>
-
-              <View style={styles.kpiCard}>
-                <View style={[styles.kpiIconBox, { backgroundColor: '#EDE9FE' }]}>
-                  <MaterialCommunityIcons name="robot-outline" size={21} color="#6D28D9" />
-                </View>
-                <Text style={styles.kpiValue}>
-                  {metricasDemandas.arquivosResumo.planilhas}
-                </Text>
-                <Text style={styles.kpiLabel}>Planilhas p/ ML</Text>
-              </View>
+              <KpiCard
+                icon={<Ionicons name="checkmark-done-circle" size={20} color="#15803D" />}
+                bg="#DCFCE7"
+                value={resumoPeriodo.concluidas}
+                label="Concluídas no período"
+              />
+              <KpiCard
+                icon={<Ionicons name="add-circle" size={20} color="#1D4ED8" />}
+                bg="#DBEAFE"
+                value={resumoPeriodo.criadas}
+                label="Criadas no período"
+              />
+              <KpiCard
+                icon={<Ionicons name="time" size={20} color="#B45309" />}
+                bg="#FEF3C7"
+                value={m.demandasPendentes}
+                label="Em aberto agora"
+              />
+              <KpiCard
+                icon={<Ionicons name="alert-circle" size={20} color="#C61010" />}
+                bg="#FEE2E2"
+                value={m.porUrgencia.ALTA.pendentes}
+                label="Urgentes em aberto"
+              />
             </View>
 
-            {/* 5. Métricas de Conclusão por Empresa Contratante */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
-                <View>
-                  <Text style={styles.sectionTitle}>
-                    Taxa de Conclusão por Empresa
-                  </Text>
-                  <Text style={styles.sectionSubtitle}>
-                    Calculado em tempo real conforme as demandas são concluídas
-                  </Text>
-                </View>
+            {/* 2. Métricas gerais com seletor de tipo de gráfico */}
+            <View style={styles.card}>
+              <CardHeader
+                icon="analytics-outline"
+                title="Métricas gerais"
+                subtitle="Desempenho por vistoriador • escolha o tipo de gráfico"
+              />
+              <View style={{ marginBottom: 14 }}>
+                <SegmentedControl
+                  options={TIPOS_GRAFICO}
+                  value={tipoGrafico}
+                  onChange={setTipoGrafico}
+                  activeColor={INK}
+                />
               </View>
 
-              <View style={styles.companyMetricsList}>
-                {metricasDemandas.porEmpresa.map((emp) => {
-                  const barColor =
-                    emp.taxaConclusao === 100
-                      ? '#16A34A'
-                      : emp.taxaConclusao >= 50
-                      ? '#2563EB'
-                      : '#DC2626';
-
-                  return (
-                    <Pressable
-                      key={emp.id}
-                      style={styles.companyMetricItem}
-                      onPress={() => {
-                        if (onSelectEmpresa) {
-                          onSelectEmpresa({
-                            id: emp.id,
-                            nome: emp.nome,
-                            status: emp.status,
-                            quantidadePendentes: emp.pendentes,
-                            totalDemandas: emp.total,
-                            descricao: `| ${emp.pendentes} pendentes`,
-                            contato: '',
-                          });
-                        }
-                      }}
-                    >
-                      <View style={styles.companyMetricTop}>
-                        <Text style={styles.companyMetricName}>{emp.nome}</Text>
-                        <Text style={[styles.companyMetricPct, { color: barColor }]}>
-                          {emp.taxaConclusao}% ({emp.concluidas}/{emp.total})
-                        </Text>
-                      </View>
-
-                      <View style={styles.progressTrack}>
-                        <View
-                          style={[
-                            styles.progressFill,
-                            { width: `${emp.taxaConclusao}%`, backgroundColor: barColor },
-                          ]}
-                        />
-                      </View>
-
-                      <View style={styles.companyMetricBottom}>
-                        <Text style={styles.companyMetricMeta}>
-                          ✅ {emp.concluidas} concluídas • ⏳ {emp.pendentes} pendentes
-                        </Text>
-                        <Text style={styles.companyMetricMeta}>
-                          📎 {emp.totalArquivos} arquivos
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              {tipoGrafico === 'colunas' && <StackedColumnChart items={itensResponsaveis} />}
+              {tipoGrafico === 'barras' && (
+                <RankedBarChart
+                  items={itensResponsaveis.map((r) => ({
+                    id: r.id,
+                    label: r.label,
+                    value: r.taxa,
+                    sub: `${r.concluidas}/${r.total} concluídas • ${r.pendentes} pendentes`,
+                  }))}
+                />
+              )}
+              {tipoGrafico === 'medidores' && (
+                <MeterList
+                  items={itensResponsaveis.map((r) => ({
+                    id: r.id,
+                    label: r.label,
+                    hint: `${r.total} atribuídas`,
+                    icon: 'person-outline',
+                    color: chartColors.taxa,
+                    done: r.concluidas,
+                    total: r.total,
+                  }))}
+                />
+              )}
             </View>
 
-            {/* 6. Distribuição por SLA / Urgência e Produtividade da Equipe */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Cumprimento por Nível de Urgência</Text>
-              <Text style={styles.sectionSubtitle}>
-                Acompanhamento de demandas urgentes, médias e normais
-              </Text>
-
-              <View style={styles.urgencyBarsContainer}>
-                {(
-                  [
-                    {
-                      key: 'ALTA',
-                      label: '🔴 Urgência Alta (SLA 24h)',
-                      color: '#DC2626',
-                      dados: metricasDemandas.porUrgencia.ALTA,
-                    },
-                    {
-                      key: 'MEDIA',
-                      label: '🟡 Urgência Média (SLA 48h)',
-                      color: '#D97706',
-                      dados: metricasDemandas.porUrgencia.MEDIA,
-                    },
-                    {
-                      key: 'BAIXA',
-                      label: '🟢 Urgência Baixa (SLA 7d)',
-                      color: '#059669',
-                      dados: metricasDemandas.porUrgencia.BAIXA,
-                    },
-                  ] as const
-                ).map((u) => {
-                  const pct =
-                    u.dados.total > 0
-                      ? Math.round((u.dados.concluidas / u.dados.total) * 100)
-                      : 0;
-                  return (
-                    <View key={u.key} style={styles.urgencyStatRow}>
-                      <View style={styles.urgencyStatHeader}>
-                        <Text style={styles.urgencyStatLabel}>{u.label}</Text>
-                        <Text style={styles.urgencyStatCount}>
-                          {u.dados.concluidas}/{u.dados.total} concluídas ({pct}%)
-                        </Text>
-                      </View>
-                      <View style={styles.progressTrack}>
-                        <View
-                          style={[
-                            styles.progressFill,
-                            { width: `${pct}%`, backgroundColor: u.color },
-                          ]}
-                        />
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
+            {/* 3. Relatório por empresa */}
+            <View style={styles.card}>
+              <CardHeader
+                icon="business-outline"
+                title="Relatório por empresa"
+                subtitle="Números consolidados por contratante • toque para abrir"
+              />
+              <RelatorioEmpresas
+                items={m.porEmpresa.map((emp) => ({
+                  id: emp.id,
+                  nome: emp.nome,
+                  total: emp.total,
+                  concluidas: emp.concluidas,
+                  pendentes: emp.pendentes,
+                  totalArquivos: emp.totalArquivos,
+                  taxaConclusao: emp.taxaConclusao,
+                }))}
+                onPressEmpresa={(item) => {
+                  const emp = m.porEmpresa.find((e) => e.id === item.id);
+                  if (onSelectEmpresa && emp) {
+                    onSelectEmpresa({
+                      id: emp.id,
+                      nome: emp.nome,
+                      status: emp.status,
+                      quantidadePendentes: emp.pendentes,
+                      totalDemandas: emp.total,
+                      descricao: `| ${emp.pendentes} pendentes`,
+                      contato: '',
+                    });
+                  }
+                }}
+              />
             </View>
 
-            {/* 7. Produtividade por Vistoriador / Responsável */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Produtividade por Vistoriador</Text>
-              <Text style={styles.sectionSubtitle}>
-                Taxa de conclusão individual calculada pelas demandas atribuídas
-              </Text>
-
-              <View style={{ gap: 10, marginTop: 8 }}>
-                {metricasDemandas.porResponsavel.map((resp) => (
-                  <View key={resp.nome} style={styles.respRow}>
-                    <View style={styles.respAvatar}>
-                      <Text style={styles.respAvatarText}>
-                        {resp.nome.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.companyMetricTop}>
-                        <Text style={styles.respName}>{resp.nome}</Text>
-                        <Text style={styles.respPct}>{resp.taxaConclusao}%</Text>
-                      </View>
-                      <Text style={styles.respSub}>
-                        {resp.concluidas} concluídas de {resp.total} atribuídas ({resp.pendentes}{' '}
-                        pendentes)
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* 8. Simulador Rápido: Marcar/Desmarcar Demandas para ver o impacto ao vivo no Dashboard */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>
-                Atualização Rápida de Demandas
-              </Text>
-              <Text style={styles.sectionSubtitle}>
-                Toque para concluir ou reabrir uma demanda e observe as métricas recalcularem na hora:
-              </Text>
-
-              <View style={{ gap: 8, marginTop: 8 }}>
-                {metricasDemandas.ultimasDemandas.slice(0, 6).map((t) => (
-                  <Pressable
-                    key={t.id}
-                    style={[
-                      styles.quickTaskRow,
-                      t.concluida && styles.quickTaskRowDone,
-                    ]}
-                    onPress={() =>
-                      handleToggleDemandaRapida(t.empresaId, t.empresaNome, t.id)
-                    }
-                  >
-                    <Ionicons
-                      name={t.concluida ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
-                      color={t.concluida ? '#10B981' : '#94A3B8'}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.quickTaskTitle,
-                          t.concluida && styles.quickTaskTitleDone,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t.titulo}
-                      </Text>
-                      <Text style={styles.quickTaskSub}>
-                        🏢 {t.empresaNome} • 👤 {t.responsavel}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
+            {/* 4. Cumprimento por urgência */}
+            <View style={styles.card}>
+              <CardHeader
+                icon="speedometer-outline"
+                title="Cumprimento por urgência"
+                subtitle="Cada nível de SLA medido contra o seu próprio total"
+              />
+              <MeterList items={medidoresUrgencia} />
             </View>
           </>
         ) : (
           <>
-            {/* ABA 2: INTEGRAÇÃO FRONT-END + MACHINE LEARNING NO PAINEL */}
-            {/* A. Status do Serviço FastAPI & Métricas de Avaliação dos Modelos */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
+            {/* A. Desempenho dos modelos */}
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>
-                    Desempenho dos Modelos de ML
-                  </Text>
-                  <Text style={styles.sectionSubtitle}>
+                  <Text style={styles.cardTitle}>Desempenho dos modelos de ML</Text>
+                  <Text style={styles.cardSubtitle}>
                     Conjunto reservado de avaliação (`ml/avaliar.py` • 49 laudos reais)
                   </Text>
                 </View>
-
                 <View
                   style={[
                     styles.statusServicePill,
-                    {
-                      backgroundColor:
-                        mlHealth?.status === 'UP' ? '#DCFCE7' : '#EDE9FE',
-                    },
+                    { backgroundColor: mlHealth?.status === 'UP' ? '#DCFCE7' : '#EDE9FE' },
                   ]}
                 >
                   <View
                     style={[
                       styles.statusDotSmall,
-                      {
-                        backgroundColor:
-                          mlHealth?.status === 'UP' ? '#16A34A' : '#7C3AED',
-                      },
+                      { backgroundColor: mlHealth?.status === 'UP' ? '#16A34A' : ML },
                     ]}
                   />
                   <Text
                     style={[
                       styles.statusServiceText,
-                      {
-                        color:
-                          mlHealth?.status === 'UP' ? '#15803D' : '#6D28D9',
-                      },
+                      { color: mlHealth?.status === 'UP' ? '#15803D' : '#6D28D9' },
                     ]}
                   >
                     {mlHealth?.status === 'UP' ? 'FastAPI Online' : 'Motor ML Ativo'}
@@ -663,15 +557,12 @@ export default function PainelScreen({
               </View>
 
               {carregandoMl ? (
-                <ActivityIndicator size="small" color="#7C3AED" style={{ marginVertical: 16 }} />
+                <ActivityIndicator size="small" color={ML} style={{ marginVertical: 16 }} />
               ) : (
                 <View style={styles.mlModelsMetricsGrid}>
                   <View style={styles.mlMetricBox}>
                     <Text style={styles.mlMetricValue}>
-                      {Math.round(
-                        (ultimaAvaliacaoMl?.reconhecedor?.acuracia ?? 1) * 100
-                      )}
-                      %
+                      {Math.round((ultimaAvaliacaoMl?.reconhecedor?.acuracia ?? 1) * 100)}%
                     </Text>
                     <Text style={styles.mlMetricTitle}>Reconhecedor V22/V25</Text>
                     <Text style={styles.mlMetricSub}>
@@ -681,16 +572,10 @@ export default function PainelScreen({
 
                   <View style={styles.mlMetricBox}>
                     <Text style={styles.mlMetricValue}>
-                      {Math.round(
-                        (ultimaAvaliacaoMl?.mapeador?.rejeicao_nao_rotulos ?? 0.996) *
-                          1000
-                      ) / 10}
-                      %
+                      {Math.round((ultimaAvaliacaoMl?.mapeador?.rejeicao_nao_rotulos ?? 0.996) * 1000) / 10}%
                     </Text>
-                    <Text style={styles.mlMetricTitle}>Mapeador de Rótulos</Text>
-                    <Text style={styles.mlMetricSub}>
-                      Rejeição de não-rótulos
-                    </Text>
+                    <Text style={styles.mlMetricTitle}>Mapeador de rótulos</Text>
+                    <Text style={styles.mlMetricSub}>Rejeição de não-rótulos</Text>
                   </View>
 
                   <View style={styles.mlMetricBox}>
@@ -698,7 +583,7 @@ export default function PainelScreen({
                       {ultimaAvaliacaoMl?.extracao?.acertos || 647}/
                       {ultimaAvaliacaoMl?.extracao?.campos_conferidos || 647}
                     </Text>
-                    <Text style={styles.mlMetricTitle}>Extração de Células</Text>
+                    <Text style={styles.mlMetricTitle}>Extração de células</Text>
                     <Text style={styles.mlMetricSub}>
                       {ultimaAvaliacaoMl?.extracao?.campos_inventados ?? 0} campos inventados
                     </Text>
@@ -707,28 +592,22 @@ export default function PainelScreen({
               )}
             </View>
 
-            {/* B. Preenchimento Automático & Reconhecimento de Planilhas das Demandas (/reconhecer, /extrair, /preencher) */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
+            {/* B. Automação de planilhas */}
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>
-                    Automação de Planilhas (RF12 / RF13 / RF14)
-                  </Text>
-                  <Text style={styles.sectionSubtitle}>
+                  <Text style={styles.cardTitle}>Automação de planilhas</Text>
+                  <Text style={styles.cardSubtitle}>
                     Identifica o template (V22 ou V25), mapeia rótulos e preenche as células
                   </Text>
                 </View>
-
-                <Pressable
-                  style={styles.purpleActionBtn}
-                  onPress={handleUploadPlanilhaDiretoMl}
-                >
+                <Pressable style={styles.purpleActionBtn} onPress={handleUploadPlanilhaDiretoMl}>
                   <Ionicons name="cloud-upload-outline" size={15} color="#FFFFFF" />
                   <Text style={styles.purpleActionBtnText}>Enviar .xlsx</Text>
                 </Pressable>
               </View>
 
-              <View style={{ gap: 8, marginTop: 8 }}>
+              <View style={{ gap: 8, marginTop: 10 }}>
                 {planilhasDemandas.map((arq) => {
                   const isRunning = processandoArqId === arq.id;
                   const isFilled = arq.statusMl === 'PREENCHIDA_ML';
@@ -736,11 +615,7 @@ export default function PainelScreen({
                   return (
                     <View key={arq.id} style={styles.mlSpreadsheetRow}>
                       <View style={styles.mlExcelIcon}>
-                        <MaterialCommunityIcons
-                          name="microsoft-excel"
-                          size={22}
-                          color="#15803D"
-                        />
+                        <MaterialCommunityIcons name="microsoft-excel" size={22} color="#15803D" />
                       </View>
 
                       <View style={{ flex: 1 }}>
@@ -748,18 +623,13 @@ export default function PainelScreen({
                           {arq.nome}
                         </Text>
                         <Text style={styles.mlSheetSub}>
-                          🏢 {arq.empresaNome || 'Demanda'} •{' '}
-                          {arq.templateMl?.includes('v25')
-                            ? 'Template V25 (Padronizadas)'
-                            : 'Template V22 (Isoladas)'}
+                          {arq.empresaNome || 'Demanda'} •{' '}
+                          {arq.templateMl?.includes('v25') ? 'Template V25' : 'Template V22'}
                         </Text>
                       </View>
 
                       <Pressable
-                        style={[
-                          styles.runMlButton,
-                          isFilled && styles.runMlButtonFilled,
-                        ]}
+                        style={[styles.runMlButton, isFilled && styles.runMlButtonFilled]}
                         onPress={() => handleExecutarPipelineMl(arq)}
                         disabled={isRunning}
                       >
@@ -784,44 +654,36 @@ export default function PainelScreen({
               </View>
             </View>
 
-            {/* C. Estimador de Idade Aparente por Visão Computacional (POST /idade) */}
-            <View style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
+            {/* C. Idade aparente por foto */}
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionTitle}>
-                    Idade Aparente por Foto (`/idade`)
-                  </Text>
-                  <Text style={styles.sectionSubtitle}>
+                  <Text style={styles.cardTitle}>Idade aparente por foto</Text>
+                  <Text style={styles.cardSubtitle}>
                     Estima a idade aparente do imóvel para o cálculo de Ross-Heidecke
                   </Text>
                 </View>
-
                 <Pressable
                   style={styles.purpleActionBtn}
                   onPress={handleSelecionarFotoIdade}
                   disabled={estimandoIdade}
                 >
                   <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
-                  <Text style={styles.purpleActionBtnText}>Analisar Foto</Text>
+                  <Text style={styles.purpleActionBtnText}>Analisar foto</Text>
                 </Pressable>
               </View>
 
               {resultadoIdade && (
                 <View style={styles.idadeResultCard}>
                   <View style={styles.idadeCircle}>
-                    <Text style={styles.idadeNumber}>
-                      {resultadoIdade.idade_aparente_anos}
-                    </Text>
+                    <Text style={styles.idadeNumber}>{resultadoIdade.idade_aparente_anos}</Text>
                     <Text style={styles.idadeUnit}>anos</Text>
                   </View>
-
                   <View style={{ flex: 1 }}>
                     <Text style={styles.idadeFileLabel} numberOfLines={1}>
-                      📷 {resultadoIdade.arquivo}
+                      {resultadoIdade.arquivo}
                     </Text>
-                    <Text style={styles.idadeEstadoText}>
-                      {resultadoIdade.estado_sugerido}
-                    </Text>
+                    <Text style={styles.idadeEstadoText}>{resultadoIdade.estado_sugerido}</Text>
                     <Text style={styles.idadeErroRef}>
                       Erro médio em validação cruzada: ±{resultadoIdade.erro_medio_referencia} anos
                     </Text>
@@ -830,28 +692,26 @@ export default function PainelScreen({
               )}
             </View>
 
-            {/* D. Consulta ao Acervo Técnico com RAG BM25 (GET /consultar?q=...) */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>
-                Consulta Inteligente ao Acervo (RAG BM25)
-              </Text>
-              <Text style={styles.sectionSubtitle}>
-                Pesquise valores de referência CUB/R8N e laudos anteriores com citação da célula de origem
-              </Text>
+            {/* D. Consulta RAG BM25 */}
+            <View style={styles.card}>
+              <CardHeader
+                icon="search-outline"
+                title="Consulta ao acervo (RAG BM25)"
+                subtitle="Valores de referência CUB/R8N e laudos anteriores, com a célula de origem"
+                tint={ML}
+                bg="#EDE9FE"
+              />
 
               <View style={styles.ragSearchRow}>
                 <TextInput
                   style={styles.ragInput}
-                  placeholder="Ex: R8N Sao Paulo, Ross-Heidecke, Vila Mariana..."
+                  placeholder="Ex: R8N Sao Paulo, Ross-Heidecke..."
                   placeholderTextColor="#94A3B8"
                   value={queryRag}
                   onChangeText={setQueryRag}
                   onSubmitEditing={() => handleConsultarRag()}
                 />
-                <Pressable
-                  style={styles.ragSearchBtn}
-                  onPress={() => handleConsultarRag()}
-                >
+                <Pressable style={styles.ragSearchBtn} onPress={() => handleConsultarRag()}>
                   {buscandoRag ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
@@ -861,28 +721,26 @@ export default function PainelScreen({
               </View>
 
               <View style={styles.ragSuggestionsRow}>
-                {['Tabela R8N Sao Paulo', 'Ross-Heidecke', 'Vila Mariana'].map(
-                  (sug) => (
-                    <Pressable
-                      key={sug}
-                      style={styles.ragQuickChip}
-                      onPress={() => {
-                        setQueryRag(sug);
-                        handleConsultarRag(sug);
-                      }}
-                    >
-                      <Text style={styles.ragQuickChipText}>{sug}</Text>
-                    </Pressable>
-                  )
-                )}
+                {['Tabela R8N Sao Paulo', 'Ross-Heidecke', 'Vila Mariana'].map((sug) => (
+                  <Pressable
+                    key={sug}
+                    style={styles.ragQuickChip}
+                    onPress={() => {
+                      setQueryRag(sug);
+                      handleConsultarRag(sug);
+                    }}
+                  >
+                    <Text style={styles.ragQuickChipText}>{sug}</Text>
+                  </Pressable>
+                ))}
               </View>
 
-              <View style={{ gap: 8, marginTop: 8 }}>
+              <View style={{ gap: 8, marginTop: 10 }}>
                 {resultadosRag.map((item, idx) => (
                   <View key={idx} style={styles.ragResultCard}>
                     <Text style={styles.ragResultText}>{item.texto}</Text>
                     <View style={styles.ragSourceRow}>
-                      <Ionicons name="bookmark-outline" size={12} color="#6D28D9" />
+                      <Ionicons name="bookmark-outline" size={12} color={ML} />
                       <Text style={styles.ragSourceText} numberOfLines={1}>
                         Fonte: {item.fonte}
                       </Text>
@@ -894,11 +752,9 @@ export default function PainelScreen({
             </View>
           </>
         )}
-
-        <View style={{ height: 85 }} />
       </ScrollView>
 
-      {/* Modal de Detalhes do Preenchimento ML */}
+      {/* Modal de detalhes do preenchimento ML */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -913,7 +769,7 @@ export default function PainelScreen({
                   <View style={styles.modalMlIcon}>
                     <MaterialCommunityIcons name="robot-happy" size={28} color="#FFFFFF" />
                   </View>
-                  <Text style={styles.modalMlTitle}>Planilha Homogeneizada!</Text>
+                  <Text style={styles.modalMlTitle}>Planilha homogeneizada!</Text>
                   <Text style={styles.modalMlSub}>
                     {modalResultadoMl.templateNome} • {modalResultadoMl.camposPreenchidos} campos escritos
                   </Text>
@@ -935,16 +791,11 @@ export default function PainelScreen({
                     style={[styles.modalPrimaryBtn, { backgroundColor: '#15803D', marginBottom: 8 }]}
                     onPress={handleBaixarPlanilhaBase64}
                   >
-                    <Text style={styles.modalPrimaryBtnText}>
-                      Baixar Planilha Preenchida (.xlsx)
-                    </Text>
+                    <Text style={styles.modalPrimaryBtnText}>Baixar planilha preenchida (.xlsx)</Text>
                   </Pressable>
                 )}
 
-                <Pressable
-                  style={styles.modalPrimaryBtn}
-                  onPress={() => setModalResultadoMl(null)}
-                >
+                <Pressable style={styles.modalPrimaryBtn} onPress={() => setModalResultadoMl(null)}>
                   <Text style={styles.modalPrimaryBtnText}>Fechar</Text>
                 </Pressable>
               </>
@@ -954,7 +805,7 @@ export default function PainelScreen({
       </Modal>
 
       <BottomNavigation activeTab={activeTab} onSelectTab={onNavigateTab} />
-      {/* Modal Dinâmico de Reconhecimento e Preenchimento de Planilhas via ML */}
+
       <PlanilhaPreenchimentoModal
         visible={planilhaModalPreenchimento.visivel}
         arquivo={planilhaModalPreenchimento.arquivo}
@@ -971,22 +822,79 @@ export default function PainelScreen({
   );
 }
 
+/* ---------- Subcomponentes de layout ---------- */
+
+function HeroStat({ value, label }: { value: string; label: string }) {
+  return (
+    <View style={styles.heroStat}>
+      <Text style={styles.heroStatValue}>{value}</Text>
+      <Text style={styles.heroStatLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function KpiCard({
+  icon,
+  bg,
+  value,
+  label,
+}: {
+  icon: React.ReactNode;
+  bg: string;
+  value: number;
+  label: string;
+}) {
+  return (
+    <View style={styles.kpiCard}>
+      <View style={[styles.kpiIconBox, { backgroundColor: bg }]}>{icon}</View>
+      <Text style={styles.kpiValue}>{value}</Text>
+      <Text style={styles.kpiLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function CardHeader({
+  icon,
+  title,
+  subtitle,
+  tint = BRAND,
+  bg = '#FEE2E2',
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  subtitle: string;
+  tint?: string;
+  bg?: string;
+}) {
+  return (
+    <View style={styles.cardHeaderRow}>
+      <View style={[styles.cardIconChip, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={18} color={tint} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: BRAND,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: SURFACE_SOFT,
   },
   scrollContent: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
-    paddingBottom: 24,
+    paddingBottom: 110,
   },
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: BRAND,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -1007,6 +915,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
+  /* Topo */
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1023,40 +932,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FEE2E2',
   },
-  segmentedTabs: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 3,
-    gap: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: 11,
-  },
-  segmentBtnActive: {
-    backgroundColor: '#C61010',
-  },
-  segmentBtnActivePurple: {
-    backgroundColor: '#6D28D9',
-  },
-  segmentBtnText: {
-    fontFamily: fonts.semibold,
-    fontSize: 11.5,
-    color: '#475569',
-  },
-  segmentBtnTextActive: {
-    color: '#FFFFFF',
-    fontFamily: fonts.bold,
-  },
 
-  /* Hero Card */
+  /* Hero */
   heroCard: {
     borderRadius: 20,
     padding: spacing.lg,
@@ -1076,24 +953,49 @@ const styles = StyleSheet.create({
   },
   heroBigValue: {
     fontFamily: fonts.bold,
-    fontSize: 26,
+    fontSize: 36,
     color: '#FFFFFF',
     marginTop: 2,
+    lineHeight: 42,
   },
   heroSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
     color: 'rgba(255,255,255,0.92)',
-    marginTop: 4,
+    marginTop: 2,
     lineHeight: 17,
   },
   heroBadgeCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  heroStatsRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 14,
+    paddingVertical: 10,
+  },
+  heroStat: {
+    flex: 1,
+    alignItems: 'center',
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: 'rgba(255,255,255,0.3)',
+  },
+  heroStatValue: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: '#FFFFFF',
+  },
+  heroStatLabel: {
+    fontFamily: fonts.regular,
+    fontSize: 10.5,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 1,
   },
   heroProgressTrack: {
     height: 8,
@@ -1108,7 +1010,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  /* KPI Grid */
+  /* Filtro de período + KPIs */
+  periodoRow: {
+    marginBottom: 10,
+    gap: 8,
+  },
+  sectionLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: INK,
+  },
+  periodoHint: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: MUTED,
+  },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1117,16 +1033,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   kpiCard: {
-    width: '48%',
+    width: '48.5%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: LINE,
   },
   kpiIconBox: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1135,186 +1051,51 @@ const styles = StyleSheet.create({
   kpiValue: {
     fontFamily: fonts.bold,
     fontSize: 22,
-    color: '#0F172A',
+    color: INK,
   },
   kpiLabel: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: '#64748B',
+    color: MUTED,
     marginTop: 2,
   },
 
-  /* Sections */
-  sectionCard: {
+  /* Cards */
+  card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: LINE,
     marginBottom: spacing.md,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 6,
-  },
-  sectionTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 15.5,
-    color: '#0F172A',
-  },
-  sectionSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 11.5,
-    color: '#64748B',
-    marginTop: 2,
-  },
-
-  /* Empresas Progress */
-  companyMetricsList: {
-    gap: 12,
-    marginTop: 10,
-  },
-  companyMetricItem: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 6,
-  },
-  companyMetricTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  companyMetricName: {
-    fontFamily: fonts.bold,
-    fontSize: 13.5,
-    color: '#1E293B',
-  },
-  companyMetricPct: {
-    fontFamily: fonts.bold,
-    fontSize: 12.5,
-  },
-  progressTrack: {
-    height: 7,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  companyMetricBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  companyMetricMeta: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: '#64748B',
-  },
-
-  /* Urgency Bars */
-  urgencyBarsContainer: {
-    gap: 10,
-    marginTop: 10,
-  },
-  urgencyStatRow: {
-    gap: 5,
-  },
-  urgencyStatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  urgencyStatLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    color: '#334155',
-  },
-  urgencyStatCount: {
-    fontFamily: fonts.bold,
-    fontSize: 11.5,
-    color: '#475569',
-  },
-
-  /* Produtividade Equipe */
-  respRow: {
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F8FAFC',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    marginBottom: 14,
   },
-  respAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FEE2E2',
+  cardIconChip: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  respAvatarText: {
+  cardTitle: {
     fontFamily: fonts.bold,
-    fontSize: 14,
-    color: '#C61010',
+    fontSize: 15,
+    color: INK,
   },
-  respName: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: '#1E293B',
-  },
-  respPct: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: '#16A34A',
-  },
-  respSub: {
+  cardSubtitle: {
     fontFamily: fonts.regular,
-    fontSize: 11,
-    color: '#64748B',
+    fontSize: 11.5,
+    color: MUTED,
     marginTop: 2,
+    lineHeight: 16,
   },
 
-  /* Quick Task Toggle */
-  quickTaskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  quickTaskRowDone: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
-  },
-  quickTaskTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 12.5,
-    color: '#1E293B',
-  },
-  quickTaskTitleDone: {
-    textDecorationLine: 'line-through',
-    color: '#64748B',
-  },
-  quickTaskSub: {
-    fontFamily: fonts.regular,
-    fontSize: 10.5,
-    color: '#64748B',
-    marginTop: 2,
-  },
-
-  /* Machine Learning Tab */
+  /* ML */
   statusServicePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1335,7 +1116,7 @@ const styles = StyleSheet.create({
   mlModelsMetricsGrid: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 10,
+    marginTop: 4,
   },
   mlMetricBox: {
     flex: 1,
@@ -1354,14 +1135,14 @@ const styles = StyleSheet.create({
   mlMetricTitle: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: '#1E293B',
+    color: INK,
     textAlign: 'center',
     marginTop: 2,
   },
   mlMetricSub: {
     fontFamily: fonts.regular,
     fontSize: 9.5,
-    color: '#64748B',
+    color: MUTED,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -1369,7 +1150,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#6D28D9',
+    backgroundColor: ML,
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 10,
@@ -1383,11 +1164,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: SURFACE_SOFT,
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: LINE,
   },
   mlExcelIcon: {
     width: 38,
@@ -1400,12 +1181,12 @@ const styles = StyleSheet.create({
   mlSheetName: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#0F172A',
+    color: INK,
   },
   mlSheetSub: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: '#64748B',
+    color: MUTED,
     marginTop: 2,
   },
   runMlButton: {
@@ -1425,8 +1206,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#FFFFFF',
   },
-
-  /* Idade Aparente */
   idadeResultCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1434,7 +1213,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F3FF',
     borderRadius: 14,
     padding: 12,
-    marginTop: 10,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: '#DDD6FE',
   },
@@ -1442,7 +1221,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#6D28D9',
+    backgroundColor: ML,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1470,19 +1249,16 @@ const styles = StyleSheet.create({
   idadeErroRef: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: '#64748B',
+    color: MUTED,
     marginTop: 2,
   },
-
-  /* RAG Search */
   ragSearchRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 10,
   },
   ragInput: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: SURFACE_SOFT,
     borderWidth: 1,
     borderColor: '#CBD5E1',
     borderRadius: 10,
@@ -1490,10 +1266,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: '#0F172A',
+    color: INK,
   },
   ragSearchBtn: {
-    backgroundColor: '#6D28D9',
+    backgroundColor: ML,
     width: 42,
     borderRadius: 10,
     alignItems: 'center',
@@ -1514,14 +1290,14 @@ const styles = StyleSheet.create({
   ragQuickChipText: {
     fontFamily: fonts.semibold,
     fontSize: 10.5,
-    color: '#475569',
+    color: INK_2,
   },
   ragResultCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: SURFACE_SOFT,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: LINE,
     gap: 6,
   },
   ragResultText: {
@@ -1538,16 +1314,16 @@ const styles = StyleSheet.create({
   ragSourceText: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: '#6D28D9',
+    color: ML,
     flex: 1,
   },
   ragScoreText: {
     fontFamily: fonts.semibold,
     fontSize: 10,
-    color: '#64748B',
+    color: MUTED,
   },
 
-  /* Modal Resultado ML */
+  /* Modal resultado ML */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1570,7 +1346,7 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: '#6D28D9',
+    backgroundColor: ML,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1578,21 +1354,21 @@ const styles = StyleSheet.create({
   modalMlTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#0F172A',
+    color: INK,
   },
   modalMlSub: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#64748B',
+    color: MUTED,
     textAlign: 'center',
     marginTop: 2,
   },
   modalFieldsList: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: SURFACE_SOFT,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: LINE,
     gap: 5,
     marginBottom: 14,
   },
@@ -1604,17 +1380,17 @@ const styles = StyleSheet.create({
   modalFieldKey: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#64748B',
+    color: MUTED,
   },
   modalFieldVal: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#0F172A',
+    color: INK,
     flex: 1,
     textAlign: 'right',
   },
   modalPrimaryBtn: {
-    backgroundColor: '#6D28D9',
+    backgroundColor: ML,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',

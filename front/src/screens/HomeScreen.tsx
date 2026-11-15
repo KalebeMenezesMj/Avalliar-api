@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 110,
   },
 
   /* 1. Header Vermelho */
