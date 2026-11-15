@@ -61,7 +61,12 @@ def buscar(busca, completar=True):
     tipo = busca.get("tipo", "casa")
     filtros = {k: busca[k] for k in ("area_min", "area_max") if busca.get(k) is not None}
     try:
-        anuncios = vivareal.buscar(uf, cidade, tipo, busca.get("bairro"), **filtros)
+        try:
+            anuncios = vivareal.buscar(uf, cidade, tipo, busca.get("bairro"), **filtros)
+        except Exception:
+            if not busca.get("bairro"):
+                raise
+            anuncios = []  # bairro sem página própria no VivaReal (404): segue pela cidade
         ampla = int(busca.get("top_n", 5)) > 5  # pedido de candidatas (troca de amostras): precisa de muitas opções
         if (ampla or len(anuncios) < 5) and busca.get("bairro"):  # poucos anúncios no bairro: amplia para a cidade
             mais = vivareal.buscar(uf, cidade, tipo, None, **filtros)

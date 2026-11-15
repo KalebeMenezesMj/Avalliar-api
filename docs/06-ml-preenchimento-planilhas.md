@@ -91,6 +91,24 @@ preenche, lê `Comparativo!F39` e, se a diferença for maior que 3%, troca o con
 ao R$/m² médio) até chegar perto, no máximo `max_avaliacoes` (padrão 4). Cada avaliação recalcula a planilha (~40 s
 em produção). A resposta traz o valor obtido e o número de avaliações. Sem `valor_referencia` o comportamento é o de antes.
 
+### VivaReal em produção (v17 a v22)
+
+A busca funciona na Azure: proxy residencial DataImpulse (`VIVAREAL_PROXY`, secret `vivareal-proxy`) com `curl_cffi` (v17), diagnóstico em `GET /diag/vivareal`. Correções posteriores:
+- `terreno`/`frente` do **avaliado** ausentes ou 0 são estimados (evita `#DIV/0!`);
+- página de resultados sem anúncios não fica no cache e é tentada de novo (e sem o filtro de área);
+- bairro sem página própria (404) cai para a cidade; com `valor_referencia` a busca já abrange a cidade, a faixa de área e até 12 candidatas (antes `top_n` ficava limitado às 5 colunas da planilha, e a troca não tinha o que trocar).
+
+Container: 1 vCPU / 2 GiB, 1 réplica mínima (antes 0,25 vCPU / 0,5 GiB: recálculos de ~40 s e timeouts quando o front chamava em paralelo). Uma chamada leva ~20 s sem troca e 1 a 3,5 min com troca.
+
+Teste com anúncios **ao vivo** (10 laudos de 2025, imóvel do laudo, 5 amostras novas do VivaReal):
+
+| Modo | Dentro de ±15% | Erro médio |
+|---|---|---|
+| Sem `valor_referencia` (previsão às cegas, v19) | 4 de 9 | ~19% |
+| Com `valor_referencia` e troca de amostras (v21) | 8 de 9 | 4,8% (7 de 9 a 3% ou menos) |
+
+O décimo laudo (Itanhaém, bairro Gaivota) falhou por 404 no bairro; corrigido na v22.
+
 ## 6. Resultados medidos
 
 | Teste | Resultado |

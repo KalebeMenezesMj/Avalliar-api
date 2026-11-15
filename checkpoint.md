@@ -1,4 +1,4 @@
-# Checkpoint — 14/11/2026
+# Checkpoint — 15/11/2026
 
 Estado do projeto Avalliar (FATEC Praia Grande) ao final desta sessão. Ver detalhes em `docs/06` a `docs/08`.
 
@@ -16,6 +16,8 @@ Estado do projeto Avalliar (FATEC Praia Grande) ao final desta sessão. Ver deta
 
 - Troca de amostras (`valor_referencia`, `candidatas`, `max_avaliacoes`) em produção na v10; 10 planilhas V22 geradas em produção sem referência: 7/10 dentro de ±15%.
 - Branches: `main` contém tudo do ML (a `feat/ml-planilhas` já está integrada); `feature/tela-de-configuracoes` (front) tem 2 commits ainda não integrados.
+
+- VivaReal funcionando na Azure (proxy + curl_cffi). Container 1 vCPU/2 GiB. Ao vivo + `valor_referencia`: 8/9 dentro de ±15%, erro médio 4,8%; sem referência ~19% (ver docs/06). Imagem atual `avalliar-ml:v22`.
 
 ## Pendências (ordem sugerida)
 

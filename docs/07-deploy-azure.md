@@ -5,8 +5,9 @@
 | Recurso | Nome |
 |---|---|
 | Resource group | `rg-avalliar` |
-| Container App (ML) | `avalliar-ml` — imagem `nicolassilvar/avalliar-ml:v10` |
+| Container App (ML) | `avalliar-ml` — imagem `nicolassilvar/avalliar-ml:v22` |
 | Container App (API Java) | `avalliar-api` — imagem `nicolassilvar/avalliar-api:v3` |
+| Dimensão ML | 1 vCPU / 2 GiB, mínimo 1 réplica |
 | Storage | `avalliarstorageml`, container privado `templates` |
 | URL ML | `https://avalliar-ml.politefield-70f0caa0.centralus.azurecontainerapps.io` |
 | URL API | `https://avalliar-api.politefield-70f0caa0.centralus.azurecontainerapps.io` |
