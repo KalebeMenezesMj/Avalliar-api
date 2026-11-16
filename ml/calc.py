@@ -277,3 +277,45 @@ def ler_cub(wb):
     if fontes:
         out["fontes"] = fontes
     return out
+
+
+# ------------------------------------------------------------ V25: AMOSTRA DADOS
+V25_AMOSTRAS_SHEET = "AMOSTRA DADOS"
+# campo da amostra -> coluna da aba 'AMOSTRA DADOS' (linha 1 = cabeçalho, amostra i na linha i+2)
+V25_COLUNAS = {
+    "tipologia": "B", "bairro": "D", "cidade": "E", "estado": "F", "cep": "G",
+    "preco": "J", "area_equivalente": "K", "dormitorios": "L", "suites": "M",
+    "banheiros": "N", "vagas": "O", "andar": "P", "idade_aparente": "Q",
+    "estado_conservacao": "R", "padrao_acabamento": "S", "contato": "Y", "telefone": "Z",
+    "url": "AA",
+}
+
+
+def escrever_v25_amostras(wb, amostras):
+    """Preenche 'AMOSTRA DADOS' (V25): uma amostra por linha; as demais abas (HOMOGENEIZACAO,
+    Pesquisas, INSPECTOS...) já referenciam essas células. Retorna [(campo, aba, célula, valor)]."""
+    if V25_AMOSTRAS_SHEET not in wb.sheetnames:
+        return []
+    ws = wb[V25_AMOSTRAS_SHEET]
+    escritos = []
+    for linha in range(2, 26):  # limpa o exemplo do template (ex.: C8 'Rua Nome do logradouro, 123')
+        for c in ws[linha]:
+            c.value = None
+
+    def grava(linha, coluna, campo, valor):
+        if _tem(valor):
+            ws[f"{coluna}{linha}"] = valor
+            escritos.append((campo, V25_AMOSTRAS_SHEET, f"{coluna}{linha}", valor))
+
+    for i, a in enumerate((amostras or [])[:23]):
+        linha = i + 2
+        for campo, coluna in V25_COLUNAS.items():
+            grava(linha, coluna, campo, a.get(campo))
+        rua, num = a.get("logradouro"), a.get("numero")
+        if _tem(rua):  # INSPECTOS separa rua e número pela vírgula
+            grava(linha, "C", "endereco", f"{rua}, {num}" if _tem(num) else f"{rua}, s/n")
+        for campo, coluna, lat in (("latitude", "H", True), ("longitude", "I", False)):
+            grava(linha, coluna, campo, a.get(campo))
+        grava(linha, "W", "tipo_amostra", "Anúncio Internet")
+        grava(linha, "X", "tipo_venda", "Oferta")
+    return escritos

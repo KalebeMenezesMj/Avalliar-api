@@ -271,7 +271,7 @@ def _normalizar(listing):
     primeira = images[0] if images else {}
     imagem_url = _resolver_imagem(primeira.get("dangerousSrc"), primeira.get("alt") or "")
 
-    return {
+    return _sem_undefined({
         "id": listing.get("id"),
         "url": listing.get("href"),
         "titulo": listing.get("title"),
@@ -293,7 +293,12 @@ def _normalizar(listing):
         "telefone": phones[0] if phones else None,
         "descricao": listing.get("description"),
         "imagem_url": imagem_url,
-    }
+    })
+
+
+def _sem_undefined(d):
+    """O payload RSC do Next.js serializa valores ausentes como a string '$undefined'."""
+    return {k: (None if v == "$undefined" else v) for k, v in d.items()}
 
 
 def _resolver_imagem(template, alt):

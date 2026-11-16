@@ -17,11 +17,11 @@ Estado do projeto Avalliar (FATEC Praia Grande) ao final desta sessão. Ver deta
 - Troca de amostras (`valor_referencia`, `candidatas`, `max_avaliacoes`) em produção na v10; 10 planilhas V22 geradas em produção sem referência: 7/10 dentro de ±15%.
 - Branches: `main` contém tudo do ML (a `feat/ml-planilhas` já está integrada); `feature/tela-de-configuracoes` (front) tem 2 commits ainda não integrados.
 
-- VivaReal funcionando na Azure (proxy + curl_cffi). Container 1 vCPU/2 GiB. Ao vivo + `valor_referencia`: 8/9 dentro de ±15%, erro médio 4,8%; sem referência ~19% (ver docs/06). Imagem atual `avalliar-ml:v22`.
+- VivaReal funcionando na Azure (proxy + curl_cffi). Container 1 vCPU/2 GiB. Ao vivo + `valor_referencia`: 8/9 dentro de ±15%, erro médio 4,8%; sem referência ~19% (ver docs/06). Imagem atual `avalliar-ml:v24` (v23: `AMOSTRA DADOS` da V25 + orçamento de tempo da troca; v24: `$undefined` do VivaReal).
 
 ## Pendências (ordem sugerida)
 
-0. **V25: preencher `AMOSTRA DADOS`** (alimenta as demais abas) e estender a troca de amostras à V25. Subir CPU do ML (40 s por avaliação; com troca passa de 2 min e pode estourar o timeout do ingress).
+0. **V25**: `AMOSTRA DADOS` já é preenchida (v23), mas o valor final e a troca de amostras na V25 precisam de dados de apartamento e validação. Definir quem envia `valor_referencia` em produção. Rotacionar a credencial do proxy (DataImpulse).
 1. **Conferir `campos_amostra.joblib` no Blob** (comando em `docs/07`); sem ele, estado = 3 e IBAPE = padrão.
 2. **VivaReal bloqueado na Azure**: RESOLVIDO na v17 (15/11) — 100% na VPS via **proxies residenciais DataImpulse** (secret `vivareal-proxy`) com fingerprint de Chrome (`curl_cffi`); cadeia agora é proxy → (relay opcional, removido da produção) → direta; cache 30 min; `/diag/vivareal` confirma busca OK via `proxy[0]`. Restam: (a) definir quem informa `valor_referencia`; (b) commitar as mudanças; (c) confirmar se a conta DataImpulse é gratuita/permanente — se expirar, criar ScrapingAnt grátis (sem cartão) e setar `VIVAREAL_SCRAPIANT`.
    - Definir o critério de aceite oficial (±15% foi adotado nos testes).

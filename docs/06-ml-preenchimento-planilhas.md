@@ -134,7 +134,9 @@ As 4 células divergentes são fórmulas com valor antigo em cache no laudo do a
 - `campos_amostra.joblib` precisa estar no Blob (ver `checkpoint.md`); sem ele, estado = 3 e IBAPE = padrão do template.
 - **Valores calculados**: `recalc.py` roda o LibreOffice (headless, pt-BR) numa cópia e grava o resultado como cache nas fórmulas do arquivo devolvido (Dados Calc, Custo01/02, Amostras, INSPECTOS, Comparativo…). O Excel ainda recalcula ao abrir (`fullCalcOnLoad`). Validado contra o Excel: 100% em 6 laudos (`ferramentas/teste_cache.py`). A cópia aplica a semântica do Excel em `ISBLANK(x)=0` (Custo01). Cada chamada leva ~40 s (container 0,25 vCPU).
 - **Troca de amostras** só vale para a V22; na V25 ainda não. R$/m² por amostra continua instável mesmo com o valor total próximo.
-- **V25**: a aba `AMOSTRA DADOS` (que alimenta Pesquisas, HOMOGENEIZACAO, INSPECTOS e Comparativo) ainda não é preenchida.
+- **V25 (v23)**: a aba `AMOSTRA DADOS` (que alimenta Pesquisas, HOMOGENEIZACAO, INSPECTOS e Comparativo) agora é preenchida, uma amostra por linha (`calc.escrever_v25_amostras`); o R$/m² da HOMOGENEIZACAO calcula em produção. O valor final (`Resumo!U33`) e a troca de amostras na V25 NÃO foram validados: a V25 é de apartamentos e, com dados de casa, o recálculo dá `#VALUE!`.
+- **Tempo da troca (v23)**: `orcamento_s` (padrão 150 s, env `AJUSTE_ORCAMENTO_S`) interrompe a troca antes de estourar o ingress da Azure e devolve a melhor combinação já calculada.
+- **v24**: o VivaReal serializa campos ausentes como `$undefined`; agora viram vazio (antes saía `Rua X, $undefined` no endereço).
 - A planilha devolvida perde imagens e listas suspensas (limitação do `openpyxl`).
 - `/preencher` (código de colega) devolve uma planilha **inventada** se o template não estiver no servidor — recomenda-se remover.
 - Idade pela foto: erro médio de 4,2 anos.

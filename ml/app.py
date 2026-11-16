@@ -279,6 +279,13 @@ def _resolver_amostras_busca(valores):
     return avisos
 
 
+# célula do valor de mercado por template (V22: Comparativo!F39; V25: Resumo!U33)
+VALOR_MERCADO = {"v22_unidades_isoladas": ("Comparativo", "F39"),
+                 "v25_unidades_padronizadas": ("Resumo", "U33")}
+# tempo máximo da troca de amostras (o ingress da Azure derruba a conexão perto de 240 s)
+ORCAMENTO_AJUSTE_S = float(os.getenv("AJUSTE_ORCAMENTO_S", "150"))
+
+
 def _ajustar_valor(valores, base, ext):
     """Com `valor_referencia` e `candidatas`, troca as 5 amostras até o valor de mercado (V22,
     Comparativo!F39) chegar perto da referência. Devolve avisos. Cada tentativa recalcula a planilha."""
@@ -293,20 +300,24 @@ def _ajustar_valor(valores, base, ext):
         return ["valor_referencia inválido; amostras não ajustadas"]
     av = dict(valores.get("avaliando") or {})
     max_aval = int(valores.pop("max_avaliacoes", 4))
+    orcamento = float(valores.pop("orcamento_s", ORCAMENTO_AJUSTE_S))
     tmp = tempfile.mkstemp(suffix=ext)
     os.close(tmp[0])
 
     def aval(am):
         import openpyxl
         d = dict(valores, amostras=[dict(a) for a in am])
-        filler.fill(base, d, tmp[1])
+        tid = filler.fill(base, d, tmp[1])[0]
         if recalc.preencher_cache(tmp[1]):
             return None
-        return openpyxl.load_workbook(tmp[1], data_only=True)["Comparativo"]["F39"].value
+        wb = openpyxl.load_workbook(tmp[1], data_only=True, keep_vba=tmp[1].endswith(".xlsm"))
+        aba, cel = VALOR_MERCADO.get(tid, VALOR_MERCADO["v22_unidades_isoladas"])
+        v = wb[aba][cel].value
+        return v if isinstance(v, (int, float)) and v > 0 else None
     try:
         import terreno
         terreno.completar(cands, trocar_um=True)
-        am, v, n = ajuste_valor.ajustar(av, cands, ref, aval, max_aval=max_aval)
+        am, v, n = ajuste_valor.ajustar(av, cands, ref, aval, max_aval=max_aval, orcamento_s=orcamento)
     except Exception as e:
         am, v, n = cands[:5], None, 0
         valores["amostras"] = am

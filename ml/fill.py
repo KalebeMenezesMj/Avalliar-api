@@ -82,6 +82,9 @@ def fill(template_path, data, output_path):
     if template_id == "v22_unidades_isoladas" and data.get("cub"):
         written.extend(calc.escrever_cub(wb, data["cub"]))
 
+    if template_id == "v25_unidades_padronizadas" and data.get("amostras"):
+        written.extend(calc.escrever_v25_amostras(wb, data["amostras"]))
+
     out_dir = os.path.dirname(output_path)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)

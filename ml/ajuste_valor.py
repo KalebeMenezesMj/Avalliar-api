@@ -7,6 +7,7 @@ modelo simples (valor proporcional ao R$/m² médio) propõe a próxima combina�
 as melhores candidatas, e a planilha de verdade (`avaliar`) confirma. Repete até chegar na
 tolerância ou esgotar `max_aval` cálculos; devolve a melhor combinação já avaliada.
 """
+import time
 from itertools import combinations
 
 import selecao_calc
@@ -24,8 +25,8 @@ def _media_ppm(conj):
     return sum(v) / len(v)
 
 
-def ajustar(avaliando, candidatas, alvo, avaliar, n=5, tol=0.03, max_aval=5, pool=12):
-    """`avaliar(amostras) -> valor de mercado (float|None)`. Devolve (amostras, valor, avaliacoes)."""
+def ajustar(avaliando, candidatas, alvo, avaliar, n=5, tol=0.03, max_aval=5, pool=12, orcamento_s=None):
+    """`avaliar(amostras) -> valor de mercado (float|None)`. `orcamento_s`: tempo máximo total. Devolve (amostras, valor, avaliacoes)."""
     top = [a for a in selecao_calc.selecionar(avaliando, candidatas, pool) if _ppm(a)]
     if len(top) < n:
         return top[:n], None, 0
@@ -34,8 +35,13 @@ def ajustar(avaliando, candidatas, alvo, avaliar, n=5, tol=0.03, max_aval=5, poo
     atual = tuple(idx[:n])
     historico = {}  # combinação -> valor
     melhor = None
+    inicio, ultima = time.monotonic(), 0.0
     for _ in range(max_aval):
+        t0 = time.monotonic()
+        if orcamento_s and historico and (t0 - inicio) + ultima * 1.2 > orcamento_s:
+            break  # outra avaliação estouraria o tempo: devolve a melhor já calculada
         v = avaliar([top[i] for i in atual])
+        ultima = time.monotonic() - t0
         historico[atual] = v
         if v:
             if melhor is None or abs(v - alvo) < abs(historico[melhor] - alvo):
