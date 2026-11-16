@@ -31,7 +31,11 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        // Fotos da vistoria são dados de clientes: exigem token JWT (login)
+                        .requestMatchers("/api/fotos/**", "/api/vistorias/*/fotos", "/api/vistorias/*/fotos/**")
+                        .authenticated()
+                        .anyRequest().permitAll())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
