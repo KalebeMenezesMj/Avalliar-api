@@ -36,3 +36,6 @@ venv/
 
 # Temporarios do Office
 ~$*
+
+# Diagnóstico local do front (cópias de planilhas e log)
+diagnostico/

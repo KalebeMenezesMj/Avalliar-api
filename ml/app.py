@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
+import diagnostico
 import fill as filler
 import recalc
 import templates
@@ -169,6 +170,7 @@ def preencher(req: PreencherRequest):
     if not os.path.exists(template_path):
         raise HTTPException(503, "Template não está no servidor (verifique TEMPLATES_BLOB); não é gerada planilha sintética.")
 
+    dados_recebidos = json.loads(json.dumps(req.dados, default=str))
     avisos = _resolver_amostras(req.dados)
     ext = os.path.splitext(TEMPLATE_FILES[req.template_id])[1]
     avisos += _ajustar_valor(req.dados, template_path, ext)
@@ -182,14 +184,22 @@ def preencher(req: PreencherRequest):
         if aviso_calc:
             avisos.append(aviso_calc)
         with open(out, "rb") as fh:
-            b64 = base64.b64encode(fh.read()).decode("ascii")
+            raw = fh.read()
+        diagnostico.registrar(
+            "preencher",
+            {"template_id": tid, "dados": dados_recebidos, "avisos": avisos, "campos_preenchidos": len(escritos)},
+            raw,
+        )
         return {
             "template_id": tid,
             "nome_arquivo": TEMPLATE_FILES[req.template_id],
             "campos_preenchidos": len(escritos),
-            "conteudo_base64": b64,
+            "conteudo_base64": base64.b64encode(raw).decode("ascii"),
             "avisos": avisos,
         }
+    except Exception as e:
+        diagnostico.registrar("preencher-erro", {"template_id": req.template_id, "dados": dados_recebidos, "erro": repr(e)})
+        raise
     finally:
         os.unlink(out)
 
@@ -349,8 +359,11 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
     if ext not in (".xlsx", ".xlsm"):
         raise HTTPException(400, "Envie um arquivo .xlsx ou .xlsm")
 
+    dados_recebidos = json.loads(json.dumps(valores, default=str))
     avisos = _resolver_amostras(valores)
     entrada = _salvar_upload(file)
+    with open(entrada, "rb") as fh:
+        diagnostico.registrar("entrada", {"nome": nome, "dados": dados_recebidos}, fh.read())
     avisos += _ajustar_valor(valores, entrada, ext)
     fd, out = tempfile.mkstemp(suffix=ext)
     os.close(fd)
@@ -367,14 +380,22 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
         if aviso_calc:
             avisos.append(aviso_calc)
         with open(out, "rb") as fh:
-            b64 = base64.b64encode(fh.read()).decode("ascii")
+            raw = fh.read()
+        diagnostico.registrar(
+            "preencher-arquivo",
+            {"template_id": tid, "nome": nome, "dados": dados_recebidos, "avisos": avisos, "campos_preenchidos": len(escritos)},
+            raw,
+        )
         return {
             "template_id": tid,
             "nome_arquivo": nome,
             "campos_preenchidos": len(escritos),
-            "conteudo_base64": b64,
+            "conteudo_base64": base64.b64encode(raw).decode("ascii"),
             "avisos": avisos,
         }
+    except Exception as e:
+        diagnostico.registrar("preencher-arquivo-erro", {"nome": nome, "dados": dados_recebidos, "erro": repr(e)})
+        raise
     finally:
         os.unlink(entrada)
         os.unlink(out)
