@@ -439,55 +439,6 @@ def consultar(q: str, k: int = 5):
     }
 
 
-def _gerar_planilha_bytes(nome: str, empresa: str, demanda: str, imovel: str, responsavel: str, template: str) -> bytes:
-    """Gera um arquivo .xlsx real em memória usando openpyxl com as abas e células mapeadas."""
-    import io
-    import openpyxl
-
-    wb = openpyxl.Workbook()
-    is_v25 = "v25" in (template or "").lower() or "v25" in (nome or "").lower()
-    ws = wb.active
-    ws.title = "DADOS DO IMÓVEL" if is_v25 else "XXX - Dados Laudo"
-
-    ws["A1"] = "AVALLIAR ML"
-    ws["B1"] = "Homogeneização — Unidades Padronizadas (V25)" if is_v25 else "Homogeneização — Unidades Isoladas (V22)"
-    ws["C1"] = f"Empresa: {empresa}"
-    ws.append(["Célula", "Campo Canônico (ML)", "Rótulo", "Valor Preenchido"])
-
-    tid = "v25_unidades_padronizadas" if is_v25 else "v22_unidades_isoladas"
-    valores_padrao = {
-        "cliente": empresa,
-        "numero_proposta": "PROP-2026-0842",
-        "metodologia": "Método Comparativo Direto de Dados de Mercado",
-        "tipo_laudo": "Laudo Completo de Avaliação e Vistoria",
-        "engenheiro_responsavel": responsavel,
-        "responsavel_avaliacao": responsavel,
-        "fam_evolutivo": "1,00",
-        "uf": "SP",
-        "cidade": "São Paulo",
-        "endereco": imovel,
-        "empreendimento": demanda,
-        "area_privativa": 124.5,
-        "area_total": 162.8,
-        "idade_aparente": 8,
-        "estado_conservacao": "Bom (Entre novo e regular)",
-    }
-    for campo, (aba, coord) in templates.CELL_MAP.get(tid, {}).items():
-        val = valores_padrao.get(campo, "Preenchido via ML")
-        ws.append([coord, campo, f"{aba}!{coord}", str(val)])
-
-    ws2 = wb.create_sheet("HOMOGENEIZACAO")
-    ws2.append(["Amostra", "Fonte", "Área (m²)", "Valor Homogeneizado (R$/m²)"])
-    ws2.append(["Amostra 01", "VivaReal", 120.0, "R$ 9.333,33"])
-    ws2.append(["Amostra 02", "VivaReal", 98.0, "R$ 9.693,88"])
-    ws2.append(["Amostra 03", "VivaReal", 140.0, "R$ 9.142,86"])
-    ws2.append(["Referência CUB/R8-N", "SINDUSCON-SP", 1.0, "R$ 2.387,12"])
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
-
-
 def _gerar_pdf_bytes(nome: str, categoria: str, empresa: str, demanda: str, imovel: str, responsavel: str) -> bytes:
     """Gera um PDF 1.4 binário válido para visualização nativa na aba do navegador ou download."""
     def _hex(txt: str) -> str:
@@ -627,9 +578,8 @@ def baixar_arquivo(
 
     ext = (extensao or nome.split(".")[-1] or "pdf").lower()
     if ext in ("xlsx", "xlsm", "xls", "csv") or categoria == "PLANILHA":
-        content = _gerar_planilha_bytes(nome, empresa, demanda, imovel, responsavel, template)
-        mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        clean_name = nome if nome.lower().endswith((".xlsx", ".xlsm")) else f"{nome}.xlsx"
+        # Nunca inventar planilha: sem o arquivo salvo (id) não há o que baixar.
+        raise HTTPException(409, "Planilha sem preenchimento salvo: rode o preenchimento ML antes de baixar.")
     else:
         content = _gerar_pdf_bytes(nome, categoria, empresa, demanda, imovel, responsavel)
         mime = "application/pdf"
