@@ -26,7 +26,7 @@ public record ClienteRequest(
 
         String telefone,
 
-        @Pattern(regexp = "^(\d{5}-?\d{3})?$", message = "CEP deve estar no formato 00000-000")
+        @Pattern(regexp = "^(\\d{5}-?\\d{3})?$", message = "CEP deve estar no formato 00000-000")
         String cep,
 
         String logradouro,

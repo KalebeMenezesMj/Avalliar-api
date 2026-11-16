@@ -149,7 +149,7 @@ public class ClienteService {
         if (cep == null || cep.isBlank()) {
             return null;
         }
-        return cep.replaceAll("\D", "");
+        return cep.replaceAll("\\D", "");
     }
 
     static String normalizarUf(String uf) {
