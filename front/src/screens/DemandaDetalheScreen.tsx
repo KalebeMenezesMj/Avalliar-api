@@ -111,6 +111,14 @@ export default function DemandaDetalheScreen({
     useState<ArquivoAnexo | null>(null);
   const [avisoDownload, setAvisoDownload] = useState<string | null>(null);
 
+  // Agendamento via WhatsApp dentro da demanda (visual — o disparo real via API
+  // entra na próxima etapa; por ora o botão apenas simula o envio)
+  const [modalAgendamentoAberto, setModalAgendamentoAberto] = useState(false);
+  const [agendContato, setAgendContato] = useState('');
+  const [agendNome, setAgendNome] = useState('');
+  const [agendHora, setAgendHora] = useState('');
+  const [agendamentoPronto, setAgendamentoPronto] = useState(false);
+
   const recarregarDemanda = () => {
     const atualizada = demandaService.obterDemandaPorId(
       empresa.id,
@@ -126,6 +134,31 @@ export default function DemandaDetalheScreen({
   const handleToggleConcluida = () => {
     demandaService.toggleDemandaConcluida(empresa.id, empresa.nome, demanda.id);
     recarregarDemanda();
+  };
+
+  // Abrir o modal de agendamento com os campos zerados
+  const handleAbrirAgendamento = () => {
+    setAgendContato('');
+    setAgendNome('');
+    setAgendHora('');
+    setAgendamentoPronto(false);
+    setModalAgendamentoAberto(true);
+  };
+
+  // Máscara simples HH:MM para o horário da vistoria
+  const handleAgendHoraChange = (texto: string) => {
+    const digitos = texto.replace(/\D/g, '').slice(0, 4);
+    setAgendHora(
+      digitos.length > 2 ? `${digitos.slice(0, 2)}:${digitos.slice(2)}` : digitos
+    );
+  };
+
+  // Esboço do disparo: o consumo da API que envia a mensagem chega depois;
+  // por ora apenas marca o agendamento como pronto (simulação)
+  const handleDispararAgendamento = () => {
+    // TODO(agendamento): chamar a API para disparar a mensagem de agendamento
+    // no WhatsApp do proponente com contato, nome e horário abaixo
+    setAgendamentoPronto(true);
   };
 
   // Sugestões de arquivos contextualizadas para o imóvel desta demanda
@@ -483,6 +516,17 @@ export default function DemandaDetalheScreen({
             <Text style={styles.toggleStatusButtonText} numberOfLines={1}>
               {demanda.concluida ? 'Reabrir Demanda' : 'Concluir Demanda'}
             </Text>
+          </Pressable>
+
+          {/* Botão para disparar agendamento pelo WhatsApp (esboço visual) */}
+          <Pressable
+            style={styles.agendarWhatsBtn}
+            onPress={handleAbrirAgendamento}
+            accessibilityRole="button"
+            accessibilityLabel="Agendar vistoria no WhatsApp do proponente"
+          >
+            <MaterialCommunityIcons name="whatsapp" size={18} color="#FFFFFF" />
+            <Text style={styles.agendarWhatsBtnText}>Agendar no WhatsApp</Text>
           </Pressable>
         </View>
 
@@ -929,6 +973,88 @@ export default function DemandaDetalheScreen({
         </Pressable>
       </Modal>
 
+      {/* Modal de Agendamento no WhatsApp (esboço visual — disparo real via API depois) */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalAgendamentoAberto}
+        onRequestClose={() => setModalAgendamentoAberto(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setModalAgendamentoAberto(false)}
+        >
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Agendar no WhatsApp</Text>
+              <Pressable onPress={() => setModalAgendamentoAberto(false)} hitSlop={6}>
+                <Ionicons name="close" size={22} color={t.textMuted} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.modalSub} numberOfLines={2}>
+              Demanda: <Text style={{ fontFamily: fonts.bold }}>{demanda.titulo}</Text>
+            </Text>
+
+            <Text style={styles.fieldLabel}>Contato do proponente (WhatsApp)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="(11) 99999-9999"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+              maxLength={15}
+              value={agendContato}
+              onChangeText={setAgendContato}
+            />
+
+            <Text style={styles.fieldLabel}>Nome do proponente</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Quem vai comparecer à vistoria"
+              placeholderTextColor="#9CA3AF"
+              autoCapitalize="words"
+              value={agendNome}
+              onChangeText={setAgendNome}
+            />
+
+            <Text style={styles.fieldLabel}>Horário da vistoria</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="HH:MM"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="number-pad"
+              maxLength={5}
+              value={agendHora}
+              onChangeText={handleAgendHoraChange}
+            />
+
+            {agendamentoPronto && (
+              <View style={styles.agendamentoOkBox}>
+                <Ionicons name="checkmark-circle" size={16} color="#15803D" />
+                <Text style={styles.agendamentoOkText}>
+                  Mensagem pronta para {agendNome || 'o proponente'} às{' '}
+                  {agendHora}. O envio real chega na próxima etapa.
+                </Text>
+              </View>
+            )}
+
+            <Pressable
+              style={[
+                styles.submitButton,
+                styles.whatsSubmit,
+                (!agendContato.trim() || !agendNome.trim() || agendHora.length !== 5) &&
+                  { opacity: 0.6 },
+              ]}
+              onPress={handleDispararAgendamento}
+              disabled={!agendContato.trim() || !agendNome.trim() || agendHora.length !== 5}
+            >
+              <MaterialCommunityIcons name="whatsapp" size={17} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>Disparar Mensagem</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Modal de Resultado ML */}
       <Modal
         animationType="fade"
@@ -1171,6 +1297,51 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     flexShrink: 1,
+  },
+
+  /* Agendamento no WhatsApp (esboço visual) */
+  agendarWhatsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    width: '100%',
+    overflow: 'hidden',
+    backgroundColor: '#25D366',
+    marginTop: 8,
+  },
+  agendarWhatsBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13.5,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+  agendamentoOkBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    marginTop: 12,
+  },
+  agendamentoOkText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
+    color: '#15803D',
+    flex: 1,
+  },
+  whatsSubmit: {
+    backgroundColor: '#25D366',
+    flexDirection: 'row',
+    gap: 8,
   },
 
   /* Seção de Arquivos da Demanda Específica */
