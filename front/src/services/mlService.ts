@@ -445,14 +445,9 @@ export const mlService = {
       // continua
     }
 
-    const isV25 = templateId.includes('v25');
-    return {
-      template_id: templateId,
-      nome_arquivo: isV25
-        ? 'Homogeneização_unidades padronizadas_2026_V25_Preenchida.xlsm'
-        : 'Homogeneização_Unidades Isoladas_2025_V22_Preenchida.xlsx',
-      campos_preenchidos: Object.keys(dados).length || 11,
-    };
+    // Nenhuma rota devolveu a planilha preenchida: não existe resultado a mostrar.
+    // Nunca devolver um "sucesso" sem conteudo_base64 (isso fazia o download cair na planilha de exemplo).
+    throw new Error('O serviço de ML não devolveu a planilha preenchida. Tente novamente em instantes.');
   },
 
   /**

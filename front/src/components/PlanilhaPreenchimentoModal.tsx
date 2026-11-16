@@ -389,6 +389,10 @@ export default function PlanilhaPreenchimentoModal({
       if (onSucessoPreenchimento) {
         onSucessoPreenchimento(arquivo, payload);
       }
+    } catch (erro) {
+      const motivo = erro instanceof Error ? erro.message : 'erro desconhecido';
+      setAvisoFeedback(`Não foi possível preencher a planilha: ${motivo}`);
+      setTimeout(() => setAvisoFeedback(null), 6000);
     } finally {
       setProcessandoPreenchimento(false);
     }

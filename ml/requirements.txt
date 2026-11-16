@@ -10,6 +10,8 @@ sqlalchemy>=2.0
 psycopg2-binary>=2.9
 pillow>=10.0
 requests>=2.31
+# diagnóstico do preenchimento (diagnostico.py grava no Azure Files)
+azure-storage-file-share>=12.17.0
 # emite o fingerprint TLS/HTTP2 de um Chrome real — o Cloudflare do VivaReal
 # bloqueia o handshake do ssl padrão do Python em alguns IPs de saída
 curl_cffi>=0.7
