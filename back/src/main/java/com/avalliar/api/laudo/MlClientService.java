@@ -1,5 +1,7 @@
 package com.avalliar.api.laudo;
 
+import com.avalliar.api.cub.CubService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -12,6 +14,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -21,19 +24,38 @@ import java.util.Map;
 @Service
 public class MlClientService {
 
+    /** UF das planilhas de laudo. O CUB do banco é de São Paulo. */
+    private static final String UF_LAUDO = "SP";
+
     private final RestTemplate restTemplate;
     private final String mlUrl;
+    private final CubService cubService;
+    private final ObjectMapper json = new ObjectMapper();
 
-    public MlClientService(@Value("${app.ml.url:http://localhost:8000}") String mlUrl) {
+    public MlClientService(@Value("${app.ml.url:http://localhost:8000}") String mlUrl,
+                           CubService cubService) {
         this.restTemplate = new RestTemplate();
         this.mlUrl = mlUrl;
+        this.cubService = cubService;
+    }
+
+    /** Preenche {@code cub} com o último CUB do banco quando o pedido não trouxe um. */
+    private Map<String, Object> comCub(Map<String, Object> dados) {
+        Map<String, Object> out = dados == null ? new LinkedHashMap<>() : new LinkedHashMap<>(dados);
+        if (!out.containsKey("cub")) {
+            Map<String, Object> cub = cubService.paraLaudo(UF_LAUDO);
+            if (cub != null) {
+                out.put("cub", cub);
+            }
+        }
+        return out;
     }
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> preencher(String templateId, Map<String, Object> dados) {
         Map<String, Object> body = Map.of(
                 "template_id", templateId,
-                "dados", dados);
+                "dados", comCub(dados));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -62,8 +84,16 @@ public class MlClientService {
     public Map<String, Object> preencherArquivo(MultipartFile file, String dadosJson) throws IOException {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("file", arquivo(file));
-        body.add("dados", dadosJson == null || dadosJson.isBlank() ? "{}" : dadosJson);
+        body.add("dados", dadosComCub(dadosJson));
         return restTemplate.postForObject(mlUrl + "/preencher-arquivo", multipart(body), Map.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String dadosComCub(String dadosJson) throws IOException {
+        Map<String, Object> dados = dadosJson == null || dadosJson.isBlank()
+                ? new LinkedHashMap<>()
+                : json.readValue(dadosJson, Map.class);
+        return json.writeValueAsString(comCub(dados));
     }
 
     /** Descobre se a planilha enviada é V22, V25 ou desconhecida. */

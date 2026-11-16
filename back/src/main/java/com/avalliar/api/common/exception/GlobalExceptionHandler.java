@@ -31,6 +31,14 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Conflict", "Registro viola uma restrição de integridade (ex.: valor duplicado).");
     }
 
+    /** Erros lançados com status explícito (404, 409, 413...) mantêm o status, em vez de virar 500. */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+        return build(status, status.getReasonPhrase(), message);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()

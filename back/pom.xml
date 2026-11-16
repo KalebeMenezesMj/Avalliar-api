@@ -77,6 +77,13 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- Azure Files: grava as fotos da vistoria no compartilhamento (ambiente Express não monta volume) -->
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-storage-file-share</artifactId>
+            <version>12.25.0</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

@@ -29,6 +29,13 @@ app:
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   ml:
     url: ${ML_URL:http://localhost:8000}
+  fotos:
+    # Pasta das fotos da vistoria. Em produção é o Azure Files montado no Container App.
+    diretorio: ${FOTOS_DIRETORIO:./data/fotos}
+    azure:
+      # Connection string da conta avalliarfotos26 (secret do Container App). Vazio = pasta local.
+      connection-string: ${FOTOS_AZURE_CONNECTION_STRING:}
+      share: ${FOTOS_AZURE_SHARE:fotos}
   gmail:
     # OAuth do Google Cloud (escopo gmail.readonly). Sem as três, a captação fica desligada.
     client-id: ${GMAIL_CLIENT_ID:}

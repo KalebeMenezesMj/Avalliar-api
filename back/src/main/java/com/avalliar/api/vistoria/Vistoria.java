@@ -51,4 +51,7 @@ public class Vistoria {
 
     @Column(name = "motivo_improdutiva")
     private String motivoImprodutiva;
+
+    @Column(name = "relatorio_fotografico_finalizado_em")
+    private Instant relatorioFotograficoFinalizadoEm;
 }
