@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../theme';
-import { chartColors } from './palette';
+import { useTheme, ThemeColors } from '../../context/ThemeContext';
 
 export interface MeterItem {
   id: string;
@@ -17,6 +17,8 @@ export interface MeterItem {
 // Modelo 3 — Lista de medidores (um medidor por urgência, cada um contra o seu próprio total).
 // Cor de status acompanhada de ícone e rótulo; o número exato fica sempre visível.
 export default function MeterList({ items }: { items: MeterItem[] }) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   return (
     <View style={styles.list}>
       {items.map((item) => {
@@ -54,16 +56,16 @@ export default function MeterList({ items }: { items: MeterItem[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   list: {
     gap: 10,
   },
   item: {
     padding: 12,
     borderRadius: 14,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: chartColors.track,
+    borderColor: t.cardBorder,
     gap: 10,
   },
   topRow: {
@@ -81,12 +83,12 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: chartColors.ink,
+    color: t.text,
   },
   hint: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: chartColors.axis,
+    color: t.textMuted,
     marginTop: 1,
   },
   valueGroup: {
@@ -99,13 +101,13 @@ const styles = StyleSheet.create({
   count: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: chartColors.axis,
+    color: t.textMuted,
     marginTop: 1,
   },
   track: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: chartColors.track,
+    backgroundColor: t.cardBorder,
     overflow: 'hidden',
   },
   fill: {

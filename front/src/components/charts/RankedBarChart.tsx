@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { fonts } from '../../theme';
 import { chartColors } from './palette';
+import { useTheme, ThemeColors } from '../../context/ThemeContext';
 
 export interface RankedBarItem {
   id: string;
@@ -14,6 +15,8 @@ export interface RankedBarItem {
 // Modelo 1 — Barras horizontais ranqueadas (uma série, eixo único em 0–100%).
 // Ideal para comparar valores entre entidades com nomes longos.
 export default function RankedBarChart({ items }: { items: RankedBarItem[] }) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const ranked = [...items].sort((a, b) => b.value - a.value);
 
   return (
@@ -67,7 +70,7 @@ export default function RankedBarChart({ items }: { items: RankedBarItem[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   list: {
     gap: 8,
   },
@@ -75,13 +78,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: chartColors.track,
+    borderColor: t.cardBorder,
     gap: 6,
   },
   itemPressed: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.pressedSurface,
   },
   topRow: {
     flexDirection: 'row',
@@ -98,25 +101,25 @@ const styles = StyleSheet.create({
   rank: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: chartColors.axis,
+    color: t.textMuted,
     width: 14,
     textAlign: 'center',
   },
   label: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: chartColors.ink,
+    color: t.text,
     flex: 1,
   },
   value: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: chartColors.ink,
+    color: t.text,
   },
   track: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: chartColors.track,
+    backgroundColor: t.cardBorder,
     overflow: 'hidden',
   },
   fill: {
@@ -129,6 +132,6 @@ const styles = StyleSheet.create({
   sub: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: chartColors.axis,
+    color: t.textMuted,
   },
 });

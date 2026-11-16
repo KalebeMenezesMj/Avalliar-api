@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View, Pressable, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, LayoutChangeEvent, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Telas que usam a barra. "demandas" são as telas de tarefas e destacam a aba Tarefas.
@@ -34,6 +34,11 @@ const NAV_ITEMS: NavItemConfig[] = [
 
 const BRAND = '#C61010';
 
+// Destaque que desliza atrás da aba ativa. A altura da pílula é 64 (estilo abaixo).
+const THUMB_WIDTH = 44;
+const THUMB_HEIGHT = 40;
+const PILL_HEIGHT = 64;
+
 interface BottomNavigationProps {
   activeTab: TabType;
   onSelectTab: (tab: TabType) => void;
@@ -41,18 +46,50 @@ interface BottomNavigationProps {
 
 // Flutua sobre o conteúdo, sem faixa de fundo: a área fora da pílula é transparente.
 // As telas com esta barra já têm margem inferior (110px) para o conteúdo não ficar atrás dela.
+// O destaque da aba ativa desliza de forma fluida entre os ícones (spring, native driver).
 export default function BottomNavigation({ activeTab, onSelectTab }: BottomNavigationProps) {
   const active = TAB_ALIAS[activeTab] ?? 'home';
+  const activeIndex = Math.max(0, NAV_ITEMS.findIndex((n) => n.key === active));
+
+  const [measured, setMeasured] = useState(false);
+  const slotWidthRef = useRef(0);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const mountedRef = useRef(false);
+
+  const handlePillLayout = (e: LayoutChangeEvent) => {
+    const slot = e.nativeEvent.layout.width / NAV_ITEMS.length;
+    slotWidthRef.current = slot;
+    setMeasured(true);
+    translateX.setValue(activeIndex * slot + (slot - THUMB_WIDTH) / 2);
+  };
+
+  // Desliza o destaque quando a aba ativa muda (sem animar no primeiro mount).
+  useEffect(() => {
+    const first = !mountedRef.current;
+    mountedRef.current = true;
+    if (first || slotWidthRef.current === 0) return;
+    Animated.spring(translateX, {
+      toValue: activeIndex * slotWidthRef.current + (slotWidthRef.current - THUMB_WIDTH) / 2,
+      tension: 120,
+      friction: 15,
+      useNativeDriver: true,
+    }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex]);
 
   return (
     <View style={styles.dock} pointerEvents="box-none">
-      <View style={styles.pill}>
+      <View style={styles.pill} onLayout={handlePillLayout}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.thumb, { opacity: measured ? 1 : 0, transform: [{ translateX }] }]}
+        />
         {NAV_ITEMS.map((item) => {
           const isActive = item.key === active;
           return (
             <Pressable
               key={item.key}
-              style={styles.slot}
+              style={({ pressed }) => [styles.slot, pressed && styles.slotPressed]}
               onPress={() => onSelectTab(item.key as TabType)}
               accessibilityRole="tab"
               accessibilityLabel={item.label}
@@ -88,7 +125,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    height: 64,
+    height: PILL_HEIGHT,
     borderRadius: 32,
     backgroundColor: BRAND,
     ...Platform.select({
@@ -106,12 +143,25 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  thumb: {
+    position: 'absolute',
+    top: (PILL_HEIGHT - THUMB_HEIGHT) / 2,
+    left: 0,
+    width: THUMB_WIDTH,
+    height: THUMB_HEIGHT,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
   slot: {
     flex: 1,
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+  },
+  slotPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.92 }],
   },
   activeDot: {
     width: 4,

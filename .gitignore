@@ -21,6 +21,11 @@ infra/cloudflared.exe
 # Python
 __pycache__/
 *.pyc
+venv/
+
+# Artefatos gerados (laudos/relatórios)
+*.xlsx
+*.xlsm
 
 # Env / secrets
 .env

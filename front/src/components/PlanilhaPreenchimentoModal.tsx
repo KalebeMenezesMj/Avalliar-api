@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
-import { fonts, colors, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import { demandaService, ArquivoAnexo } from '../services/demandaService';
 import { mlService, MlReconhecerResponse } from '../services/mlService';
 import {
@@ -131,6 +132,8 @@ export default function PlanilhaPreenchimentoModal({
   onClose,
   onSucessoPreenchimento,
 }: PlanilhaPreenchimentoModalProps) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const [carregandoReconhecimento, setCarregandoReconhecimento] = useState(false);
   const [templateDetectado, setTemplateDetectado] = useState<MlReconhecerResponse | null>(null);
   const [processandoPreenchimento, setProcessandoPreenchimento] = useState(false);
@@ -572,7 +575,7 @@ export default function PlanilhaPreenchimentoModal({
             </View>
 
             <Pressable onPress={onClose} hitSlop={8} style={styles.closeBtn}>
-              <Ionicons name="close" size={22} color="#64748B" />
+              <Ionicons name="close" size={22} color={t.textMuted} />
             </Pressable>
           </View>
 
@@ -1097,7 +1100,7 @@ export default function PlanilhaPreenchimentoModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
@@ -1106,7 +1109,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 16,
     width: '100%',
     maxWidth: 580,
@@ -1123,7 +1126,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: t.divider,
     paddingBottom: 14,
     marginBottom: 10,
   },
@@ -1146,7 +1149,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   confidenceBadge: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1154,17 +1157,17 @@ const styles = StyleSheet.create({
   confidenceText: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: '#475569',
+    color: t.chipText,
   },
   modalTitle: {
     fontFamily: fonts.bold,
     fontSize: 16,
-    color: '#0F172A',
+    color: t.text,
   },
   modalSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
   closeBtn: {
@@ -1179,19 +1182,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#64748B',
+    color: t.textMuted,
     textAlign: 'center',
     maxWidth: 320,
   },
   formHint: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
     marginBottom: 10,
   },
   tabBarV25: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
     borderRadius: 8,
     padding: 3,
     marginBottom: 10,
@@ -1203,13 +1206,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   tabBtnV25Active: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     elevation: 1,
   },
   tabTextV25: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#64748B',
+    color: t.chipText,
   },
   tabTextV25Active: {
     color: '#6D28D9',
@@ -1227,18 +1230,18 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#334155',
+    color: t.text,
   },
   fieldInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.inputBorder,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#0F172A',
+    color: t.text,
   },
   submitBtn: {
     backgroundColor: '#6D28D9',
@@ -1272,7 +1275,7 @@ const styles = StyleSheet.create({
   successDesc: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#334155',
+    color: t.text,
     textAlign: 'center',
     maxWidth: 360,
     marginTop: 4,
@@ -1313,7 +1316,7 @@ const styles = StyleSheet.create({
     color: '#15803D',
   },
   finishBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: 'center',
@@ -1323,7 +1326,7 @@ const styles = StyleSheet.create({
   finishBtnText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#475569',
+    color: t.chipText,
   },
   toastNotice: {
     position: 'absolute',

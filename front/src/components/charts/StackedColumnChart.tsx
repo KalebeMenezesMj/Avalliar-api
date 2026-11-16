@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { fonts } from '../../theme';
 import { chartColors } from './palette';
+import { useTheme, ThemeColors } from '../../context/ThemeContext';
 
 export interface StackedColumnItem {
   id: string;
@@ -18,11 +19,22 @@ const SEGMENT_GAP = 2;
 // Mostra volume total e a proporção concluída/pendente por vistoriador.
 // Toque numa coluna para ver os números exatos (camada de "hover" no mobile).
 export default function StackedColumnChart({ items }: { items: StackedColumnItem[] }) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const max = Math.max(1, ...items.map((i) => i.concluidas + i.pendentes));
   const ticks = [max, Math.round(max / 2), 0];
   const selected = items.find((i) => i.id === selectedId) ?? null;
+
+  function LegendItem({ color, label }: { color: string; label: string }) {
+    return (
+      <View style={styles.legendItem}>
+        <View style={[styles.legendSwatch, { backgroundColor: color }]} />
+        <Text style={styles.legendText}>{label}</Text>
+      </View>
+    );
+  }
 
   return (
     <View>
@@ -148,16 +160,7 @@ export default function StackedColumnChart({ items }: { items: StackedColumnItem
   );
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <View style={styles.legendItem}>
-      <View style={[styles.legendSwatch, { backgroundColor: color }]} />
-      <Text style={styles.legendText}>{label}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   legend: {
     flexDirection: 'row',
     gap: 14,
@@ -176,7 +179,7 @@ const styles = StyleSheet.create({
   legendText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: chartColors.inkSecondary,
+    color: t.textSecondary,
   },
   chartRow: {
     flexDirection: 'row',
@@ -190,14 +193,14 @@ const styles = StyleSheet.create({
     right: 6,
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: chartColors.axis,
+    color: t.textMuted,
   },
   gridLine: {
     position: 'absolute',
     left: 0,
     right: 0,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: chartColors.grid,
+    backgroundColor: t.cardBorder,
   },
   columnsRow: {
     flex: 1,
@@ -215,7 +218,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: chartColors.ink,
+    color: t.text,
     marginBottom: 3,
   },
   stack: {
@@ -226,7 +229,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   stackSelected: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.pressedSurface,
   },
   segment: {
     width: '100%',
@@ -249,33 +252,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: fonts.semibold,
     fontSize: 10.5,
-    color: chartColors.axis,
+    color: t.textMuted,
   },
   xLabelActive: {
-    color: chartColors.ink,
+    color: t.text,
     fontFamily: fonts.bold,
   },
   detail: {
     marginTop: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: chartColors.track,
+    borderColor: t.cardBorder,
   },
   detailText: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: chartColors.inkSecondary,
+    color: t.textSecondary,
   },
   detailName: {
     fontFamily: fonts.bold,
-    color: chartColors.ink,
+    color: t.text,
   },
   detailHint: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: chartColors.axis,
+    color: t.textMuted,
   },
 });

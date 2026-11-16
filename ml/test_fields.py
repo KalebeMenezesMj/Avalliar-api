@@ -22,7 +22,7 @@ import templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BLANK_V22 = os.path.join(BASE_DIR, "data", "templates",
                          "Homogeneização_Unidades Isoladas_2025_V22.xlsx")
-FILLED_GLOB = r"C:/Users/Kalebe/Desktop/2025/*/Concluidos/*/*-Homo-*.xlsx"
+FILLED_GLOB = r"c:/Users/Gustavo/Desktop/Avalliar-api/ml/data/templates/*.xlsx"
 TEMPLATE_ID = "v22_unidades_isoladas"
 
 

@@ -18,6 +18,7 @@ import {
 } from '@expo/vector-icons';
 
 import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { userService, ClienteDTO } from '../services/userService';
@@ -138,6 +139,8 @@ export default function UsuariosScreen({
   onLogout,
   activeTab = 'home',
 }: UsuariosScreenProps) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>(USUARIOS_INICIAIS);
   const [filtroTipo, setFiltroTipo] = useState<UserTypeFilter>('TODOS');
   const [busca, setBusca] = useState('');
@@ -507,7 +510,7 @@ export default function UsuariosScreen({
             accessibilityRole="button"
             accessibilityLabel="Voltar"
           >
-            <Ionicons name="chevron-back" size={22} color="#C61010" />
+            <Ionicons name="chevron-back" size={22} color={t.accentRed} />
           </Pressable>
         </View>
 
@@ -526,7 +529,7 @@ export default function UsuariosScreen({
               <Ionicons
                 name={mostrarBusca ? 'close-circle-outline' : 'search-outline'}
                 size={22}
-                color="#64748B"
+                color={t.textMuted}
               />
             </Pressable>
 
@@ -537,7 +540,7 @@ export default function UsuariosScreen({
               accessibilityRole="button"
               accessibilityLabel="Adicionar usuário"
             >
-              <Ionicons name="person-add-outline" size={24} color="#C61010" />
+              <Ionicons name="person-add-outline" size={24} color={t.accentRed} />
             </Pressable>
           </View>
         </View>
@@ -704,7 +707,7 @@ export default function UsuariosScreen({
                         accessibilityRole="button"
                         accessibilityLabel={`Editar ${item.nome}`}
                       >
-                        <Feather name="edit-2" size={17} color="#64748B" />
+                        <Feather name="edit-2" size={17} color={t.textMuted} />
                       </Pressable>
                     </Pressable>
 
@@ -728,7 +731,7 @@ export default function UsuariosScreen({
         accessibilityRole="button"
         accessibilityLabel="Assistente Avalliar"
       >
-        <MaterialCommunityIcons name="robot-outline" size={24} color="#C61010" />
+        <MaterialCommunityIcons name="robot-outline" size={24} color={t.accentRed} />
       </Pressable>
 
       {/* 7. Barra de Navegação Inferior Vermelha */}
@@ -760,7 +763,7 @@ export default function UsuariosScreen({
                 onPress={() => setUsuarioModalVisible(false)}
                 hitSlop={6}
               >
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={22} color={t.textMuted} />
               </Pressable>
             </View>
 
@@ -873,7 +876,7 @@ export default function UsuariosScreen({
                     accessibilityLabel="Selecionar empresa contratante"
                   >
                     <View style={styles.dropdownSelectorLeft}>
-                      <Ionicons name="business-outline" size={18} color="#C61010" />
+                      <Ionicons name="business-outline" size={18} color={t.accentRed} />
                       <Text
                         style={[
                           styles.dropdownSelectorText,
@@ -889,7 +892,7 @@ export default function UsuariosScreen({
                     <Ionicons
                       name={dropdownEmpresaAberto ? 'chevron-up' : 'chevron-down'}
                       size={18}
-                      color="#64748B"
+                      color={t.textMuted}
                     />
                   </Pressable>
 
@@ -914,7 +917,7 @@ export default function UsuariosScreen({
                             setDropdownEmpresaAberto(false);
                           }}
                         >
-                          <Ionicons name="add-circle" size={18} color="#C61010" />
+                          <Ionicons name="add-circle" size={18} color={t.accentRed} />
                           <Text style={styles.dropdownItemNovaText}>
                             + Cadastrar Nova Empresa...
                           </Text>
@@ -948,7 +951,7 @@ export default function UsuariosScreen({
                                 <Ionicons
                                   name="checkmark-circle"
                                   size={18}
-                                  color="#C61010"
+                                  color={t.accentRed}
                                 />
                               )}
                             </Pressable>
@@ -1146,7 +1149,7 @@ export default function UsuariosScreen({
                   onLogout();
                 }}
               >
-                <Ionicons name="log-out-outline" size={18} color="#DC2626" />
+                <Ionicons name="log-out-outline" size={18} color={t.accentRed} />
                 <Text style={styles.logoutButtonText}>Sair da conta</Text>
               </Pressable>
             )}
@@ -1171,11 +1174,11 @@ export default function UsuariosScreen({
           >
             <View style={styles.notifHeaderRow}>
               <View style={styles.notifTitleGroup}>
-                <Ionicons name="notifications" size={20} color="#C61010" />
+                <Ionicons name="notifications" size={20} color={t.accentRed} />
                 <Text style={styles.notifTitle}>Notificações</Text>
               </View>
               <Pressable onPress={() => setNotifModalVisible(false)}>
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={20} color={t.textMuted} />
               </Pressable>
             </View>
 
@@ -1227,13 +1230,13 @@ export default function UsuariosScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingTop: Platform.OS === 'android' ? spacing.sm : 0,
     paddingBottom: spacing.md,
@@ -1289,7 +1292,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -1303,11 +1306,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1333,7 +1336,7 @@ const styles = StyleSheet.create({
   titleText: {
     fontFamily: fonts.bold,
     fontSize: 22,
-    color: '#1E1E1E',
+    color: t.text,
     letterSpacing: -0.3,
   },
   titleActions: {
@@ -1358,12 +1361,12 @@ const styles = StyleSheet.create({
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 14,
     paddingHorizontal: spacing.md,
     height: 44,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     marginBottom: spacing.md,
     gap: 8,
   },
@@ -1371,18 +1374,18 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
 
   /* Card Principal */
   mainCard: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.chipBackground,
     borderRadius: 24,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1405,7 +1408,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: t.divider,
     paddingBottom: 2,
     marginBottom: spacing.sm,
   },
@@ -1419,11 +1422,11 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontFamily: fonts.semibold,
     fontSize: 13.5,
-    color: '#64748B',
+    color: t.textMuted,
   },
   tabLabelActive: {
     fontFamily: fonts.bold,
-    color: '#1E1E1E',
+    color: t.text,
   },
   tabIndicator: {
     position: 'absolute',
@@ -1431,7 +1434,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
 
   /* Lista */
@@ -1498,13 +1501,13 @@ const styles = StyleSheet.create({
   userNameText: {
     fontFamily: fonts.bold,
     fontSize: 14.5,
-    color: '#1E1E1E',
+    color: t.text,
     flex: 1,
   },
   userRoleText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
   },
 
   /* Badges de Contrato para Clientes */
@@ -1522,8 +1525,8 @@ const styles = StyleSheet.create({
     borderColor: '#A7F3D0',
   },
   contractBadgeInativo: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#CBD5E1',
+    backgroundColor: t.chipBackground,
+    borderColor: t.inputBorder,
   },
   contractDot: {
     width: 6,
@@ -1552,7 +1555,7 @@ const styles = StyleSheet.create({
   },
   userDivider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: t.divider,
     marginLeft: 64,
   },
 
@@ -1564,26 +1567,26 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: '#475569',
+    color: t.textSecondary,
   },
   emptySubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#94A3B8',
+    color: t.textMuted,
   },
 
   floatingBotButton: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: 80,
+    bottom: 106,
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FEE2E2',
+    borderColor: t.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1613,7 +1616,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     maxHeight: '85%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 24,
     padding: spacing.xl,
   },
@@ -1626,7 +1629,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#1E1E1E',
+    color: t.text,
   },
   modalScroll: {
     width: '100%',
@@ -1634,14 +1637,14 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#334155',
+    color: t.text,
     marginBottom: 6,
     marginTop: 10,
   },
   subFieldLabel: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 6,
     marginBottom: 6,
   },
@@ -1660,42 +1663,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: t.cardBorder,
+    backgroundColor: t.chipBackground,
   },
   tipoOptionActive: {
-    backgroundColor: '#C61010',
-    borderColor: '#C61010',
+    backgroundColor: t.brandRed,
+    borderColor: t.brandRed,
   },
   tipoOptionText: {
     fontFamily: fonts.semibold,
     fontSize: 12.5,
-    color: '#64748B',
+    color: t.chipText,
   },
   tipoOptionTextActive: {
     color: '#FFFFFF',
     fontFamily: fonts.bold,
   },
   modalInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: t.inputBorder,
     paddingHorizontal: spacing.md,
     height: 44,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
   /* Dropdown de Empresa */
   dropdownSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: t.inputBorder,
     paddingHorizontal: spacing.md,
     height: 46,
   },
@@ -1708,7 +1711,7 @@ const styles = StyleSheet.create({
   dropdownSelectorText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
     flex: 1,
   },
   dropdownPlaceholder: {
@@ -1716,10 +1719,10 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   dropdownListContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: t.cardBorder,
     marginTop: 6,
     marginBottom: 8,
     maxHeight: 180,
@@ -1746,28 +1749,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 11,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: t.divider,
   },
   dropdownItemActive: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
   },
   dropdownItemNova: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
     justifyContent: 'flex-start',
     gap: 8,
   },
   dropdownItemNovaText: {
     fontFamily: fonts.bold,
     fontSize: 12.5,
-    color: '#C61010',
+    color: t.accentRed,
   },
   dropdownItemText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#334155',
+    color: t.text,
   },
   dropdownItemTextActive: {
-    color: '#C61010',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   novaEmpresaInputBox: {
@@ -1777,13 +1780,13 @@ const styles = StyleSheet.create({
   novaEmpresaInputLabel: {
     fontFamily: fonts.bold,
     fontSize: 11.5,
-    color: '#C61010',
+    color: t.accentRed,
     marginBottom: 4,
   },
   inputHelperText: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 4,
     lineHeight: 14,
   },
@@ -1804,8 +1807,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: t.cardBorder,
+    backgroundColor: t.chipBackground,
   },
   contractStatusOptionAtivo: {
     borderColor: '#10B981',
@@ -1813,12 +1816,12 @@ const styles = StyleSheet.create({
   },
   contractStatusOptionInativo: {
     borderColor: '#94A3B8',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
   },
   contractStatusText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#64748B',
+    color: t.chipText,
   },
   contractStatusTextAtivo: {
     fontFamily: fonts.bold,
@@ -1848,7 +1851,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#64748B',
+    color: t.textMuted,
   },
   deleteButton: {
     flexDirection: 'row',
@@ -1887,7 +1890,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   confirmButton: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
@@ -1908,7 +1911,7 @@ const styles = StyleSheet.create({
   profileModalCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
     alignItems: 'center',
@@ -1917,7 +1920,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -1925,16 +1928,16 @@ const styles = StyleSheet.create({
   profileModalName: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#1E1E1E',
+    color: t.text,
   },
   profileModalEmail: {
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
   profileRoleBadge: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1943,12 +1946,12 @@ const styles = StyleSheet.create({
   profileRoleText: {
     fontFamily: fonts.bold,
     fontSize: 10,
-    color: '#C61010',
+    color: t.accentRed,
   },
   profileModalDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.divider,
     marginVertical: spacing.lg,
   },
   logoutButton: {
@@ -1961,12 +1964,12 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#DC2626',
+    color: t.accentRed,
   },
   notifModalCard: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
   },
@@ -1984,31 +1987,31 @@ const styles = StyleSheet.create({
   notifTitle: {
     fontFamily: fonts.bold,
     fontSize: 16,
-    color: '#1E1E1E',
+    color: t.text,
   },
   notifItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     padding: 12,
     borderRadius: 12,
   },
   notifItemTitle: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
   notifItemDesc: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
   botModalCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
     alignItems: 'center',
@@ -2017,7 +2020,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
@@ -2025,18 +2028,18 @@ const styles = StyleSheet.create({
   botModalTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#1E1E1E',
+    color: t.text,
   },
   botModalDesc: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#4B5563',
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
   },
   botModalCloseBtn: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 10,

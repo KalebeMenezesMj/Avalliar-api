@@ -8,6 +8,8 @@ Requer as variáveis DB_* e o conjunto montado por `python dataset.py`.
 Sai com código 1 se algum piso for violado (serve em CI).
 """
 import sys
+import pandas as pd
+import os
 
 import avaliar
 import train
@@ -35,12 +37,32 @@ def main():
         medidas["extracao"] = m["extracao"].get("acuracia")
 
     falhas = []
+    resultados_para_excel = []
+
     print("\nPisos:")
     for nome, valor in medidas.items():
         ok = valor is not None and valor >= PISOS[nome]
-        print(f"  {'OK  ' if ok else 'FALHA'} {nome:24s} {valor}  (piso {PISOS[nome]})")
+        status = 'OK' if ok else 'FALHA'
+        print(f"  {status:5s} {nome:24s} {valor}  (piso {PISOS[nome]})")
         if not ok:
             falhas.append(nome)
+        
+        resultados_para_excel.append({
+            "Metrica": nome,
+            "Valor": valor,
+            "Piso": PISOS.get(nome, "N/A"),
+            "Status": status
+        })
+    
+    # Exportar para Excel
+    df_resultados = pd.DataFrame(resultados_para_excel)
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "relatorio_avaliacao_ml.xlsx")
+    try:
+        df_resultados.to_excel(output_path, index=False)
+        print(f"\nResultados exportados para: {output_path}")
+    except Exception as e:
+        print(f"\n[Aviso] Não foi possível salvar o arquivo Excel ({e}). Se o arquivo estiver aberto no Excel, feche-o e tente novamente.")
+
     sys.exit(1 if falhas else 0)
 
 

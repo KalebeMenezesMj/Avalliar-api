@@ -14,7 +14,7 @@ import fill as filler
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 ESPERADO = "v22_unidades_isoladas"
-FILLED_GLOB = r"C:/Users/Kalebe/Desktop/2025/*/Concluidos/*/*-Homo-*.xlsx"
+FILLED_GLOB = r"c:/Users/Gustavo/Desktop/Avalliar-api/ml/data/templates/*.xlsx"
 
 
 def main():
