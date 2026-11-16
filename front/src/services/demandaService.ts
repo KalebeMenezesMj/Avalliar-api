@@ -1,4 +1,5 @@
 import { userService, ClienteDTO } from './userService';
+import { request } from './api';
 
 export type StatusEmpresa = 'SEM_PENDENCIAS' | 'COM_PENDENCIAS' | 'EM_ABERTO';
 export type Urgencia = 'ALTA' | 'MEDIA' | 'BAIXA';
@@ -457,6 +458,81 @@ const chaveEmpresa = (id: string, nome?: string): string => {
   return (nome || id).trim().toLowerCase();
 };
 
+/** Ordem de serviço como a API /api/ordens-servico devolve. */
+interface OrdemServicoApi {
+  id: number;
+  numeroOsCliente?: string | null;
+  cliente?: { id?: number; razaoSocial?: string } | null;
+  recebidaEm?: string | null;
+  prazoEntrega?: string | null;
+  status: string;
+  emailRecebidoId?: number | null;
+}
+
+const STATUS_OS_CONCLUIDAS = ['CONCLUIDA', 'CANCELADA'];
+
+const urgenciaPorPrazo = (prazo?: string | null): Urgencia => {
+  if (!prazo) return 'BAIXA';
+  const horas = (new Date(prazo).getTime() - Date.now()) / 3600000;
+  if (horas < 24) return 'ALTA';
+  if (horas < 72) return 'MEDIA';
+  return 'BAIXA';
+};
+
+const dataCurta = (iso?: string | null): string =>
+  iso ? new Date(iso).toLocaleDateString('pt-BR') : '';
+
+/**
+ * Carrega clientes e ordens de serviço do banco e preenche as estruturas
+ * que as telas já leem. Retorna false se não houver dados do banco.
+ */
+const carregarDoBanco = async (): Promise<boolean> => {
+  const [clientes, ordens] = await Promise.all([
+    userService.listarClientes(),
+    request<OrdemServicoApi[]>('/api/ordens-servico'),
+  ]);
+
+  empresasDinamicas.length = 0;
+  clientes.forEach((cli) => {
+    empresasDinamicas.push({
+      id: `cli-${cli.id}`,
+      nome: cli.razaoSocial,
+      status: 'EM_ABERTO',
+      quantidadePendentes: 0,
+      totalDemandas: 0,
+      descricao: '| Demandas em aberto.',
+      contato: cli.email || 'contato@empresa.com.br',
+    });
+  });
+
+  const porCliente = new Map<string, TarefaDemanda[]>();
+  ordens.forEach((os) => {
+    const nomeCliente = os.cliente?.razaoSocial;
+    if (!nomeCliente) return;
+    const tarefa: TarefaDemanda = {
+      id: `os-${os.id}`,
+      titulo: `OS ${os.numeroOsCliente ?? os.id}`,
+      responsavel: '—',
+      urgencia: urgenciaPorPrazo(os.prazoEntrega),
+      dataCriacao: os.recebidaEm ?? new Date().toISOString(),
+      concluida: STATUS_OS_CONCLUIDAS.includes(os.status),
+      observacoes: `Status: ${os.status}. Prazo: ${dataCurta(os.prazoEntrega) || 'sem prazo'}.${
+        os.emailRecebidoId ? ' Origem: e-mail.' : ''
+      }`,
+      arquivos: [],
+    };
+    const chave = chaveEmpresa('', nomeCliente);
+    porCliente.set(chave, [...(porCliente.get(chave) ?? []), tarefa]);
+  });
+
+  clientes.forEach((cli) => {
+    const chave = chaveEmpresa('', cli.razaoSocial);
+    demandasPorEmpresaStore[chave] = porCliente.get(chave) ?? [];
+  });
+
+  return true;
+};
+
 const inferirCategoriaPorExtensao = (
   nomeArquivo: string,
   categoriaInformada?: CategoriaArquivo
@@ -493,18 +569,29 @@ export const demandaService = {
    * Lista todas as empresas (base + backend + dinâmicas) com contagem real de demandas
    */
   async listarEmpresas(): Promise<EmpresaDemanda[]> {
-    let clientesApi: ClienteDTO[] = [];
+    let dadosDoBanco = false;
     try {
-      clientesApi = await userService.listarClientes();
+      dadosDoBanco = await carregarDoBanco();
     } catch {
-      // Offline fallback
+      // Sem conexão: usa os dados de exemplo abaixo
+    }
+
+    let clientesApi: ClienteDTO[] = [];
+    if (!dadosDoBanco) {
+      try {
+        clientesApi = await userService.listarClientes();
+      } catch {
+        // Offline fallback
+      }
     }
 
     const mapa = new Map<string, EmpresaDemanda>();
 
-    EMPRESAS_BASE.forEach((emp) => {
-      mapa.set(emp.nome.toLowerCase(), { ...emp });
-    });
+    if (!dadosDoBanco) {
+      EMPRESAS_BASE.forEach((emp) => {
+        mapa.set(emp.nome.toLowerCase(), { ...emp });
+      });
+    }
 
     clientesApi.forEach((cli) => {
       const nomeLower = cli.razaoSocial.toLowerCase();
