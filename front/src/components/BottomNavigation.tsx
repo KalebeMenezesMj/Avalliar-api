@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, LayoutChangeEvent, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Telas que usam a barra. "demandas" são as telas de tarefas e destacam a aba Tarefas.
 export type TabType = 'painel' | 'home' | 'demandas' | 'tarefas' | 'configuracoes';
@@ -44,10 +45,19 @@ interface BottomNavigationProps {
   onSelectTab: (tab: TabType) => void;
 }
 
+export const getBottomNavigationPadding = (bottomInset: number = 0): number => {
+  return Math.max(bottomInset + (Platform.OS === 'android' ? 10 : 8), 16);
+};
+
+export const getBottomNavigationHeight = (bottomInset: number = 0): number => {
+  return PILL_HEIGHT + getBottomNavigationPadding(bottomInset);
+};
+
 // Flutua sobre o conteúdo, sem faixa de fundo: a área fora da pílula é transparente.
-// As telas com esta barra já têm margem inferior (110px) para o conteúdo não ficar atrás dela.
+// As telas com esta barra já têm margem inferior para o conteúdo não ficar atrás dela.
 // O destaque da aba ativa desliza de forma fluida entre os ícones (spring, native driver).
 export default function BottomNavigation({ activeTab, onSelectTab }: BottomNavigationProps) {
+  const insets = useSafeAreaInsets();
   const active = TAB_ALIAS[activeTab] ?? 'home';
   const activeIndex = Math.max(0, NAV_ITEMS.findIndex((n) => n.key === active));
 
@@ -55,6 +65,11 @@ export default function BottomNavigation({ activeTab, onSelectTab }: BottomNavig
   const slotWidthRef = useRef(0);
   const translateX = useRef(new Animated.Value(0)).current;
   const mountedRef = useRef(false);
+
+  // No Android ou iOS, ajusta a margem inferior para respeitar a barra nativa do sistema
+  // (3 botões: ~48dp, gestos: ~24dp, ou home indicator no iOS: 34dp).
+  const bottomInset = insets.bottom;
+  const paddingBottom = getBottomNavigationPadding(bottomInset);
 
   const handlePillLayout = (e: LayoutChangeEvent) => {
     const slot = e.nativeEvent.layout.width / NAV_ITEMS.length;
@@ -78,7 +93,7 @@ export default function BottomNavigation({ activeTab, onSelectTab }: BottomNavig
   }, [activeIndex]);
 
   return (
-    <View style={styles.dock} pointerEvents="box-none">
+    <View style={[styles.dock, { paddingBottom }]} pointerEvents="box-none">
       <View style={styles.pill} onLayout={handlePillLayout}>
         <Animated.View
           pointerEvents="none"

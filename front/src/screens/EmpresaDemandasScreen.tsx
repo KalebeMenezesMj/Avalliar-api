@@ -10,7 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -19,7 +19,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import { useTheme, ThemeColors } from '../context/ThemeContext';
-import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import BottomNavigation, { TabType, getBottomNavigationPadding } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { EmpresaDemanda } from './DemandasScreen';
 import { userService, UsuarioDTO } from '../services/userService';
@@ -101,6 +101,8 @@ export default function EmpresaDemandasScreen({
 }: EmpresaDemandasScreenProps) {
   const { colors: t } = useTheme();
   const styles = makeStyles(t);
+  const insets = useSafeAreaInsets();
+  const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
   const [tarefas, setTarefas] = useState<TarefaDemanda[]>(() =>
     demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome)
   );
@@ -1672,7 +1674,7 @@ export default function EmpresaDemandasScreen({
         <View
           style={{
             position: 'absolute',
-            bottom: 86,
+            bottom: 64 + navPaddingBottom + 16,
             left: 16,
             right: 16,
             backgroundColor: '#064E3B',

@@ -10,7 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -19,7 +19,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import { useTheme, ThemeColors } from '../context/ThemeContext';
-import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import BottomNavigation, { TabType, getBottomNavigationPadding } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { userService, UsuarioDTO, ClienteDTO } from '../services/userService';
 import { demandaService } from '../services/demandaService';
@@ -143,6 +143,8 @@ export default function NovaDemandaScreen({
 }: NovaDemandaScreenProps) {
   const { colors: t } = useTheme();
   const styles = makeStyles(t);
+  const insets = useSafeAreaInsets();
+  const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
   // Dados do formulário
   const [empresa, setEmpresa] = useState(empresaPreSelecionada || 'Doors LTDA');
   const [novaEmpresaModo, setNovaEmpresaModo] = useState(false);
@@ -785,7 +787,7 @@ export default function NovaDemandaScreen({
       </ScrollView>
 
       {/* 5. Assistente Flutuante (Robôzinho Avalliar) */}
-      <View style={styles.botContainer}>
+      <View style={[styles.botContainer, { bottom: 64 + navPaddingBottom + 16 }]}>
         <View style={styles.speechBubble}>
           <Text style={styles.speechBubbleText}>Dúvidas sobre a demanda?</Text>
         </View>

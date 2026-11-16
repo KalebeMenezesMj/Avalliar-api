@@ -10,7 +10,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -19,7 +19,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import { useTheme, ThemeColors } from '../context/ThemeContext';
-import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import BottomNavigation, { TabType, getBottomNavigationPadding } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { userService, ClienteDTO } from '../services/userService';
 
@@ -141,6 +141,8 @@ export default function UsuariosScreen({
 }: UsuariosScreenProps) {
   const { colors: t } = useTheme();
   const styles = makeStyles(t);
+  const insets = useSafeAreaInsets();
+  const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>(USUARIOS_INICIAIS);
   const [filtroTipo, setFiltroTipo] = useState<UserTypeFilter>('TODOS');
   const [busca, setBusca] = useState('');
@@ -726,7 +728,7 @@ export default function UsuariosScreen({
 
       {/* 6. Botão Flutuante do Assistente / Suporte */}
       <Pressable
-        style={styles.floatingBotButton}
+        style={[styles.floatingBotButton, { bottom: 64 + navPaddingBottom + 16 }]}
         onPress={() => setBotModalVisible(true)}
         accessibilityRole="button"
         accessibilityLabel="Assistente Avalliar"

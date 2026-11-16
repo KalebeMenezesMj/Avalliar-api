@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Ionicons,
@@ -20,7 +20,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import { useTheme, ThemeColors } from '../context/ThemeContext';
-import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import BottomNavigation, { TabType, getBottomNavigationPadding } from '../components/BottomNavigation';
 import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
 import SegmentedControl from '../components/SegmentedControl';
 import RankedBarChart from '../components/charts/RankedBarChart';
@@ -73,6 +73,8 @@ export default function PainelScreen({
 }: PainelScreenProps) {
   const { colors: t } = useTheme();
   const styles = makeStyles(t);
+  const insets = useSafeAreaInsets();
+  const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
   const userName = currentUser?.nome || 'Linux da Silva';
 
   // Aba interna: Visão Geral (Demandas) vs Inteligência Artificial (ML)
@@ -373,7 +375,10 @@ export default function PainelScreen({
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 64 + navPaddingBottom + 30 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Topo: voltar + seletor de visão */}

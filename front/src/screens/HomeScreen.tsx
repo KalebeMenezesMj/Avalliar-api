@@ -8,7 +8,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Ionicons,
@@ -19,7 +19,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import { useTheme, ThemeColors } from '../context/ThemeContext';
-import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import BottomNavigation, { TabType, getBottomNavigationPadding } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { demandaService } from '../services/demandaService';
 
@@ -98,6 +98,8 @@ export default function HomeScreen({
 
   const { colors: t } = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
+  const insets = useSafeAreaInsets();
+  const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
 
   const metricasHome = demandaService.obterMetricasDashboard();
 
@@ -167,7 +169,10 @@ export default function HomeScreen({
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 64 + navPaddingBottom + 30 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* 2. Banner com Degradê e Gráfico Resumo Minimalista (Integrado às Demandas) */}
@@ -389,7 +394,7 @@ export default function HomeScreen({
       </ScrollView>
 
       {/* Botão Flutuante do Chatbot (Robô) no canto inferior direito */}
-      <View style={styles.floatingBotContainer}>
+      <View style={[styles.floatingBotContainer, { bottom: 64 + navPaddingBottom + 16 }]}>
         <Pressable
           style={styles.floatingBotButton}
           onPress={() => setBotModalVisible(true)}

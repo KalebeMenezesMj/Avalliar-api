@@ -9,7 +9,7 @@ import {
   Platform,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -19,7 +19,7 @@ import {
 
 import { fonts, spacing } from '../theme';
 import { useTheme, ThemeColors } from '../context/ThemeContext';
-import BottomNavigation, { TabType } from '../components/BottomNavigation';
+import BottomNavigation, { TabType, getBottomNavigationPadding } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { demandaService, EmpresaDemanda, StatusEmpresa } from '../services/demandaService';
 
@@ -93,6 +93,8 @@ export default function DemandasScreen({
 
   const { colors: t } = useTheme();
   const styles = makeStyles(t);
+  const insets = useSafeAreaInsets();
+  const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
 
   const userName = currentUser?.nome || 'Linux da Silva';
   const userEmail = currentUser?.email || 'linux.silva@fatec.sp.gov.br';
@@ -191,7 +193,10 @@ export default function DemandasScreen({
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 64 + navPaddingBottom + 30 },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -417,7 +422,7 @@ export default function DemandasScreen({
       </ScrollView>
 
       {/* Botão Flutuante do Chatbot */}
-      <View style={styles.floatingBotContainer}>
+      <View style={[styles.floatingBotContainer, { bottom: 64 + navPaddingBottom + 16 }]}>
         <Pressable
           style={styles.floatingBotButton}
           onPress={() => setBotModalVisible(true)}

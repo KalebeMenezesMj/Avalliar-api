@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 
@@ -38,8 +39,8 @@ type CampoSpec = { key: string; label: string; numerico?: boolean };
 
 const ABAS_V22: { id: TabV22; label: string }[] = [
   { id: 'LAUDO', label: 'Laudo' },
-  { id: 'AVALIANDO', label: 'Avaliando (Dados Calc)' },
-  { id: 'AMOSTRAS', label: 'Amostras (1–5)' },
+  { id: 'AVALIANDO', label: 'Avaliando' },
+  { id: 'AMOSTRAS', label: 'Amostras' },
   { id: 'CUB', label: 'CUB' },
 ];
 
@@ -325,7 +326,11 @@ export default function PlanilhaPreenchimentoModal({
 
   const handleSubmeterPreenchimento = async () => {
     if (!arquivo) return;
-    const isV25 = templateDetectado?.template_id.includes('v25');
+    const isV25 = templateDetectado
+    ? templateDetectado.template_id.includes('v25')
+    : ((arquivo.nome || '').toLowerCase().includes('v25') ||
+       (arquivo.nome || '').toLowerCase().includes('padronizada') ||
+       arquivo.extensao === 'xlsm');
     const templateId = isV25 ? 'v25_unidades_padronizadas' : 'v22_unidades_isoladas';
     const payload = isV25 ? dadosV25 : montarPayloadV22();
 
@@ -427,7 +432,11 @@ export default function PlanilhaPreenchimentoModal({
 
   if (!arquivo) return null;
 
-  const isV25 = templateDetectado?.template_id.includes('v25');
+  const isV25 = templateDetectado
+    ? templateDetectado.template_id.includes('v25')
+    : ((arquivo.nome || '').toLowerCase().includes('v25') ||
+       (arquivo.nome || '').toLowerCase().includes('padronizada') ||
+       arquivo.extensao === 'xlsm');
 
   const renderGradeV22 = (
     specs: CampoSpec[],
@@ -530,7 +539,11 @@ export default function PlanilhaPreenchimentoModal({
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={onClose} />
         <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.modalHeader}>
@@ -621,7 +634,7 @@ export default function PlanilhaPreenchimentoModal({
             </View>
           ) : (
             /* Formulário Dinâmico de Edição dos Campos */
-            <View style={{ flex: 1 }}>
+            <View style={styles.formContainer}>
               <Text style={styles.formHint}>
                 Edite os valores abaixo antes de preencher. O Machine Learning inserirá cada campo na célula exata da planilha.
               </Text>
@@ -678,6 +691,7 @@ export default function PlanilhaPreenchimentoModal({
                 style={styles.formScroll}
                 contentContainerStyle={{ paddingBottom: 24, gap: 10 }}
                 showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
               >
                 {!isV25 ? (
                   /* ================= FORMULÁRIO V22 (abas: Laudo, Avaliando, Amostras, CUB) ================= */
@@ -1095,7 +1109,7 @@ export default function PlanilhaPreenchimentoModal({
             </View>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1108,13 +1122,22 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   modalCard: {
     backgroundColor: t.modalBackground,
     borderRadius: 16,
     width: '100%',
     maxWidth: 580,
-    maxHeight: '90%',
-    padding: 20,
+    height: Platform.OS === 'web' ? '86%' : '88%',
+    maxHeight: '92%',
+    padding: 18,
+    flexDirection: 'column',
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -1174,6 +1197,7 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     padding: 4,
   },
   loadingContainer: {
+    flex: 1,
     paddingVertical: 40,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1185,6 +1209,11 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     color: t.textMuted,
     textAlign: 'center',
     maxWidth: 320,
+  },
+  formContainer: {
+    flex: 1,
+    minHeight: 0,
+    flexDirection: 'column',
   },
   formHint: {
     fontFamily: fonts.regular,
@@ -1211,14 +1240,16 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
   },
   tabTextV25: {
     fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontSize: 10.5,
     color: t.chipText,
+    textAlign: 'center',
   },
   tabTextV25Active: {
     color: '#6D28D9',
   },
   formScroll: {
-    maxHeight: 340,
+    flex: 1,
+    width: '100%',
   },
   fieldGroup: {
     gap: 3,
@@ -1259,6 +1290,7 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     color: '#FFFFFF',
   },
   successContainer: {
+    flex: 1,
     paddingVertical: 20,
     alignItems: 'center',
     justifyContent: 'center',

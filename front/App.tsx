@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import {
   useFonts,
   Poppins_400Regular,
@@ -326,7 +326,7 @@ function Root() {
   const isOverlayMode = OVERLAY_SCREENS.includes(currentScreen);
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       {isAuthMode ? (
         <ScreenTransition
           screen={currentScreen}
