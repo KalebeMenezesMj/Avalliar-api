@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
-import { colors, fonts, radius, spacing } from '../theme';
+import { fonts, radius, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 
 type Props = {
   title: string;
@@ -18,6 +19,8 @@ export default function Button({
   loading = false,
   disabled = false,
 }: Props) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const isPrimary = variant === 'primary';
   const isDisabled = disabled || loading;
 
@@ -35,9 +38,9 @@ export default function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? colors.textOnPrimary : colors.primary} />
+        <ActivityIndicator color={isPrimary ? t.textOnPrimary : t.primary} />
       ) : (
-        <Text style={[styles.text, { color: isPrimary ? colors.textOnPrimary : colors.text }]}>
+        <Text style={[styles.text, { color: isPrimary ? t.textOnPrimary : t.text }]}>
           {title}
         </Text>
       )}
@@ -45,7 +48,7 @@ export default function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   base: {
     minHeight: 52,
     paddingVertical: spacing.md,
@@ -55,10 +58,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   primary: {
-    backgroundColor: colors.primary,
+    backgroundColor: t.primary,
   },
   secondary: {
-    backgroundColor: colors.surface,
+    backgroundColor: t.cardBackground,
+    borderWidth: 1,
+    borderColor: t.cardBorder,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 4,

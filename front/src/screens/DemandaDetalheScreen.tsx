@@ -17,6 +17,7 @@ import {
 } from '@expo/vector-icons';
 
 import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import FileViewerModal, {
   visualizarArquivoDemanda,
@@ -55,6 +56,8 @@ export default function DemandaDetalheScreen({
   activeTab = 'demandas',
 }: DemandaDetalheScreenProps) {
   const userName = currentUser?.nome || 'Linux da Silva';
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
 
   const [demanda, setDemanda] = useState<TarefaDemanda>(() => {
     return (
@@ -567,7 +570,7 @@ export default function DemandaDetalheScreen({
                 style={styles.emptyUploadBtn}
                 onPress={() => setModalAnexoAberto(true)}
               >
-                <Ionicons name="add-circle-outline" size={16} color="#C61010" />
+                <Ionicons name="add-circle-outline" size={16} color={t.accentRed} />
                 <Text style={styles.emptyUploadBtnText}>
                   Anexar Arquivo na Demanda
                 </Text>
@@ -801,7 +804,7 @@ export default function DemandaDetalheScreen({
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Anexar Arquivo na Demanda</Text>
               <Pressable onPress={() => setModalAnexoAberto(false)} hitSlop={6}>
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={22} color={t.textMuted} />
               </Pressable>
             </View>
 
@@ -843,7 +846,7 @@ export default function DemandaDetalheScreen({
               style={styles.uploadDropzone}
               onPress={handleEscolherArquivoDispositivo}
             >
-              <Ionicons name="cloud-upload-outline" size={24} color="#C61010" />
+              <Ionicons name="cloud-upload-outline" size={24} color={t.softRedText} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.uploadDropzoneTitle}>
                   {arquivoDispositivo
@@ -1011,14 +1014,14 @@ export default function DemandaDetalheScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -1026,7 +1029,7 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -1056,35 +1059,35 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: t.cardBorder,
   },
   breadcrumbText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-    color: '#C61010',
+    color: t.accentRed,
     flex: 1,
   },
   breadcrumbStrong: {
     fontFamily: fonts.bold,
-    color: '#991B1B',
+    color: t.softRedText,
   },
 
   /* Card Principal da Demanda */
   demandaDetailCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 20,
     padding: spacing.lg,
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     marginBottom: spacing.md,
   },
   demandaDetailCardDone: {
-    borderColor: '#86EFAC',
-    backgroundColor: '#F0FDF4',
+    borderColor: t.statusBg.CONCLUIDA.border,
+    backgroundColor: t.statusBg.CONCLUIDA.bg,
   },
   topBadgesRow: {
     flexDirection: 'row',
@@ -1116,17 +1119,17 @@ const styles = StyleSheet.create({
   demandaTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#0F172A',
+    color: t.text,
     lineHeight: 24,
     marginBottom: 12,
   },
   metaGrid: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     padding: 12,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     marginBottom: 14,
   },
   metaRowItem: {
@@ -1137,12 +1140,12 @@ const styles = StyleSheet.create({
   metaLabel: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
   },
   metaValue: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#1E293B',
+    color: t.text,
     flex: 1,
   },
   toggleStatusButton: {
@@ -1172,11 +1175,11 @@ const styles = StyleSheet.create({
 
   /* Seção de Arquivos da Demanda Específica */
   filesSectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 20,
     padding: spacing.md + 2,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     marginBottom: spacing.md,
     gap: 12,
     width: '100%',
@@ -1197,19 +1200,19 @@ const styles = StyleSheet.create({
   filesSectionTitle: {
     fontFamily: fonts.bold,
     fontSize: 15.5,
-    color: '#0F172A',
+    color: t.text,
   },
   filesSectionSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
   addFilePrimaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1228,18 +1231,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 5,
     borderRadius: 14,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   catChipActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
+    backgroundColor: t.brandRed,
+    borderColor: t.brandRed,
   },
   catChipText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#475569',
+    color: t.chipText,
   },
   catChipTextActive: {
     color: '#FFFFFF',
@@ -1248,29 +1251,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 14,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     gap: 6,
   },
   emptyFilesTitle: {
     fontFamily: fonts.bold,
     fontSize: 13.5,
-    color: '#334155',
+    color: t.text,
   },
   emptyFilesSub: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: '#64748B',
+    color: t.textMuted,
     textAlign: 'center',
   },
   emptyUploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
@@ -1279,7 +1282,7 @@ const styles = StyleSheet.create({
   emptyUploadBtnText: {
     fontFamily: fonts.bold,
     fontSize: 11.5,
-    color: '#C61010',
+    color: t.accentRed,
   },
   filesListContainer: {
     gap: 10,
@@ -1303,11 +1306,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fileItemCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 10,
     width: '100%',
     overflow: 'hidden',
@@ -1334,7 +1337,7 @@ const styles = StyleSheet.create({
   fileItemName: {
     fontFamily: fonts.bold,
     fontSize: 12.5,
-    color: '#0F172A',
+    color: t.text,
   },
   fileItemMetaRow: {
     flexDirection: 'row',
@@ -1355,13 +1358,13 @@ const styles = StyleSheet.create({
   fileItemMetaText: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: '#64748B',
+    color: t.textMuted,
   },
   mlBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: t.purpleSoftBackground,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 5,
@@ -1372,7 +1375,7 @@ const styles = StyleSheet.create({
   mlBadgeText: {
     fontFamily: fonts.bold,
     fontSize: 9.5,
-    color: '#6D28D9',
+    color: t.purpleSoftText,
   },
   mlBadgeTextDone: {
     color: '#047857',
@@ -1384,7 +1387,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: t.divider,
     width: '100%',
   },
   actionChipBtnOpen: {
@@ -1439,11 +1442,11 @@ const styles = StyleSheet.create({
 
   /* Card IA Idade Aparente na Demanda */
   mlVistoriaCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 18,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: t.purpleSoftBorder,
   },
   mlVistoriaHeader: {
     flexDirection: 'row',
@@ -1454,19 +1457,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: t.purpleSoftBackground,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mlVistoriaTitle: {
     fontFamily: fonts.bold,
     fontSize: 13.5,
-    color: '#0F172A',
+    color: t.text,
   },
   mlVistoriaSub: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 1,
   },
   mlVistoriaBtn: {
@@ -1487,19 +1490,19 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: t.purpleSoftBackground,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: t.purpleSoftBorder,
   },
   idadeResultMain: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#1E293B',
+    color: t.text,
   },
   idadeResultSub: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#475569',
+    color: t.textSecondary,
     marginTop: 2,
   },
 
@@ -1514,7 +1517,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
   },
@@ -1527,18 +1530,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#0F172A',
+    color: t.text,
   },
   modalSub: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
     marginBottom: 10,
   },
   fieldLabel: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#0F172A',
+    color: t.text,
     marginTop: 8,
     marginBottom: 4,
   },
@@ -1552,29 +1555,29 @@ const styles = StyleSheet.create({
     width: '48%',
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     alignItems: 'center',
   },
   catOptionActive: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#F87171',
+    backgroundColor: t.softRedBackground,
+    borderColor: t.suggestionBorder,
   },
   catOptionText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#475569',
+    color: t.chipText,
   },
   catOptionTextActive: {
     fontFamily: fonts.bold,
-    color: '#C61010',
+    color: t.accentRed,
   },
   uploadDropzone: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#F87171',
@@ -1584,23 +1587,23 @@ const styles = StyleSheet.create({
   uploadDropzoneTitle: {
     fontFamily: fonts.bold,
     fontSize: 12.5,
-    color: '#991B1B',
+    color: t.softRedText,
   },
   uploadDropzoneSub: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#B91C1C',
+    color: t.softRedText,
   },
   modalInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#0F172A',
+    color: t.text,
   },
   presetsList: {
     gap: 6,
@@ -1610,25 +1613,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   presetName: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#1E293B',
+    color: t.text,
   },
   presetDesc: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: '#64748B',
+    color: t.textMuted,
   },
   submitButton: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -1649,11 +1652,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   mlFieldsBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 4,
     marginBottom: 10,
   },
@@ -1665,12 +1668,12 @@ const styles = StyleSheet.create({
   mlFieldKey: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
   },
   mlFieldVal: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#0F172A',
+    color: t.text,
     flex: 1,
     textAlign: 'right',
   },

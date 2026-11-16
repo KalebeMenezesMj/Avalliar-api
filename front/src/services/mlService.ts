@@ -257,7 +257,7 @@ export const mlService = {
           };
         }
       } catch {
-        // Fallback inteligente abaixo
+        // Fallback
       }
     }
 
@@ -308,7 +308,7 @@ export const mlService = {
           }
         }
       } catch {
-        // Fallback abaixo
+        // Fallback
       }
     }
 
@@ -335,7 +335,7 @@ export const mlService = {
   },
 
   /**
-   * 5. Preenche automaticamente uma planilha de homogeneização via ML (/api/laudos/preencher ou /preencher-arquivo)
+   * 5. Preenche automaticamente uma planilha de homogeneização via ML
    */
   async preencherPlanilha(
     templateId: string,
@@ -343,14 +343,12 @@ export const mlService = {
     arquivoId?: string,
     webFile?: File
   ): Promise<MlPreencherResponse> {
-    // 0. Se possuir o arquivo real enviado (webFile), tenta preenchimento direto no novo endpoint /preencher-arquivo
     if (webFile) {
       try {
         const form = new FormData();
         form.append('file', webFile);
         form.append('dados', JSON.stringify(dados));
 
-        // Tenta FastAPI direto (:8000)
         try {
           const resFastApi = await fetch(`${getMlDirectUrl()}/preencher-arquivo`, {
             method: 'POST',
@@ -366,7 +364,6 @@ export const mlService = {
           // continua
         }
 
-        // Tenta Spring backend (:8080)
         try {
           const resSpring = await fetch(`${getBaseUrl()}/api/laudos/preencher-arquivo`, {
             method: 'POST',
@@ -382,7 +379,7 @@ export const mlService = {
           // continua
         }
       } catch {
-        // fallback para o fluxo tradicional abaixo
+        // fallback
       }
     }
 
@@ -459,7 +456,7 @@ export const mlService = {
   },
 
   /**
-   * 6. Estima a idade aparente do imóvel a partir de foto de vistoria (/idade)
+   * 6. Estima a idade aparente do imóvel a partir de foto
    */
   async estimarIdadeAparente(arquivoNome: string, webFile?: File): Promise<MlIdadeResponse> {
     if (webFile) {
@@ -490,7 +487,6 @@ export const mlService = {
       }
     }
 
-    // Estimativa determinística baseada no nome do arquivo para demonstração consistente
     const hash = arquivoNome.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
     const anos = 6 + (hash % 18);
     return {
@@ -507,7 +503,7 @@ export const mlService = {
   },
 
   /**
-   * 7. Consulta inteligente ao acervo técnico (RAG BM25: CUB/R8N + Laudos anteriores)
+   * 7. Consulta inteligente ao acervo técnico (RAG BM25)
    */
   async consultarAcervoRag(query: string, k = 4): Promise<MlRagResponse> {
     try {
@@ -535,7 +531,7 @@ export const mlService = {
         }
       }
     } catch {
-      // Fallback com base nos dados reais do RAG BM25 do Avalliar
+      // Fallback
     }
 
     const qLower = query.toLowerCase();
@@ -616,4 +612,3 @@ export const mlService = {
     };
   },
 };
-

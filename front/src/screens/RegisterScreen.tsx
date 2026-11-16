@@ -15,7 +15,8 @@ import BackButton from '../components/BackButton';
 import Button from '../components/Button';
 import TextInputField from '../components/TextInputField';
 import { AuthResponse, authService } from '../services/authService';
-import { colors, fonts, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 
 type Props = {
   onBack: () => void;
@@ -41,6 +42,8 @@ export default function RegisterScreen({
     senha?: string;
     confirmarSenha?: string;
   }>({});
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -118,6 +121,11 @@ export default function RegisterScreen({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
+            {/* Botão de voltar no topo (padrão) */}
+            <View style={styles.topBar}>
+              <BackButton onPress={onBack} />
+            </View>
+
             {/* Título Principal */}
             <View style={styles.header}>
               <Text style={styles.title}>Avalliar</Text>
@@ -195,12 +203,8 @@ export default function RegisterScreen({
             </View>
           </View>
 
-          {/* Rodapé com Navegação para Login e Botão Voltar */}
+          {/* Rodapé com Navegação para Login */}
           <View style={styles.footer}>
-            <View style={styles.backButtonContainer}>
-              <BackButton onPress={onBack} />
-            </View>
-
             <View style={styles.loginPrompt}>
               <Text style={styles.loginPromptText}>Já possui uma conta?</Text>
               <Pressable
@@ -218,10 +222,10 @@ export default function RegisterScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.background,
   },
   keyboardView: {
     flex: 1,
@@ -239,6 +243,11 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
   },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: spacing.sm,
+  },
   header: {
     alignItems: 'center',
     marginBottom: spacing.lg,
@@ -247,14 +256,14 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.boldItalic,
     fontSize: 40,
-    color: colors.text,
+    color: t.text,
     letterSpacing: -0.5,
   },
   form: {
     width: '100%',
   },
   errorBox: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     borderWidth: 1,
     borderColor: '#FCA5A5',
     borderRadius: 8,
@@ -264,7 +273,7 @@ const styles = StyleSheet.create({
   errorBoxText: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.error,
+    color: t.error,
     textAlign: 'center',
   },
   registerButton: {
@@ -274,17 +283,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   footer: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginTop: spacing.xl,
-    paddingTop: spacing.md,
-    position: 'relative',
-    minHeight: 56,
-  },
-  backButtonContainer: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
   },
   loginPrompt: {
     flex: 1,
@@ -294,12 +294,12 @@ const styles = StyleSheet.create({
   loginPromptText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: t.textSecondary,
     marginBottom: 2,
   },
   loginLinkText: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: colors.text,
+    color: t.accentRed,
   },
 });

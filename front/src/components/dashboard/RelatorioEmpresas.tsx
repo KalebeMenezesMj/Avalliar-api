@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '../../theme';
+import { useTheme, ThemeColors } from '../../context/ThemeContext';
 
 export interface RelatorioEmpresaItem {
   id: string;
@@ -18,17 +19,34 @@ interface RelatorioEmpresasProps {
   onPressEmpresa?: (item: RelatorioEmpresaItem) => void;
 }
 
-const INK = '#0F172A';
-const MUTED = '#64748B';
-
 // Cor da taxa: verde quando concluída, azul na metade, vermelho abaixo disso.
 const corDaTaxa = (taxa: number) => (taxa === 100 ? '#16A34A' : taxa >= 50 ? '#2563EB' : '#C61010');
 
 // Relatório por empresa: um bloco por empresa com os números e o progresso.
 export default function RelatorioEmpresas({ items, onPressEmpresa }: RelatorioEmpresasProps) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const totalGeral = items.reduce((acc, i) => acc + i.total, 0);
   const concluidasGeral = items.reduce((acc, i) => acc + i.concluidas, 0);
   const arquivosGeral = items.reduce((acc, i) => acc + i.totalArquivos, 0);
+
+  function SummaryItem({ value, label }: { value: number; label: string }) {
+    return (
+      <View style={styles.summaryItem}>
+        <Text style={styles.summaryValue}>{value}</Text>
+        <Text style={styles.summaryLabel}>{label}</Text>
+      </View>
+    );
+  }
+
+  function Stat({ value, label }: { value: number; label: string }) {
+    return (
+      <View style={styles.statBox}>
+        <Text style={styles.statValue}>{value}</Text>
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ gap: 10 }}>
@@ -67,7 +85,7 @@ export default function RelatorioEmpresas({ items, onPressEmpresa }: RelatorioEm
         return onPressEmpresa ? (
           <Pressable
             key={emp.id}
-            style={({ pressed }) => [styles.item, pressed && { backgroundColor: '#F1F5F9' }]}
+            style={({ pressed }) => [styles.item, pressed && { backgroundColor: t.pressedSurface }]}
             onPress={() => onPressEmpresa(emp)}
             accessibilityRole="button"
           >
@@ -83,31 +101,13 @@ export default function RelatorioEmpresas({ items, onPressEmpresa }: RelatorioEm
   );
 }
 
-function SummaryItem({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.summaryItem}>
-      <Text style={styles.summaryValue}>{value}</Text>
-      <Text style={styles.summaryLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.statBox}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   summary: {
     flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     paddingVertical: 10,
   },
   summaryItem: {
@@ -117,19 +117,19 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontFamily: fonts.bold,
     fontSize: 16,
-    color: INK,
+    color: t.text,
   },
   summaryLabel: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: MUTED,
+    color: t.textMuted,
     marginTop: 1,
   },
   item: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     padding: 12,
     gap: 10,
   },
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.bold,
     fontSize: 13.5,
-    color: INK,
+    color: t.text,
   },
   taxa: {
     fontFamily: fonts.bold,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 10,
     paddingVertical: 6,
     alignItems: 'center',
@@ -162,18 +162,18 @@ const styles = StyleSheet.create({
   statValue: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: INK,
+    color: t.text,
   },
   statLabel: {
     fontFamily: fonts.regular,
     fontSize: 9.5,
-    color: MUTED,
+    color: t.textMuted,
     marginTop: 1,
   },
   track: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: t.cardBorder,
     overflow: 'hidden',
   },
   fill: {

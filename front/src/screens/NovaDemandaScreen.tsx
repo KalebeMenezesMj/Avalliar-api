@@ -17,7 +17,8 @@ import {
   Feather,
 } from '@expo/vector-icons';
 
-import { colors, fonts, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { userService, UsuarioDTO, ClienteDTO } from '../services/userService';
@@ -140,6 +141,8 @@ export default function NovaDemandaScreen({
   activeTab = 'demandas',
   empresaPreSelecionada,
 }: NovaDemandaScreenProps) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   // Dados do formulário
   const [empresa, setEmpresa] = useState(empresaPreSelecionada || 'Doors LTDA');
   const [novaEmpresaModo, setNovaEmpresaModo] = useState(false);
@@ -467,7 +470,7 @@ export default function NovaDemandaScreen({
         {/* 3. Título Principal da Tela */}
         <View style={styles.titleSection}>
           <View style={styles.titleIconBadge}>
-            <MaterialCommunityIcons name="clipboard-text-outline" size={26} color="#C61010" />
+            <MaterialCommunityIcons name="clipboard-text-outline" size={26} color={t.accentRed} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.screenTitle}>Nova Demanda</Text>
@@ -495,7 +498,7 @@ export default function NovaDemandaScreen({
             accessibilityLabel="Selecionar empresa contratante"
           >
             <View style={styles.dropdownSelectorLeft}>
-              <Ionicons name="business-outline" size={18} color="#C61010" />
+              <Ionicons name="business-outline" size={18} color={t.accentRed} />
               <Text
                 style={[
                   styles.dropdownSelectorText,
@@ -511,7 +514,7 @@ export default function NovaDemandaScreen({
             <Ionicons
               name={dropdownEmpresaAberto ? 'chevron-up' : 'chevron-down'}
               size={18}
-              color="#64748B"
+              color={t.textMuted}
             />
           </Pressable>
 
@@ -532,7 +535,7 @@ export default function NovaDemandaScreen({
                     setDropdownEmpresaAberto(false);
                   }}
                 >
-                  <Ionicons name="add-circle" size={18} color="#C61010" />
+                  <Ionicons name="add-circle" size={18} color={t.accentRed} />
                   <Text style={styles.dropdownItemNovaText}>
                     + Cadastrar Nova Empresa...
                   </Text>
@@ -559,7 +562,7 @@ export default function NovaDemandaScreen({
                         {emp}
                       </Text>
                       {isSelected && (
-                        <Ionicons name="checkmark-circle" size={18} color="#C61010" />
+                        <Ionicons name="checkmark-circle" size={18} color={t.accentRed} />
                       )}
                     </Pressable>
                   );
@@ -649,7 +652,7 @@ export default function NovaDemandaScreen({
             accessibilityLabel="Selecionar funcionário responsável"
           >
             <View style={styles.dropdownSelectorLeft}>
-              <Ionicons name="person-circle-outline" size={20} color="#C61010" />
+              <Ionicons name="person-circle-outline" size={20} color={t.accentRed} />
               <Text style={styles.dropdownSelectorText} numberOfLines={1}>
                 {responsavel || 'Selecione um funcionário...'}
               </Text>
@@ -657,7 +660,7 @@ export default function NovaDemandaScreen({
             <Ionicons
               name={dropdownResponsavelAberto ? 'chevron-up' : 'chevron-down'}
               size={18}
-              color="#64748B"
+              color={t.textMuted}
             />
           </Pressable>
 
@@ -702,7 +705,7 @@ export default function NovaDemandaScreen({
                         </View>
                       </View>
                       {isSelected && (
-                        <Ionicons name="checkmark-circle" size={18} color="#C61010" />
+                        <Ionicons name="checkmark-circle" size={18} color={t.accentRed} />
                       )}
                     </Pressable>
                   );
@@ -819,7 +822,7 @@ export default function NovaDemandaScreen({
             <Text style={styles.successModalTitle}>Demanda Cadastrada!</Text>
             <Text style={styles.successModalMessage}>
               A demanda foi registrada com sucesso para a empresa{' '}
-              <Text style={{ fontFamily: fonts.bold, color: '#C61010' }}>
+              <Text style={{ fontFamily: fonts.bold, color: t.accentRed }}>
                 {novaEmpresaModo ? novaEmpresaNome : empresa}
               </Text>{' '}
               e atribuída ao vistoriador{' '}
@@ -828,13 +831,13 @@ export default function NovaDemandaScreen({
 
             <View style={styles.successDetailBox}>
               <View style={styles.successDetailRow}>
-                <Ionicons name="clipboard-outline" size={16} color="#64748B" />
+                <Ionicons name="clipboard-outline" size={16} color={t.textMuted} />
                 <Text style={styles.successDetailText} numberOfLines={1}>
                   {titulo}
                 </Text>
               </View>
               <View style={styles.successDetailRow}>
-                <Ionicons name="time-outline" size={16} color="#64748B" />
+                <Ionicons name="time-outline" size={16} color={t.textMuted} />
                 <Text style={styles.successDetailText}>
                   {prazoPrevisao || 'Aguardando agendamento'} • Urgência {urgencia}
                 </Text>
@@ -887,7 +890,7 @@ export default function NovaDemandaScreen({
                 </View>
               </View>
               <Pressable onPress={() => setBotModalVisible(false)} hitSlop={8}>
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={22} color={t.textMuted} />
               </Pressable>
             </View>
 
@@ -949,14 +952,14 @@ export default function NovaDemandaScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -966,7 +969,7 @@ const styles = StyleSheet.create({
 
   /* Header Superior */
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -1017,11 +1020,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: t.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1039,17 +1042,17 @@ const styles = StyleSheet.create({
     }),
   },
   breadcrumbBadge: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   breadcrumbText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
   },
 
   /* Título da Tela */
@@ -1063,29 +1066,29 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     alignItems: 'center',
     justifyContent: 'center',
   },
   screenTitle: {
     fontFamily: fonts.bold,
     fontSize: 22,
-    color: '#1E1E1E',
+    color: t.text,
   },
   screenSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
 
   /* Card do Formulário */
   formCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 18,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1105,44 +1108,44 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontFamily: fonts.semibold,
     fontSize: 12.5,
-    color: '#1E293B',
+    color: t.text,
     marginTop: 14,
     marginBottom: 6,
   },
   requiredAsterisk: {
-    color: '#C61010',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   textInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E293B',
+    color: t.text,
   },
   textAreaInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E293B',
+    color: t.text,
     minHeight: 80,
     textAlignVertical: 'top',
   },
 
   /* Dropdown Dinâmico de Empresas e Funcionários */
   dropdownSelector: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1159,15 +1162,15 @@ const styles = StyleSheet.create({
   dropdownSelectorText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#1E293B',
+    color: t.text,
   },
   dropdownPlaceholder: {
     color: '#94A3B8',
   },
   dropdownListContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     borderRadius: 12,
     marginTop: 6,
     maxHeight: 200,
@@ -1197,10 +1200,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: t.divider,
   },
   dropdownItemActive: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
   },
   dropdownItemNova: {
     backgroundColor: '#FFF7ED',
@@ -1210,7 +1213,7 @@ const styles = StyleSheet.create({
   dropdownItemNovaText: {
     fontFamily: fonts.bold,
     fontSize: 12.5,
-    color: '#C61010',
+    color: t.accentRed,
   },
   dropdownItemLeft: {
     flexDirection: 'row',
@@ -1222,28 +1225,28 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dropdownAvatarText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#C61010',
+    color: t.accentRed,
   },
   dropdownItemText: {
     fontFamily: fonts.semibold,
     fontSize: 12.5,
-    color: '#334155',
+    color: t.text,
   },
   dropdownItemTextActive: {
-    color: '#C61010',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   dropdownItemSubtext: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 1,
   },
 
@@ -1276,18 +1279,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   chipItemActive: {
-    backgroundColor: '#C61010',
-    borderColor: '#C61010',
+    backgroundColor: t.brandRed,
+    borderColor: t.brandRed,
   },
   chipText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#475569',
+    color: t.chipText,
   },
   chipTextActive: {
     color: '#FFFFFF',
@@ -1302,26 +1305,26 @@ const styles = StyleSheet.create({
   },
   urgencyCard: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 6,
     alignItems: 'center',
   },
   urgencyCardActive: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#F87171',
+    backgroundColor: t.softRedBackground,
+    borderColor: t.suggestionBorder,
     borderWidth: 1.5,
   },
   urgencyTitle: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#475569',
+    color: t.chipText,
   },
   urgencyTitleActive: {
-    color: '#C61010',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   urgencyDesc: {
@@ -1331,12 +1334,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   urgencyDescActive: {
-    color: '#991B1B',
+    color: t.softRedText,
   },
 
   /* Botões de Ação */
   submitButton: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingVertical: 13,
     borderRadius: 12,
     flexDirection: 'row',
@@ -1376,7 +1379,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#64748B',
+    color: t.textMuted,
   },
 
   /* Assistente Virtual */
@@ -1417,7 +1420,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -1450,7 +1453,7 @@ const styles = StyleSheet.create({
   successModalCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 22,
     padding: spacing.xl,
     alignItems: 'center',
@@ -1467,25 +1470,25 @@ const styles = StyleSheet.create({
   successModalTitle: {
     fontFamily: fonts.bold,
     fontSize: 19,
-    color: '#1E293B',
+    color: t.text,
     marginBottom: 6,
   },
   successModalMessage: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#64748B',
+    color: t.textMuted,
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 16,
   },
   successDetailBox: {
     width: '100%',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     padding: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     marginBottom: 20,
   },
   successDetailRow: {
@@ -1496,12 +1499,12 @@ const styles = StyleSheet.create({
   successDetailText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#334155',
+    color: t.text,
     flex: 1,
   },
   successPrimaryButton: {
     width: '100%',
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -1520,14 +1523,14 @@ const styles = StyleSheet.create({
   successSecondaryButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#64748B',
+    color: t.textMuted,
   },
 
   /* Modais Bot e Perfil */
   botModalCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.lg,
   },
@@ -1537,7 +1540,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: t.divider,
   },
   botModalHeaderLeft: {
     flexDirection: 'row',
@@ -1548,14 +1551,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     alignItems: 'center',
     justifyContent: 'center',
   },
   botModalTitle: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#1E293B',
+    color: t.text,
   },
   botModalStatus: {
     fontFamily: fonts.regular,
@@ -1567,18 +1570,18 @@ const styles = StyleSheet.create({
     maxHeight: 260,
   },
   botMessageBubble: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
     borderRadius: 14,
     padding: 12,
   },
   botMessageText: {
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: '#334155',
+    color: t.text,
     lineHeight: 18,
   },
   botCloseButton: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingVertical: 11,
     borderRadius: 10,
     alignItems: 'center',
@@ -1593,7 +1596,7 @@ const styles = StyleSheet.create({
   profileModalCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
     alignItems: 'center',
@@ -1606,7 +1609,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1614,17 +1617,17 @@ const styles = StyleSheet.create({
   profileModalAvatarText: {
     fontFamily: fonts.bold,
     fontSize: 20,
-    color: '#C61010',
+    color: t.accentRed,
   },
   profileModalName: {
     fontFamily: fonts.bold,
     fontSize: 16,
-    color: '#1E293B',
+    color: t.text,
   },
   profileModalEmail: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
   logoutButton: {
@@ -1634,13 +1637,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: t.suggestionBorder,
   },
   logoutButtonText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#DC2626',
+    color: t.accentRed,
   },
 });

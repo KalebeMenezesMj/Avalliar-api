@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -22,9 +22,13 @@ import PainelScreen from './src/screens/PainelScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { TabType } from './src/components/BottomNavigation';
+import ScreenTransition from './src/components/ScreenTransition';
+import TabsCarousel from './src/components/TabsCarousel';
 import { AuthResponse } from './src/services/authService';
+import { ThemeProvider } from './src/context/ThemeContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 
-type CurrentScreen =
+export type CurrentScreen =
   | 'home'
   | 'welcome'
   | 'login'
@@ -41,7 +45,63 @@ type CurrentScreen =
   | 'listar-demandas'
   | 'usuarios';
 
-export default function App() {
+// Telas autônomas (fora do app logado): trocam por transição própria.
+const AUTH_SCREENS: CurrentScreen[] = ['welcome', 'login', 'register'];
+
+// Telas "empurradas" sobre as abas: entram por cima e revelam o carrossel ao sair.
+const OVERLAY_SCREENS: CurrentScreen[] = ['empresa-demandas', 'demanda-detalhe', 'nova-demanda', 'usuarios'];
+
+// Colunas fixas do carrossel, na ordem física da barra inferior.
+const COLUMN_SCREENS: CurrentScreen[] = ['painel', 'home', 'demandas', 'configuracoes'];
+
+const TAB_INDEX: Record<TabType, number> = {
+  painel: 0,
+  home: 1,
+  demandas: 2,
+  tarefas: 2,
+  configuracoes: 3,
+};
+
+// Posição física das abas na barra inferior — o deslize segue o lado real da aba
+// (ex.: Painel fica à esquerda de Início, então "voltar" para ele sai pela esquerda).
+const TAB_POSITION: Partial<Record<CurrentScreen, number>> = {
+  painel: 0,
+  home: 1,
+  demandas: 2,
+  'listar-demandas': 2,
+  tarefas: 2,
+  configuracoes: 3,
+};
+
+// Telas que não são aba: profundidade (telas abertas sobre outras são mais profundas).
+const SCREEN_DEPTH: Record<CurrentScreen, number> = {
+  welcome: 0,
+  login: 0,
+  register: 0,
+  painel: 1,
+  home: 1,
+  dashboard: 1,
+  'listar-demandas': 1,
+  demandas: 1,
+  tarefas: 1,
+  configuracoes: 1,
+  settings: 1,
+  usuarios: 1,
+  'nova-demanda': 2,
+  'empresa-demandas': 2,
+  'demanda-detalhe': 3,
+};
+
+function navigationDirection(prev: CurrentScreen, next: CurrentScreen): 'forward' | 'back' {
+  const prevTab = TAB_POSITION[prev];
+  const nextTab = TAB_POSITION[next];
+  if (prevTab !== undefined && nextTab !== undefined) {
+    return nextTab >= prevTab ? 'forward' : 'back';
+  }
+  return SCREEN_DEPTH[next] >= SCREEN_DEPTH[prev] ? 'forward' : 'back';
+}
+
+function Root() {
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_600SemiBold,
@@ -61,6 +121,15 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [empresaAtiva, setEmpresaAtiva] = useState<EmpresaDemanda | null>(null);
   const [demandaAtiva, setDemandaAtiva] = useState<TarefaDemanda | null>(null);
+
+  // Direção da próxima transição (forward = entra da direita, back = da esquerda).
+  // Calculada no próprio render para os wrappers já montarem com o valor certo.
+  const prevScreenRef = useRef<CurrentScreen>('home');
+  const directionRef = useRef<'forward' | 'back'>('forward');
+  if (prevScreenRef.current !== currentScreen) {
+    directionRef.current = navigationDirection(prevScreenRef.current, currentScreen);
+    prevScreenRef.current = currentScreen;
+  }
 
   if (!fontsLoaded) return null;
 
@@ -100,137 +169,186 @@ export default function App() {
     setCurrentScreen(tab === 'tarefas' ? 'demandas' : (tab as CurrentScreen));
   };
 
+  // Cada tela em função do nome — alimenta o carrossel de abas e as páginas
+  // empurradas (que mantêm a tela anterior visível enquanto entram).
+  const renderScreen = (name: CurrentScreen) => {
+    switch (name) {
+      case 'home':
+        return (
+          <HomeScreen
+            currentUser={currentUser}
+            onNavigate={handleNavigate}
+            onLogout={handleLogout}
+            activeTab={activeTab}
+            onSelectTab={handleTabSelect}
+          />
+        );
+
+      case 'welcome':
+        return (
+          <WelcomeScreen
+            onNavigateToLogin={() => setCurrentScreen('login')}
+            onNavigateToRegister={() => setCurrentScreen('register')}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
+        );
+
+      case 'login':
+        return (
+          <LoginScreen
+            onBack={() => setCurrentScreen(currentUser ? 'home' : 'welcome')}
+            onNavigateToRegister={() => setCurrentScreen('register')}
+            onLoginSuccess={handleLoginSuccess}
+          />
+        );
+
+      case 'register':
+        return (
+          <RegisterScreen
+            onBack={() => setCurrentScreen('login')}
+            onNavigateToLogin={() => setCurrentScreen('login')}
+            onRegisterSuccess={handleRegisterSuccess}
+          />
+        );
+
+      case 'nova-demanda':
+        return (
+          <NovaDemandaScreen
+            currentUser={currentUser}
+            onBack={() => handleNavigate('demandas')}
+            onSuccess={() => handleNavigate('demandas')}
+            onNavigateTab={handleTabSelect}
+            onLogout={handleLogout}
+            activeTab="demandas"
+          />
+        );
+
+      case 'demandas':
+      case 'listar-demandas':
+        return (
+          <DemandasScreen
+            currentUser={currentUser}
+            onBack={() => handleNavigate('home')}
+            onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
+            onNavigateTab={handleTabSelect}
+            onSelectEmpresa={(empresa) => {
+              setEmpresaAtiva(empresa);
+              setCurrentScreen('empresa-demandas');
+            }}
+            onLogout={handleLogout}
+            activeTab="demandas"
+          />
+        );
+
+      case 'empresa-demandas':
+        return empresaAtiva ? (
+          <EmpresaDemandasScreen
+            empresa={empresaAtiva}
+            currentUser={currentUser}
+            onBack={() => setCurrentScreen('demandas')}
+            onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
+            onSelectDemanda={(demanda) => {
+              setDemandaAtiva(demanda);
+              setCurrentScreen('demanda-detalhe');
+            }}
+            onNavigateTab={handleTabSelect}
+            onLogout={handleLogout}
+            activeTab="demandas"
+          />
+        ) : null;
+
+      case 'demanda-detalhe':
+        return empresaAtiva && demandaAtiva ? (
+          <DemandaDetalheScreen
+            empresa={empresaAtiva}
+            demandaInicial={demandaAtiva}
+            currentUser={currentUser}
+            onBack={() => setCurrentScreen('empresa-demandas')}
+            onNavigateTab={handleTabSelect}
+            activeTab="demandas"
+          />
+        ) : null;
+
+      case 'tarefas':
+        return (
+          <PlaceholderScreen
+            title="Minhas Tarefas"
+            description="Lista das vistorias de imóveis e laudos fotográficos atribuídos diretamente a você com prazos e ordens de serviço."
+            iconName="task"
+            onBack={() => handleNavigate('home')}
+            onNavigateTab={handleTabSelect}
+            activeTab="tarefas"
+          />
+        );
+
+      case 'painel':
+        return (
+          <PainelScreen
+            currentUser={currentUser}
+            onBack={() => handleNavigate('home')}
+            onNavigateTab={handleTabSelect}
+            onSelectEmpresa={(empresa) => {
+              setEmpresaAtiva(empresa);
+              setCurrentScreen('empresa-demandas');
+            }}
+            onLogout={handleLogout}
+            activeTab="painel"
+          />
+        );
+
+      case 'usuarios':
+        return (
+          <UsuariosScreen
+            currentUser={currentUser}
+            onBack={() => handleNavigate('home')}
+            onNavigateTab={handleTabSelect}
+            onLogout={handleLogout}
+            activeTab={activeTab}
+          />
+        );
+
+      case 'configuracoes':
+        return (
+          <SettingsScreen
+            onBack={() => handleNavigate('home')}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const isAuthMode = AUTH_SCREENS.includes(currentScreen);
+  const isOverlayMode = OVERLAY_SCREENS.includes(currentScreen);
+
   return (
     <SafeAreaProvider>
-      {currentScreen === 'home' && (
-        <HomeScreen
-          currentUser={currentUser}
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
-          activeTab={activeTab}
-          onSelectTab={handleTabSelect}
+      {isAuthMode ? (
+        <ScreenTransition
+          screen={currentScreen}
+          direction={directionRef.current}
+          solidBase
+          render={(name) => renderScreen(name as CurrentScreen)}
         />
-      )}
-
-      {currentScreen === 'welcome' && (
-        <WelcomeScreen
-          onNavigateToLogin={() => setCurrentScreen('login')}
-          onNavigateToRegister={() => setCurrentScreen('register')}
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
-      )}
-
-      {currentScreen === 'login' && (
-        <LoginScreen
-          onBack={() => setCurrentScreen(currentUser ? 'home' : 'welcome')}
-          onNavigateToRegister={() => setCurrentScreen('register')}
-          onLoginSuccess={handleLoginSuccess}
-        />
-      )}
-
-      {currentScreen === 'register' && (
-        <RegisterScreen
-          onBack={() => setCurrentScreen('login')}
-          onNavigateToLogin={() => setCurrentScreen('login')}
-          onRegisterSuccess={handleRegisterSuccess}
-        />
-      )}
-
-      {currentScreen === 'nova-demanda' && (
-        <NovaDemandaScreen
-          currentUser={currentUser}
-          onBack={() => handleNavigate('demandas')}
-          onSuccess={() => handleNavigate('demandas')}
-          onNavigateTab={handleTabSelect}
-          onLogout={handleLogout}
-          activeTab="demandas"
-        />
-      )}
-
-      {(currentScreen === 'listar-demandas' || currentScreen === 'demandas') && (
-        <DemandasScreen
-          currentUser={currentUser}
-          onBack={() => handleNavigate('home')}
-          onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
-          onNavigateTab={handleTabSelect}
-          onSelectEmpresa={(empresa) => {
-            setEmpresaAtiva(empresa);
-            setCurrentScreen('empresa-demandas');
-          }}
-          onLogout={handleLogout}
-          activeTab="demandas"
-        />
-      )}
-
-      {currentScreen === 'empresa-demandas' && empresaAtiva && (
-        <EmpresaDemandasScreen
-          empresa={empresaAtiva}
-          currentUser={currentUser}
-          onBack={() => setCurrentScreen('demandas')}
-          onNavigateToNovaDemanda={() => handleNavigate('nova-demanda')}
-          onSelectDemanda={(demanda) => {
-            setDemandaAtiva(demanda);
-            setCurrentScreen('demanda-detalhe');
-          }}
-          onNavigateTab={handleTabSelect}
-          onLogout={handleLogout}
-          activeTab="demandas"
-        />
-      )}
-
-      {currentScreen === 'demanda-detalhe' && empresaAtiva && demandaAtiva && (
-        <DemandaDetalheScreen
-          empresa={empresaAtiva}
-          demandaInicial={demandaAtiva}
-          currentUser={currentUser}
-          onBack={() => setCurrentScreen('empresa-demandas')}
-          onNavigateTab={handleTabSelect}
-          activeTab="demandas"
-        />
-      )}
-
-      {currentScreen === 'tarefas' && (
-        <PlaceholderScreen
-          title="Minhas Tarefas"
-          description="Lista das vistorias de imóveis e laudos fotográficos atribuídos diretamente a você com prazos e ordens de serviço."
-          iconName="task"
-          onBack={() => handleNavigate('home')}
-          onNavigateTab={handleTabSelect}
-          activeTab="tarefas"
-        />
-      )}
-
-      {currentScreen === 'painel' && (
-        <PainelScreen
-          currentUser={currentUser}
-          onBack={() => handleNavigate('home')}
-          onNavigateTab={handleTabSelect}
-          onSelectEmpresa={(empresa) => {
-            setEmpresaAtiva(empresa);
-            setCurrentScreen('empresa-demandas');
-          }}
-          onLogout={handleLogout}
-          activeTab="painel"
-        />
-      )}
-
-      {currentScreen === 'usuarios' && (
-        <UsuariosScreen
-          currentUser={currentUser}
-          onBack={() => handleNavigate('home')}
-          onNavigateTab={handleTabSelect}
-          onLogout={handleLogout}
-          activeTab={activeTab}
-        />
-      )}
-
-      {currentScreen === 'configuracoes' && (
-        <SettingsScreen
-          onBack={() => handleNavigate('home')}
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
+      ) : (
+        <>
+          {/* Abas sempre vivas: o carrossel desliza entre elas sem reconstruir nada */}
+          <TabsCarousel
+            activeIndex={TAB_INDEX[activeTab]}
+            count={COLUMN_SCREENS.length}
+            renderColumn={(i) => renderScreen(COLUMN_SCREENS[i])}
+          />
+          {/* Páginas empurradas sobem por cima e revelam o carrossel ao voltar */}
+          <ScreenTransition
+            screen={isOverlayMode ? currentScreen : null}
+            direction={directionRef.current}
+            render={(name) => renderScreen(name as CurrentScreen)}
+          />
+        </>
       )}
 
       {/* Barra de status clara para telas com header vermelho, escura para outras */}
@@ -248,5 +366,15 @@ export default function App() {
         }
       />
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <Root />
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

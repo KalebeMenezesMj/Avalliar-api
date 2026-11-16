@@ -17,7 +17,8 @@ import {
   Feather,
 } from '@expo/vector-icons';
 
-import { colors, fonts, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { demandaService, EmpresaDemanda, StatusEmpresa } from '../services/demandaService';
@@ -89,6 +90,9 @@ export default function DemandasScreen({
   const [notifModalVisible, setNotifModalVisible] = useState(false);
   const [botModalVisible, setBotModalVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
 
   const userName = currentUser?.nome || 'Linux da Silva';
   const userEmail = currentUser?.email || 'linux.silva@fatec.sp.gov.br';
@@ -250,7 +254,7 @@ export default function DemandasScreen({
             accessibilityRole="button"
             accessibilityLabel="Abrir opções de filtro"
           >
-            <MaterialCommunityIcons name="tune-variant" size={20} color="#1E1E1E" />
+            <MaterialCommunityIcons name="tune-variant" size={20} color={t.text} />
             <Text style={styles.filterButtonText}>Filtrar</Text>
           </Pressable>
 
@@ -721,14 +725,14 @@ export default function DemandasScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -738,7 +742,7 @@ const styles = StyleSheet.create({
 
   /* 1. Header */
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -793,11 +797,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: t.cardBorder,
   },
 
   /* 3. Título e Botão Adicionar Demanda */
@@ -810,7 +814,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontFamily: fonts.bold,
     fontSize: 26,
-    color: '#1E1E1E',
+    color: t.text,
   },
   addDemandButton: {
     padding: 4,
@@ -820,12 +824,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 24,
     paddingHorizontal: 14,
     height: 48,
     borderWidth: 1.2,
-    borderColor: '#E5E7EB',
+    borderColor: t.cardBorder,
     marginBottom: spacing.md + 4,
   },
   searchIcon: {
@@ -835,7 +839,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
     height: '100%',
   },
 
@@ -853,7 +857,7 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#1E1E1E',
+    color: t.text,
   },
   filterChipsScroll: {
     gap: 8,
@@ -862,17 +866,17 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.cardBorder,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     gap: 6,
   },
   chipActive: {
-    backgroundColor: '#1E1E1E',
-    borderColor: '#1E1E1E',
+    backgroundColor: t.brandRed,
+    borderColor: t.brandRed,
   },
   chipActiveGreen: {
     backgroundColor: '#388E3C',
@@ -889,7 +893,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#4B5563',
+    color: t.chipText,
   },
   chipTextActive: {
     color: '#FFFFFF',
@@ -996,13 +1000,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: fonts.bold,
     fontSize: 16,
-    color: '#1E1E1E',
+    color: t.text,
     marginTop: spacing.md,
   },
   emptySubtext: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#6B7280',
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     maxWidth: 280,
@@ -1024,14 +1028,14 @@ const styles = StyleSheet.create({
   floatingBotContainer: {
     position: 'absolute',
     right: 20,
-    bottom: 74,
+    bottom: 106,
     zIndex: 20,
   },
   floatingBotButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -1049,7 +1053,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 18,
     padding: spacing.xl,
   },
@@ -1069,19 +1073,19 @@ const styles = StyleSheet.create({
   empresaModalTitle: {
     fontFamily: fonts.bold,
     fontSize: 20,
-    color: '#1E1E1E',
+    color: t.text,
   },
   empresaModalContact: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 2,
   },
   empresaMetricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     paddingVertical: 12,
     marginVertical: spacing.md,
@@ -1092,21 +1096,21 @@ const styles = StyleSheet.create({
   empresaMetricNum: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#1E1E1E',
+    color: t.text,
   },
   empresaMetricLabel: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 2,
   },
   empresaMetricDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: t.divider,
   },
   empresaStatusBox: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
     padding: 12,
     borderRadius: 10,
     marginBottom: spacing.md,
@@ -1114,12 +1118,12 @@ const styles = StyleSheet.create({
   empresaStatusBoxTitle: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#991B1B',
+    color: t.softRedText,
   },
   empresaStatusBoxText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#B91C1C',
+    color: t.softRedText,
     marginTop: 2,
   },
   novaDemandaModalButton: {
@@ -1140,13 +1144,13 @@ const styles = StyleSheet.create({
   filterModalTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#1E1E1E',
+    color: t.text,
     marginBottom: 4,
   },
   filterModalSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginBottom: spacing.md,
   },
   filterOption: {
@@ -1154,16 +1158,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.divider,
     gap: 10,
   },
   filterOptionActive: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: t.chipBackground,
   },
   filterOptionText: {
     fontFamily: fonts.semibold,
     fontSize: 13.5,
-    color: '#1E1E1E',
+    color: t.text,
     flex: 1,
   },
 
@@ -1174,17 +1178,17 @@ const styles = StyleSheet.create({
   profileName: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#1E1E1E',
+    color: t.text,
     marginTop: 8,
   },
   profileEmail: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 2,
   },
   profileBadge: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -1193,14 +1197,14 @@ const styles = StyleSheet.create({
   profileBadgeText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#C61010',
+    color: t.softRedText,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: t.divider,
     gap: 8,
   },
   logoutText: {
@@ -1218,14 +1222,14 @@ const styles = StyleSheet.create({
   notifTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#1E1E1E',
+    color: t.text,
   },
   notifItem: {
     flexDirection: 'row',
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.divider,
   },
   notifDot: {
     width: 8,
@@ -1237,26 +1241,26 @@ const styles = StyleSheet.create({
   notifItemTitle: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
   notifItemBody: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#4B5563',
+    color: t.textSecondary,
     marginTop: 2,
   },
 
   modalCloseButton: {
-    marginTop: spacing.md,
-    paddingVertical: 11,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
+    marginTop: 14,
+    paddingVertical: 12,
+    backgroundColor: t.brandRed,
+    borderRadius: 10,
     alignItems: 'center',
   },
   modalCloseButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    color: '#4B5563',
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 
   botHeader: {
@@ -1266,13 +1270,13 @@ const styles = StyleSheet.create({
   botTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#1E1E1E',
+    color: t.text,
     marginTop: 4,
   },
   botSub: {
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: '#6B7280',
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },

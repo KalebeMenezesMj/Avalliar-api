@@ -19,6 +19,7 @@ import {
 } from '@expo/vector-icons';
 
 import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
 import SegmentedControl from '../components/SegmentedControl';
@@ -62,11 +63,6 @@ const TIPOS_GRAFICO: Array<{ key: TipoGrafico; label: string; icon: React.Compon
 
 const BRAND = '#C61010';
 const ML = '#6D28D9';
-const INK = '#0F172A';
-const INK_2 = '#475569';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SURFACE_SOFT = '#F8FAFC';
 
 export default function PainelScreen({
   currentUser,
@@ -75,6 +71,8 @@ export default function PainelScreen({
   onSelectEmpresa,
   activeTab = 'painel',
 }: PainelScreenProps) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const userName = currentUser?.nome || 'Linux da Silva';
 
   // Aba interna: Visão Geral (Demandas) vs Inteligência Artificial (ML)
@@ -306,6 +304,61 @@ export default function PainelScreen({
     },
   ];
 
+  function HeroStat({ value, label }: { value: string; label: string }) {
+    return (
+      <View style={styles.heroStat}>
+        <Text style={styles.heroStatValue}>{value}</Text>
+        <Text style={styles.heroStatLabel}>{label}</Text>
+      </View>
+    );
+  }
+
+  function KpiCard({
+    icon,
+    bg,
+    value,
+    label,
+  }: {
+    icon: React.ReactNode;
+    bg: string;
+    value: number;
+    label: string;
+  }) {
+    return (
+      <View style={styles.kpiCard}>
+        <View style={[styles.kpiIconBox, { backgroundColor: bg }]}>{icon}</View>
+        <Text style={styles.kpiValue}>{value}</Text>
+        <Text style={styles.kpiLabel}>{label}</Text>
+      </View>
+    );
+  }
+
+  function CardHeader({
+    icon,
+    title,
+    subtitle,
+    tint = BRAND,
+    bg = '#FEE2E2',
+  }: {
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    title: string;
+    subtitle: string;
+    tint?: string;
+    bg?: string;
+  }) {
+    return (
+      <View style={styles.cardHeaderRow}>
+        <View style={[styles.cardIconChip, { backgroundColor: bg }]}>
+          <Ionicons name={icon} size={18} color={tint} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardSubtitle}>{subtitle}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Cabeçalho vermelho da marca */}
@@ -326,7 +379,7 @@ export default function PainelScreen({
         {/* Topo: voltar + seletor de visão */}
         <View style={styles.topRow}>
           <Pressable style={styles.backButtonCircle} onPress={onBack} hitSlop={8}>
-            <Ionicons name="chevron-back" size={20} color={BRAND} />
+            <Ionicons name="chevron-back" size={20} color={t.accentRed} />
           </Pressable>
 
           <View style={{ flex: 1 }}>
@@ -448,7 +501,7 @@ export default function PainelScreen({
                   options={TIPOS_GRAFICO}
                   value={tipoGrafico}
                   onChange={setTipoGrafico}
-                  activeColor={INK}
+                  activeColor={t.text}
                 />
               </View>
 
@@ -822,71 +875,15 @@ export default function PainelScreen({
   );
 }
 
-/* ---------- Subcomponentes de layout ---------- */
-
-function HeroStat({ value, label }: { value: string; label: string }) {
-  return (
-    <View style={styles.heroStat}>
-      <Text style={styles.heroStatValue}>{value}</Text>
-      <Text style={styles.heroStatLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function KpiCard({
-  icon,
-  bg,
-  value,
-  label,
-}: {
-  icon: React.ReactNode;
-  bg: string;
-  value: number;
-  label: string;
-}) {
-  return (
-    <View style={styles.kpiCard}>
-      <View style={[styles.kpiIconBox, { backgroundColor: bg }]}>{icon}</View>
-      <Text style={styles.kpiValue}>{value}</Text>
-      <Text style={styles.kpiLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function CardHeader({
-  icon,
-  title,
-  subtitle,
-  tint = BRAND,
-  bg = '#FEE2E2',
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  title: string;
-  subtitle: string;
-  tint?: string;
-  bg?: string;
-}) {
-  return (
-    <View style={styles.cardHeaderRow}>
-      <View style={[styles.cardIconChip, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={18} color={tint} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardSubtitle}>{subtitle}</Text>
-      </View>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
+/* ---------- Estilos ---------- */
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: BRAND,
+    backgroundColor: t.brandRed,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: SURFACE_SOFT,
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
@@ -894,7 +891,7 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   header: {
-    backgroundColor: BRAND,
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -926,11 +923,11 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: t.softRedBackground,
   },
 
   /* Hero */
@@ -1018,12 +1015,12 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: fonts.bold,
     fontSize: 14,
-    color: INK,
+    color: t.text,
   },
   periodoHint: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: MUTED,
+    color: t.textMuted,
   },
   kpiGrid: {
     flexDirection: 'row',
@@ -1034,11 +1031,11 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     width: '48.5%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: t.cardBorder,
   },
   kpiIconBox: {
     width: 34,
@@ -1051,22 +1048,22 @@ const styles = StyleSheet.create({
   kpiValue: {
     fontFamily: fonts.bold,
     fontSize: 22,
-    color: INK,
+    color: t.text,
   },
   kpiLabel: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: MUTED,
+    color: t.textMuted,
     marginTop: 2,
   },
 
   /* Cards */
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 18,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: t.cardBorder,
     marginBottom: spacing.md,
   },
   cardHeaderRow: {
@@ -1085,12 +1082,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: INK,
+    color: t.text,
   },
   cardSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: MUTED,
+    color: t.textMuted,
     marginTop: 2,
     lineHeight: 16,
   },
@@ -1120,29 +1117,29 @@ const styles = StyleSheet.create({
   },
   mlMetricBox: {
     flex: 1,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: t.purpleSoftBackground,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: t.purpleSoftBorder,
     alignItems: 'center',
   },
   mlMetricValue: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#5B21B6',
+    color: t.purpleSoftText,
   },
   mlMetricTitle: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
-    color: INK,
+    color: t.text,
     textAlign: 'center',
     marginTop: 2,
   },
   mlMetricSub: {
     fontFamily: fonts.regular,
     fontSize: 9.5,
-    color: MUTED,
+    color: t.textMuted,
     textAlign: 'center',
     marginTop: 2,
   },
@@ -1164,11 +1161,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: SURFACE_SOFT,
+    backgroundColor: t.chipBackground,
     padding: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: t.cardBorder,
   },
   mlExcelIcon: {
     width: 38,
@@ -1181,12 +1178,12 @@ const styles = StyleSheet.create({
   mlSheetName: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: INK,
+    color: t.text,
   },
   mlSheetSub: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: MUTED,
+    color: t.textMuted,
     marginTop: 2,
   },
   runMlButton: {
@@ -1210,12 +1207,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#F5F3FF',
+    backgroundColor: t.purpleSoftBackground,
     borderRadius: 14,
     padding: 12,
     marginTop: 12,
     borderWidth: 1,
-    borderColor: '#DDD6FE',
+    borderColor: t.purpleSoftBorder,
   },
   idadeCircle: {
     width: 60,
@@ -1238,18 +1235,18 @@ const styles = StyleSheet.create({
   idadeFileLabel: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#1E293B',
+    color: t.text,
   },
   idadeEstadoText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#5B21B6',
+    color: t.purpleSoftText,
     marginTop: 2,
   },
   idadeErroRef: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: MUTED,
+    color: t.textMuted,
     marginTop: 2,
   },
   ragSearchRow: {
@@ -1258,15 +1255,15 @@ const styles = StyleSheet.create({
   },
   ragInput: {
     flex: 1,
-    backgroundColor: SURFACE_SOFT,
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: INK,
+    color: t.text,
   },
   ragSearchBtn: {
     backgroundColor: ML,
@@ -1282,7 +1279,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   ragQuickChip: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: t.chipBackground,
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 10,
@@ -1290,20 +1287,20 @@ const styles = StyleSheet.create({
   ragQuickChipText: {
     fontFamily: fonts.semibold,
     fontSize: 10.5,
-    color: INK_2,
+    color: t.chipText,
   },
   ragResultCard: {
-    backgroundColor: SURFACE_SOFT,
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     padding: 10,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: t.cardBorder,
     gap: 6,
   },
   ragResultText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#1E293B',
+    color: t.text,
     lineHeight: 17,
   },
   ragSourceRow: {
@@ -1320,7 +1317,7 @@ const styles = StyleSheet.create({
   ragScoreText: {
     fontFamily: fonts.semibold,
     fontSize: 10,
-    color: MUTED,
+    color: t.textMuted,
   },
 
   /* Modal resultado ML */
@@ -1334,7 +1331,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
   },
@@ -1354,21 +1351,21 @@ const styles = StyleSheet.create({
   modalMlTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: INK,
+    color: t.text,
   },
   modalMlSub: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: MUTED,
+    color: t.textMuted,
     textAlign: 'center',
     marginTop: 2,
   },
   modalFieldsList: {
-    backgroundColor: SURFACE_SOFT,
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: t.cardBorder,
     gap: 5,
     marginBottom: 14,
   },
@@ -1380,12 +1377,12 @@ const styles = StyleSheet.create({
   modalFieldKey: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: MUTED,
+    color: t.textMuted,
   },
   modalFieldVal: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: INK,
+    color: t.text,
     flex: 1,
     textAlign: 'right',
   },

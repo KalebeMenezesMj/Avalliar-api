@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -17,7 +17,8 @@ import {
   Feather,
 } from '@expo/vector-icons';
 
-import { colors, fonts, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { demandaService } from '../services/demandaService';
@@ -95,6 +96,9 @@ export default function HomeScreen({
   const [notifModalVisible, setNotifModalVisible] = useState(false);
   const [botModalVisible, setBotModalVisible] = useState(false);
 
+  const { colors: t } = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
+
   const metricasHome = demandaService.obterMetricasDashboard();
 
   const userName = currentUser?.nome || 'Linux da Silva';
@@ -110,35 +114,16 @@ export default function HomeScreen({
   };
 
   const getStatusStyle = (status: DemandaItem['status']) => {
+    const s = t.statusBg;
     switch (status) {
       case 'EM_CAMPO':
-        return {
-          bg: '#EFF6FF',
-          text: '#1D4ED8',
-          border: '#DBEAFE',
-          icon: 'business-outline' as const,
-        };
+        return { ...s.EM_CAMPO, icon: 'business-outline' as const };
       case 'CONCLUIDA':
-        return {
-          bg: '#ECFDF5',
-          text: '#047857',
-          border: '#D1FAE5',
-          icon: 'checkmark-circle-outline' as const,
-        };
+        return { ...s.CONCLUIDA, icon: 'checkmark-circle-outline' as const };
       case 'AGUARDANDO_LAUDO':
-        return {
-          bg: '#FEF3C7',
-          text: '#B45309',
-          border: '#FDE68A',
-          icon: 'time-outline' as const,
-        };
+        return { ...s.AGUARDANDO_LAUDO, icon: 'time-outline' as const };
       default:
-        return {
-          bg: '#F1F5F9',
-          text: '#475569',
-          border: '#E2E8F0',
-          icon: 'document-text-outline' as const,
-        };
+        return { ...s.DEFAULT, icon: 'document-text-outline' as const };
     }
   };
 
@@ -500,7 +485,7 @@ export default function HomeScreen({
                 onNavigate('configuracoes');
               }}
             >
-              <Ionicons name="settings-outline" size={20} color={colors.text} />
+              <Ionicons name="settings-outline" size={20} color={t.text} />
               <Text style={styles.modalOptionText}>Configurações de Conta</Text>
             </Pressable>
 
@@ -594,14 +579,14 @@ export default function HomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingBottom: 110,
@@ -609,7 +594,7 @@ const styles = StyleSheet.create({
 
   /* 1. Header Vermelho */
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -658,7 +643,7 @@ const styles = StyleSheet.create({
 
   /* 2. Banner com Degradê */
   bannerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     overflow: 'hidden',
@@ -681,13 +666,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
   },
   bannerTitle: {
     fontFamily: fonts.bold,
     fontSize: 24,
     lineHeight: 32,
-    color: '#1E1E1E',
+    color: t.text,
   },
   bannerHighlight: {
     color: '#E84141',
@@ -789,7 +774,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '47.5%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 18,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
@@ -822,14 +807,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#1E1E1E',
+    color: t.text,
     textAlign: 'center',
     marginBottom: 4,
   },
   cardSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 10.5,
-    color: '#6B7280',
+    color: t.textSecondary,
     textAlign: 'center',
     lineHeight: 14,
   },
@@ -848,12 +833,12 @@ const styles = StyleSheet.create({
   demandasSectionTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: '#1E1E1E',
+    color: t.text,
   },
   demandasSectionSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginTop: 1,
   },
   seeAllButton: {
@@ -865,17 +850,17 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#C61010',
+    color: t.accentRed,
   },
   demandasList: {
     gap: 10,
   },
   demandaCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 14,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.cardBorder,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -893,7 +878,7 @@ const styles = StyleSheet.create({
     }),
   },
   cardPressed: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: t.pressedSurface,
   },
   demandaTopRow: {
     flexDirection: 'row',
@@ -909,10 +894,10 @@ const styles = StyleSheet.create({
   codigoText: {
     fontFamily: fonts.bold,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
   placaPill: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.chipBackground,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -920,7 +905,7 @@ const styles = StyleSheet.create({
   placaText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#4B5563',
+    color: t.chipText,
     letterSpacing: 0.4,
   },
   statusPill: {
@@ -939,7 +924,7 @@ const styles = StyleSheet.create({
   demandaVeiculo: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#1E1E1E',
+    color: t.text,
     marginBottom: 10,
   },
   demandaBottomRow: {
@@ -948,7 +933,7 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: t.divider,
   },
   metaInfo: {
     flexDirection: 'row',
@@ -958,21 +943,21 @@ const styles = StyleSheet.create({
   metaInfoText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textSecondary,
   },
 
   /* Botão Flutuante do Chatbot */
   floatingBotContainer: {
     position: 'absolute',
     right: 20,
-    bottom: 74,
+    bottom: 106,
     zIndex: 20,
   },
   floatingBotButton: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
@@ -1005,7 +990,7 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 16,
     padding: spacing.xl,
   },
@@ -1016,17 +1001,17 @@ const styles = StyleSheet.create({
   modalUserName: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: colors.text,
+    color: t.text,
     marginTop: spacing.sm,
   },
   modalUserEmail: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: t.textSecondary,
     marginTop: 2,
   },
   roleBadge: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 12,
@@ -1035,12 +1020,12 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#C61010',
+    color: t.softRedText,
   },
   modalDivider: {
     width: '100%',
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: t.divider,
     marginVertical: spacing.md,
   },
   modalOption: {
@@ -1053,11 +1038,11 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.text,
+    color: t.text,
   },
   modalLogoutOption: {
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: t.divider,
   },
   modalLogoutText: {
     fontFamily: fonts.semibold,
@@ -1065,17 +1050,17 @@ const styles = StyleSheet.create({
     color: '#DC2626',
   },
   modalCloseButton: {
-    marginTop: spacing.md,
+    marginTop: 14,
     paddingVertical: 12,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
+    backgroundColor: t.brandRed,
+    borderRadius: 10,
     width: '100%',
     alignItems: 'center',
   },
   modalCloseButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 
   /* Notificações */
@@ -1093,14 +1078,14 @@ const styles = StyleSheet.create({
   notifHeaderTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#1E1E1E',
+    color: t.text,
   },
   notifItem: {
     flexDirection: 'row',
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: t.divider,
   },
   notifDot: {
     width: 8,
@@ -1112,19 +1097,19 @@ const styles = StyleSheet.create({
   notifItemTitle: {
     fontFamily: fonts.bold,
     fontSize: 13.5,
-    color: '#1E1E1E',
+    color: t.text,
   },
   notifItemBody: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#4B5563',
+    color: t.textSecondary,
     marginTop: 2,
     lineHeight: 17,
   },
   notifItemTime: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#9CA3AF',
+    color: t.textMuted,
     marginTop: 4,
   },
 
@@ -1132,7 +1117,7 @@ const styles = StyleSheet.create({
   botModalContent: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
     alignItems: 'center',
@@ -1153,12 +1138,12 @@ const styles = StyleSheet.create({
   botTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    color: colors.text,
+    color: t.text,
   },
   botSubtitle: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 18,
@@ -1175,14 +1160,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: '#FFF1F2',
+    backgroundColor: t.suggestionBackground,
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: t.suggestionBorder,
   },
   suggestionText: {
     fontFamily: fonts.regular,
     fontSize: 12.5,
-    color: '#9F1239',
+    color: t.suggestionText,
     flex: 1,
   },
   botCloseButton: {

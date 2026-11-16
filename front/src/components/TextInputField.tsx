@@ -9,7 +9,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, fonts, radius, spacing } from '../theme';
+import { fonts, radius, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 
 type Props = {
   label: string;
@@ -38,6 +39,8 @@ export default function TextInputField({
 }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
 
   const isSecure = isPassword && !showPassword;
 
@@ -56,7 +59,7 @@ export default function TextInputField({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={t.placeholder}
           secureTextEntry={isSecure}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -77,7 +80,7 @@ export default function TextInputField({
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
               size={22}
-              color={colors.textSecondary}
+              color={t.textSecondary}
             />
           </Pressable>
         )}
@@ -88,7 +91,7 @@ export default function TextInputField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   container: {
     width: '100%',
     marginBottom: spacing.md,
@@ -96,31 +99,30 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-    color: colors.text,
+    color: t.text,
     marginBottom: spacing.xs + 2,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBackground,
+    backgroundColor: t.inputBackground,
     borderRadius: radius.md + 2,
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: t.inputBorder,
     minHeight: 48,
     paddingHorizontal: spacing.md,
   },
   inputWrapperFocused: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
+    borderColor: t.primary,
   },
   inputWrapperError: {
-    borderColor: colors.error,
+    borderColor: t.error,
   },
   input: {
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.text,
+    color: t.text,
     paddingVertical: spacing.sm + 2,
   },
   eyeButton: {
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: colors.error,
+    color: t.error,
     marginTop: spacing.xs,
   },
 });

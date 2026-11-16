@@ -4,7 +4,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import Button from '../components/Button';
 import CornerDecoration from '../components/CornerDecoration';
-import { colors, fonts, spacing } from '../theme';
+import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 
 type Props = {
   onNavigateToLogin: () => void;
@@ -19,6 +20,8 @@ export default function WelcomeScreen({
   currentUser,
   onLogout,
 }: Props) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   return (
     <View style={styles.root}>
       <CornerDecoration position="topLeft" />
@@ -26,7 +29,7 @@ export default function WelcomeScreen({
 
       <SafeAreaView style={styles.container}>
         <View style={styles.brand}>
-          <MaterialIcons name="settings" size={56} color={colors.text} />
+          <MaterialIcons name="settings" size={56} color={t.iconColor} />
           <Text style={styles.title}>Avalliar</Text>
           {currentUser && (
             <View style={styles.loggedBox}>
@@ -67,10 +70,10 @@ export default function WelcomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: t.background,
     overflow: 'hidden',
   },
   container: {
@@ -87,9 +90,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
+    backgroundColor: t.cardBackground,
     borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: t.cardBorder,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 6,
@@ -99,24 +104,24 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: colors.textSecondary,
+    color: t.textSecondary,
   },
   userName: {
     fontFamily: fonts.bold,
     fontSize: 16,
-    color: colors.text,
+    color: t.text,
     marginTop: 2,
   },
   userRole: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: colors.primary,
+    color: t.accentRed,
     marginTop: 2,
   },
   title: {
     fontFamily: fonts.boldItalic,
     fontSize: 40,
-    color: colors.text,
+    color: t.text,
     marginTop: spacing.xs,
   },
   actions: {

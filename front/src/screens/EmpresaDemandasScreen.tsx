@@ -18,6 +18,7 @@ import {
 } from '@expo/vector-icons';
 
 import { fonts, spacing } from '../theme';
+import { useTheme, ThemeColors } from '../context/ThemeContext';
 import BottomNavigation, { TabType } from '../components/BottomNavigation';
 import { AuthResponse } from '../services/authService';
 import { EmpresaDemanda } from './DemandasScreen';
@@ -98,6 +99,8 @@ export default function EmpresaDemandasScreen({
   onNavigateTab,
   activeTab = 'demandas',
 }: EmpresaDemandasScreenProps) {
+  const { colors: t } = useTheme();
+  const styles = makeStyles(t);
   const [tarefas, setTarefas] = useState<TarefaDemanda[]>(() =>
     demandaService.obterDemandasPorEmpresa(empresa.id, empresa.nome)
   );
@@ -508,7 +511,7 @@ export default function EmpresaDemandasScreen({
             <MaterialCommunityIcons
               name="folder-open-outline"
               size={15}
-              color="#475569"
+              color={t.textSecondary}
             />
             <Text style={styles.demandFilesTitle} numberOfLines={1}>
               Arquivos ({arquivos.length})
@@ -535,7 +538,7 @@ export default function EmpresaDemandasScreen({
 
             {onSelectDemanda && (
               <Pressable
-                style={[styles.attachFileMiniBtn, { backgroundColor: '#1E293B' }]}
+                style={[styles.attachFileMiniBtn, { backgroundColor: t.brandRed }]}
                 onPress={() => onSelectDemanda(item)}
               >
                 <Text style={[styles.attachFileMiniBtnText, { color: '#FFFFFF' }]}>
@@ -1163,7 +1166,7 @@ export default function EmpresaDemandasScreen({
                 }}
                 hitSlop={6}
               >
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={22} color={t.textMuted} />
               </Pressable>
             </View>
 
@@ -1188,7 +1191,7 @@ export default function EmpresaDemandasScreen({
               <Ionicons
                 name={dropdownTarefaDestinoAberto ? 'chevron-up' : 'chevron-down'}
                 size={18}
-                color="#64748B"
+                color={t.textMuted}
               />
             </Pressable>
 
@@ -1469,7 +1472,7 @@ export default function EmpresaDemandasScreen({
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalHeaderTitle}>Nova Demanda</Text>
               <Pressable onPress={() => setNovaDemandaModal(false)} hitSlop={6}>
-                <Ionicons name="close" size={22} color="#64748B" />
+                <Ionicons name="close" size={22} color={t.textMuted} />
               </Pressable>
             </View>
 
@@ -1504,7 +1507,7 @@ export default function EmpresaDemandasScreen({
               <Ionicons
                 name={dropdownResponsavelAberto ? 'chevron-up' : 'chevron-down'}
                 size={18}
-                color="#64748B"
+                color={t.textMuted}
               />
             </Pressable>
 
@@ -1700,14 +1703,14 @@ export default function EmpresaDemandasScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: ThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: t.background,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -1716,7 +1719,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     flexDirection: 'row',
@@ -1747,21 +1750,21 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#FEE2E2',
+    borderColor: t.cardBorder,
   },
   breadcrumbText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-    color: '#C61010',
+    color: t.accentRed,
     flex: 1,
   },
   breadcrumbCompany: {
     fontFamily: fonts.bold,
-    color: '#991B1B',
+    color: t.softRedText,
   },
 
   titleRow: {
@@ -1773,7 +1776,7 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontFamily: fonts.bold,
     fontSize: 26,
-    color: '#1E1E1E',
+    color: t.text,
   },
   titleActions: {
     flexDirection: 'row',
@@ -1784,17 +1787,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: t.suggestionBorder,
   },
   insertCompanyFileBtnText: {
     fontFamily: fonts.bold,
     fontSize: 11.5,
-    color: '#C61010',
+    color: t.accentRed,
   },
   addDemandButton: {
     padding: 2,
@@ -1860,12 +1863,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 20,
     paddingHorizontal: 14,
     height: 44,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.cardBorder,
     marginBottom: spacing.sm,
   },
   searchIcon: {
@@ -1875,7 +1878,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
 
   filterPillsRow: {
@@ -1887,18 +1890,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.cardBorder,
   },
   filterPillActive: {
-    backgroundColor: '#1E1E1E',
-    borderColor: '#1E1E1E',
+    backgroundColor: t.brandRed,
+    borderColor: t.brandRed,
   },
   filterPillText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#6B7280',
+    color: t.chipText,
   },
   filterPillTextActive: {
     color: '#FFFFFF',
@@ -1919,25 +1922,25 @@ const styles = StyleSheet.create({
   subgroupTitle: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#1E1E1E',
+    color: t.text,
   },
   subgroupTitleCompleted: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#6B7280',
+    color: t.textSecondary,
   },
   subgroupHint: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#9CA3AF',
+    color: t.textMuted,
   },
 
   taskCardPending: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.chipBackground,
     borderRadius: 18,
     padding: spacing.md + 2,
     borderWidth: 1.5,
-    borderColor: '#9CA3AF',
+    borderColor: t.inputBorder,
     gap: 6,
     width: '100%',
     overflow: 'hidden',
@@ -1998,23 +2001,23 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 13.5,
     lineHeight: 19,
-    color: '#1E1E1E',
+    color: t.text,
     marginBottom: 4,
   },
   imovelRefText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#475569',
+    color: t.textSecondary,
     marginBottom: 4,
   },
   taskResponsiblePending: {
     fontFamily: fonts.regular,
     fontSize: 11.5,
-    color: '#4B5563',
+    color: t.textSecondary,
   },
   taskResponsibleBold: {
     fontFamily: fonts.bold,
-    color: '#1E1E1E',
+    color: t.text,
   },
   checkboxCirclePending: {
     width: 26,
@@ -2022,15 +2025,15 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     borderWidth: 1.5,
     borderColor: '#9CA3AF',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
   },
 
   taskCardCompleted: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 18,
     padding: spacing.md + 2,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 6,
     opacity: 0.92,
     width: '100%',
@@ -2040,7 +2043,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 13.5,
     lineHeight: 19,
-    color: '#64748B',
+    color: t.textMuted,
     textDecorationLine: 'line-through',
     textDecorationColor: '#94A3B8',
     marginBottom: 6,
@@ -2066,7 +2069,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: t.divider,
     gap: 8,
     width: '100%',
     overflow: 'hidden',
@@ -2095,14 +2098,14 @@ const styles = StyleSheet.create({
   demandFilesTitle: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#475569',
+    color: t.textSecondary,
     flexShrink: 1,
   },
   attachFileMiniBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 10,
@@ -2110,7 +2113,7 @@ const styles = StyleSheet.create({
   attachFileMiniBtnText: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#C61010',
+    color: t.accentRed,
   },
   filesList: {
     gap: 6,
@@ -2120,12 +2123,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 7,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 6,
     width: '100%',
     overflow: 'hidden',
@@ -2168,7 +2171,7 @@ const styles = StyleSheet.create({
   fileNameText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#1E293B',
+    color: t.text,
   },
   fileMetaRow: {
     flexDirection: 'row',
@@ -2180,13 +2183,13 @@ const styles = StyleSheet.create({
   fileMetaText: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: '#64748B',
+    color: t.textMuted,
   },
   mlTagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: t.purpleSoftBackground,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 5,
@@ -2197,7 +2200,7 @@ const styles = StyleSheet.create({
   mlTagText: {
     fontFamily: fonts.bold,
     fontSize: 9,
-    color: '#6D28D9',
+    color: t.purpleSoftText,
   },
   mlTagTextFilled: {
     color: '#047857',
@@ -2226,11 +2229,11 @@ const styles = StyleSheet.create({
   /* 8. Acervo de Arquivos da Empresa (Relatórios, Vistorias, Documentos, Planilhas) */
   companyRepositorySection: {
     marginTop: spacing.xl,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.cardBackground,
     borderRadius: 20,
     padding: spacing.md + 2,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 10,
     width: '100%',
     overflow: 'hidden',
@@ -2245,12 +2248,12 @@ const styles = StyleSheet.create({
   companyRepositoryTitle: {
     fontFamily: fonts.bold,
     fontSize: 15,
-    color: '#0F172A',
+    color: t.text,
   },
   companyRepositorySub: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 2,
   },
   addRepoFileBtn: {
@@ -2276,18 +2279,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   repoFilterChipActive: {
-    backgroundColor: '#1E1E1E',
-    borderColor: '#1E1E1E',
+    backgroundColor: t.brandRed,
+    borderColor: t.brandRed,
   },
   repoFilterChipText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#475569',
+    color: t.chipText,
   },
   repoFilterChipTextActive: {
     color: '#FFFFFF',
@@ -2300,12 +2303,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 9,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 8,
     width: '100%',
     overflow: 'hidden',
@@ -2336,7 +2339,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#6B7280',
+    color: t.textSecondary,
     textAlign: 'center',
   },
 
@@ -2351,7 +2354,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderRadius: 20,
     padding: spacing.xl,
   },
@@ -2364,42 +2367,43 @@ const styles = StyleSheet.create({
   modalHeaderTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#1E1E1E',
+    color: t.text,
     flex: 1,
   },
   modalCompanySubtitle: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#6B7280',
+    color: t.textSecondary,
     marginBottom: spacing.sm,
   },
   inputLabel: {
     fontFamily: fonts.semibold,
     fontSize: 12,
-    color: '#1E1E1E',
+    color: t.text,
     marginBottom: 4,
     marginTop: 8,
   },
   modalTextArea: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     padding: 10,
     fontFamily: fonts.regular,
     fontSize: 13,
     minHeight: 70,
+    color: t.text,
     textAlignVertical: 'top',
   },
   modalInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     padding: 10,
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
   typeSelectGrid: {
     flexDirection: 'row',
@@ -2413,28 +2417,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     borderRadius: 9,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   typeOptionBtnActive: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#F87171',
+    backgroundColor: t.softRedBackground,
+    borderColor: t.suggestionBorder,
   },
   typeOptionText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#64748B',
+    color: t.textMuted,
   },
   typeOptionTextActive: {
-    color: '#C61010',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   deviceUploadBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#F87171',
@@ -2445,12 +2449,12 @@ const styles = StyleSheet.create({
   deviceUploadTitle: {
     fontFamily: fonts.bold,
     fontSize: 12.5,
-    color: '#991B1B',
+    color: t.softRedText,
   },
   deviceUploadSub: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#B91C1C',
+    color: t.softRedText,
   },
   quickTemplatesList: {
     gap: 6,
@@ -2460,22 +2464,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
   },
   quickTemplateName: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
-    color: '#1E293B',
+    color: t.text,
   },
   quickTemplateDesc: {
     fontFamily: fonts.regular,
     fontSize: 10,
-    color: '#64748B',
+    color: t.textMuted,
   },
   newDemandAttachRow: {
     flexDirection: 'row',
@@ -2500,29 +2504,29 @@ const styles = StyleSheet.create({
   mlFeedbackTitle: {
     fontFamily: fonts.bold,
     fontSize: 17,
-    color: '#1E1E1E',
+    color: t.text,
     textAlign: 'center',
   },
   mlFeedbackDesc: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: '#475569',
+    color: t.textSecondary,
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 18,
   },
   mlFieldsBox: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: t.chipBackground,
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     gap: 4,
   },
   mlFieldsBoxTitle: {
     fontFamily: fonts.bold,
     fontSize: 11.5,
-    color: '#334155',
+    color: t.text,
     marginBottom: 4,
   },
   mlFieldRow: {
@@ -2533,12 +2537,12 @@ const styles = StyleSheet.create({
   mlFieldKey: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
   },
   mlFieldVal: {
     fontFamily: fonts.bold,
     fontSize: 11,
-    color: '#0F172A',
+    color: t.text,
     flex: 1,
     textAlign: 'right',
   },
@@ -2552,25 +2556,25 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: t.chipBackground,
     alignItems: 'center',
   },
   urgencyOptionActive: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     borderWidth: 1,
-    borderColor: '#FECDD3',
+    borderColor: t.suggestionBorder,
   },
   urgencyOptionText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
-    color: '#4B5563',
+    color: t.chipText,
   },
   urgencyOptionTextActive: {
-    color: '#DC2626',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   submitButton: {
-    backgroundColor: '#C61010',
+    backgroundColor: t.brandRed,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -2583,9 +2587,9 @@ const styles = StyleSheet.create({
   },
 
   dropdownSelector: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: t.inputBackground,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: t.inputBorder,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -2602,12 +2606,12 @@ const styles = StyleSheet.create({
   dropdownSelectorText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
-    color: '#1E1E1E',
+    color: t.text,
   },
   dropdownListContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: t.modalBackground,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: t.cardBorder,
     borderRadius: 12,
     marginTop: 6,
     maxHeight: 160,
@@ -2623,10 +2627,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: t.divider,
   },
   dropdownItemActive: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: t.softRedBackground,
   },
   dropdownItemLeft: {
     flexDirection: 'row',
@@ -2638,28 +2642,28 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: t.softRedBackground,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dropdownAvatarText: {
     fontFamily: fonts.bold,
     fontSize: 12,
-    color: '#C61010',
+    color: t.accentRed,
   },
   dropdownItemText: {
     fontFamily: fonts.semibold,
     fontSize: 12.5,
-    color: '#334155',
+    color: t.text,
   },
   dropdownItemTextActive: {
-    color: '#C61010',
+    color: t.accentRed,
     fontFamily: fonts.bold,
   },
   dropdownItemSubtext: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: '#64748B',
+    color: t.textMuted,
     marginTop: 1,
   },
 });
