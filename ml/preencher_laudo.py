@@ -18,7 +18,7 @@ import requests
 import selecao
 import vivareal
 
-BLANK = r"C:/Users/Kalebe/Desktop/Homogeneização_Unidades Isoladas_2025_V22.xlsx"
+BLANK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "templates", "Homogeneização_Unidades Isoladas_2025_V22.xlsx")
 OUT = os.path.join("data", "output", "laudo_preenchido.xlsx")
 
 AVALIANDO = {
