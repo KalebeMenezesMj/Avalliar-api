@@ -88,6 +88,11 @@ public class WhatsappService {
             http.exchange(url + "/message/sendText/" + instancia, org.springframework.http.HttpMethod.POST,
                     cabecalhos(Map.of("number", digitos, "text", texto)), Map.class);
         } catch (HttpClientErrorException e) {
+            // 400 da Evolution: o número não existe no WhatsApp (ou está incorreto)
+            if (e.getStatusCode().value() == 400) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Este número não tem WhatsApp ou está incorreto. Confira o contato do proponente.");
+            }
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "A Evolution não enviou a mensagem (" + e.getStatusCode().value() + ")");
         } catch (RestClientException e) {
