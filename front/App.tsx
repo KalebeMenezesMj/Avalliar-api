@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, BackHandler } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { registrar } from './src/services/logService';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
@@ -133,6 +133,38 @@ function Root() {
     directionRef.current = navigationDirection(prevScreenRef.current, currentScreen);
     prevScreenRef.current = currentScreen;
   }
+
+  // Botão voltar do Android: volta para a tela anterior do app; só fecha o app na tela inicial
+  const historicoTelas = useRef<CurrentScreen[]>([]);
+  const telaAnteriorRef = useRef<CurrentScreen>('welcome');
+  const voltandoRef = useRef(false);
+
+  useEffect(() => {
+    if (currentScreen === 'home') {
+      // A tela inicial é a raiz: voltar a partir dela fecha o app
+      historicoTelas.current = [];
+    }
+    if (voltandoRef.current) {
+      voltandoRef.current = false;
+    } else if (telaAnteriorRef.current !== currentScreen) {
+      historicoTelas.current.push(telaAnteriorRef.current);
+      if (historicoTelas.current.length > 50) historicoTelas.current.shift();
+    }
+    telaAnteriorRef.current = currentScreen;
+  }, [currentScreen]);
+
+  useEffect(() => {
+    const assinatura = BackHandler.addEventListener('hardwareBackPress', () => {
+      const anterior = historicoTelas.current.pop();
+      if (anterior) {
+        voltandoRef.current = true;
+        setCurrentScreen(anterior);
+        return true;
+      }
+      return false; // na tela inicial, o Android fecha o app
+    });
+    return () => assinatura.remove();
+  }, []);
 
   // Diagnóstico: registra quando o app vai para segundo plano ou volta (ver Configurações > Log)
   useEffect(() => {
