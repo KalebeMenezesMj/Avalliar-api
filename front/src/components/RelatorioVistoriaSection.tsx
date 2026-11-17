@@ -138,6 +138,53 @@ export default function RelatorioVistoriaSection({
   const [avisoFeedback, setAvisoFeedback] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [acaoPlanilhaEmAndamento, setAcaoPlanilhaEmAndamento] = useState(false);
+  const [relatorioSalvoInfo, setRelatorioSalvoInfo] = useState<string | null>(null);
+
+  // Ao abrir a demanda, recarrega o relatório salvo no servidor e preenche o formulário
+  useEffect(() => {
+    const osId = osIdDaDemanda(demandaId);
+    if (!osId) return;
+    let cancelado = false;
+    relatorioService
+      .buscar(osId)
+      .then((rel) => {
+        if (cancelado || !rel) return;
+        const f = (rel.dados?.formulario ?? {}) as Record<string, string | undefined>;
+        const aplicar = (valor: string | undefined, definir: (v: string) => void) => {
+          if (typeof valor === 'string') definir(valor);
+        };
+        aplicar(f.tipologia, setTipologia);
+        aplicar(f.cep, setCep);
+        aplicar(f.tipoEndereco, setTipoEndereco);
+        aplicar(f.logradouro, setLogradouro);
+        aplicar(f.numero, setNumero);
+        aplicar(f.complemento, setComplemento);
+        aplicar(f.bairro, setBairro);
+        aplicar(f.cidade, setCidade);
+        aplicar(f.uf, setUf);
+        aplicar(f.areaPrivativa, setAreaPrivativa);
+        aplicar(f.areaComum, setAreaComum);
+        aplicar(f.areaTotal, setAreaTotal);
+        aplicar(f.dormitorios, setDormitorios);
+        aplicar(f.suites, setSuites);
+        aplicar(f.banheiros, setBanheiros);
+        aplicar(f.vagas, setVagas);
+        aplicar(f.proponente, setProponente);
+        aplicar(f.corretor, setCorretor);
+        aplicar(f.contato, setContato);
+        aplicar(f.numeroProposta, setNumeroProposta);
+        aplicar(f.dataVistoria, setDataVistoria);
+        const quando = new Date(rel.atualizadoEm).toLocaleString('pt-BR');
+        setRelatorioSalvoInfo(
+          `${rel.planilhaNome ? `Planilha ${rel.planilhaNome}` : 'Relatório'} salvo em ${quando}`
+        );
+      })
+      .catch((erro) => registrar('relatorio.carregar.erro', { motivo: String(erro?.message ?? erro) }, 'erro'));
+    return () => {
+      cancelado = true;
+    };
+  }, [demandaId]);
+
   const [planilhaGerada, setPlanilhaGerada] = useState<{
     arquivo: ArquivoAnexo;
     templateNome: string;
@@ -504,7 +551,33 @@ export default function RelatorioVistoriaSection({
       // Salva o relatório e a planilha no banco (back). Se falhar, não mostra a planilha como salva.
       const osId = osIdDaDemanda(demandaId);
       if (osId && respostaMl.conteudo_base64) {
-        await relatorioService.salvar(osId, payloadMl, {
+        // O formulário vai junto (campo `formulario`) para ser preenchido de volta ao reabrir
+        await relatorioService.salvar(osId, {
+          ...payloadMl,
+          formulario: {
+            tipologia,
+            cep,
+            tipoEndereco,
+            logradouro,
+            numero,
+            complemento,
+            bairro,
+            cidade,
+            uf,
+            areaPrivativa,
+            areaComum,
+            areaTotal,
+            dormitorios,
+            suites,
+            banheiros,
+            vagas,
+            proponente,
+            corretor,
+            contato,
+            numeroProposta,
+            dataVistoria,
+          },
+        }, {
           nome: nomePlanilhaGerada,
           base64: respostaMl.conteudo_base64,
         });
@@ -1109,6 +1182,10 @@ export default function RelatorioVistoriaSection({
           </View>
         </View>
       </View>
+
+      {relatorioSalvoInfo && (
+        <Text style={{ color: t.textMuted, fontSize: 12, marginBottom: 8 }}>{relatorioSalvoInfo}</Text>
+      )}
 
       {erroValidacao && (
         <View style={styles.errorBanner}>
