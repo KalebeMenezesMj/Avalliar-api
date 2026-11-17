@@ -16,6 +16,14 @@ export const whatsappService = {
     return request<WhatsappStatus>('/api/whatsapp/status');
   },
 
+  /** Envia uma mensagem de texto agora para o número informado. */
+  async enviarMensagem(numero: string, mensagem: string): Promise<void> {
+    await request<void>('/api/whatsapp/enviar', {
+      method: 'POST',
+      body: JSON.stringify({ numero, mensagem }),
+    });
+  },
+
   /** Gera (ou renova) o QR code para conectar o WhatsApp. */
   async conectar(): Promise<WhatsappStatus> {
     return request<WhatsappStatus>('/api/whatsapp/conectar', { method: 'POST' });

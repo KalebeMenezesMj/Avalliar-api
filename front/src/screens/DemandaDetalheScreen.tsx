@@ -39,6 +39,9 @@ import {
 } from '../services/demandaService';
 import { mlService } from '../services/mlService';
 import { relatorioService, osIdDaDemanda } from '../services/relatorioService';
+import { whatsappService } from '../services/whatsappService';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { registrar } from '../services/logService';
 
 interface DemandaDetalheScreenProps {
   empresa: EmpresaDemanda;
@@ -118,7 +121,10 @@ export default function DemandaDetalheScreen({
   const [modalAgendamentoAberto, setModalAgendamentoAberto] = useState(false);
   const [agendContato, setAgendContato] = useState('');
   const [agendNome, setAgendNome] = useState('');
-  const [agendHora, setAgendHora] = useState('');
+  const [agendData, setAgendData] = useState<Date | null>(null);
+  const [agendEnviando, setAgendEnviando] = useState(false);
+  const [agendErro, setAgendErro] = useState<string | null>(null);
+  const [pickerAberto, setPickerAberto] = useState<'date' | 'time' | null>(null);
   const [agendamentoPronto, setAgendamentoPronto] = useState(false);
 
   const recarregarDemanda = () => {
@@ -142,25 +148,56 @@ export default function DemandaDetalheScreen({
   const handleAbrirAgendamento = () => {
     setAgendContato('');
     setAgendNome('');
-    setAgendHora('');
+    setAgendData(null);
     setAgendamentoPronto(false);
     setModalAgendamentoAberto(true);
   };
 
-  // Máscara simples HH:MM para o horário da vistoria
-  const handleAgendHoraChange = (texto: string) => {
-    const digitos = texto.replace(/\D/g, '').slice(0, 4);
-    setAgendHora(
-      digitos.length > 2 ? `${digitos.slice(0, 2)}:${digitos.slice(2)}` : digitos
+  // Data e horário da vistoria: texto para mostrar e valor para o campo do navegador
+  const formatarDataHora = (d: Date) =>
+    d.toLocaleString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  const paraValorLocal = (d: Date) => {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+
+  // Monta a mensagem de agendamento no padrão combinado
+  const montarMensagemAgendamento = (): string => {
+    const data = agendData as Date;
+    const semana = ['Domingo', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira', 'Sábado'][data.getDay()];
+    const p = (n: number) => String(n).padStart(2, '0');
+    const nome = agendNome.trim();
+    const engenheiro = demanda.responsavel && demanda.responsavel !== '—' ? demanda.responsavel : userName;
+    return (
+      `Olá ${nome}, tudo bem?\n\n` +
+      'Estamos entrando em contato para agendar a vistoria referente a:\n\n' +
+      `Proponente : ${nome}\n` +
+      `Engenheiro Vistoriador : ${engenheiro}\n\n` +
+      `Data disponível: ${semana}, dia ${p(data.getDate())}/${p(data.getMonth() + 1)}, às ${p(data.getHours())}:${p(data.getMinutes())}h. Podemos confirmar`
     );
   };
 
-  // Esboço do disparo: o consumo da API que envia a mensagem chega depois;
-  // por ora apenas marca o agendamento como pronto (simulação)
-  const handleDispararAgendamento = () => {
-    // TODO(agendamento): chamar a API para disparar a mensagem de agendamento
-    // no WhatsApp do proponente com contato, nome e horário abaixo
-    setAgendamentoPronto(true);
+  // Envia a mensagem na hora, pelo WhatsApp conectado na Evolution API
+  const handleDispararAgendamento = async () => {
+    if (!agendData) return;
+    setAgendEnviando(true);
+    setAgendErro(null);
+    try {
+      await whatsappService.enviarMensagem(agendContato, montarMensagemAgendamento());
+      setAgendamentoPronto(true);
+      registrar('whatsapp.enviada', { os: osIdDaDemanda(demanda.id) });
+    } catch (e: any) {
+      setAgendErro(e?.message || 'Não foi possível enviar a mensagem.');
+    } finally {
+      setAgendEnviando(false);
+    }
   };
 
   // Sugestões de arquivos contextualizadas para o imóvel desta demanda
@@ -1078,39 +1115,78 @@ export default function DemandaDetalheScreen({
               onChangeText={setAgendNome}
             />
 
-            <Text style={styles.fieldLabel}>Horário da vistoria</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="HH:MM"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="number-pad"
-              maxLength={5}
-              value={agendHora}
-              onChangeText={handleAgendHoraChange}
-            />
+            <Text style={styles.fieldLabel}>Data e horário da vistoria</Text>
+            {Platform.OS === 'web' ? (
+              React.createElement('input', {
+                type: 'datetime-local',
+                value: agendData ? paraValorLocal(agendData) : '',
+                onChange: (e: any) => setAgendData(e.target.value ? new Date(e.target.value) : null),
+                style: {
+                  width: '100%',
+                  padding: 12,
+                  fontSize: 16,
+                  borderRadius: 8,
+                  border: '1px solid #D1D5DB',
+                  boxSizing: 'border-box',
+                },
+              })
+            ) : (
+              <Pressable style={styles.modalInput} onPress={() => setPickerAberto('date')}>
+                <Text style={{ color: agendData ? '#111827' : '#9CA3AF' }}>
+                  {agendData ? formatarDataHora(agendData) : 'Selecionar data e horário'}
+                </Text>
+              </Pressable>
+            )}
+            {Platform.OS !== 'web' && pickerAberto && (
+              <DateTimePicker
+                value={agendData ?? new Date()}
+                mode={pickerAberto}
+                is24Hour
+                display="default"
+                onChange={(_evento, escolhida) => {
+                  if (!escolhida) {
+                    setPickerAberto(null);
+                    return;
+                  }
+                  if (pickerAberto === 'date') {
+                    const base = new Date(escolhida);
+                    base.setHours(agendData?.getHours() ?? 9, agendData?.getMinutes() ?? 0);
+                    setAgendData(base);
+                    setPickerAberto('time');
+                  } else {
+                    const base = new Date(agendData ?? new Date());
+                    base.setHours(escolhida.getHours(), escolhida.getMinutes());
+                    setAgendData(base);
+                    setPickerAberto(null);
+                  }
+                }}
+              />
+            )}
 
             {agendamentoPronto && (
               <View style={styles.agendamentoOkBox}>
                 <Ionicons name="checkmark-circle" size={16} color="#15803D" />
                 <Text style={styles.agendamentoOkText}>
-                  Mensagem pronta para {agendNome || 'o proponente'} às{' '}
-                  {agendHora}. O envio real chega na próxima etapa.
+                  Mensagem enviada para {agendNome || 'o proponente'} em{' '}
+                  {agendData ? formatarDataHora(agendData) : ''}.
                 </Text>
               </View>
+            )}
+            {agendErro && (
+              <Text style={{ color: '#DC2626', marginBottom: 8 }}>{agendErro}</Text>
             )}
 
             <Pressable
               style={[
                 styles.submitButton,
                 styles.whatsSubmit,
-                (!agendContato.trim() || !agendNome.trim() || agendHora.length !== 5) &&
-                  { opacity: 0.6 },
+                (!agendContato.trim() || !agendNome.trim() || !agendData || agendEnviando) && { opacity: 0.6 },
               ]}
               onPress={handleDispararAgendamento}
-              disabled={!agendContato.trim() || !agendNome.trim() || agendHora.length !== 5}
+              disabled={!agendContato.trim() || !agendNome.trim() || !agendData || agendEnviando}
             >
               <MaterialCommunityIcons name="whatsapp" size={17} color="#FFFFFF" />
-              <Text style={styles.submitButtonText}>Disparar Mensagem</Text>
+              <Text style={styles.submitButtonText}>{agendEnviando ? 'Enviando...' : 'Disparar Mensagem'}</Text>
             </Pressable>
           </Pressable>
         </Pressable>

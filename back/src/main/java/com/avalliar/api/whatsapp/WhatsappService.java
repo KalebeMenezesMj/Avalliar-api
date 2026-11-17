@@ -71,6 +71,30 @@ public class WhatsappService {
         }
     }
 
+    /**
+     * Envia uma mensagem de texto agora. O número é normalizado para o formato
+     * internacional (55 + DDD + número), só com dígitos.
+     */
+    public void enviarTexto(String numero, String texto) {
+        garantirConfigurado();
+        String digitos = numero == null ? "" : numero.replaceAll("\\D", "");
+        if (digitos.length() == 10 || digitos.length() == 11) {
+            digitos = "55" + digitos;
+        }
+        if (digitos.length() < 12 || digitos.length() > 13) {
+            throw new IllegalArgumentException("Número de WhatsApp inválido");
+        }
+        try {
+            http.exchange(url + "/message/sendText/" + instancia, org.springframework.http.HttpMethod.POST,
+                    cabecalhos(Map.of("number", digitos, "text", texto)), Map.class);
+        } catch (HttpClientErrorException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "A Evolution não enviou a mensagem (" + e.getStatusCode().value() + ")");
+        } catch (RestClientException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Evolution API indisponível");
+        }
+    }
+
     private Map<?, ?> buscarConexao() {
         return http.exchange(url + "/instance/connect/" + instancia,
                 org.springframework.http.HttpMethod.GET, cabecalhos(null), Map.class).getBody();
