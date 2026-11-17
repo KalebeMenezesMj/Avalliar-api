@@ -21,6 +21,7 @@ import {
 } from '../services/demandaService';
 import { mlService } from '../services/mlService';
 import { registrar } from '../services/logService';
+import { relatorioService, osIdDaDemanda } from '../services/relatorioService';
 import {
   visualizarArquivoDemanda,
   baixarArquivoDemanda,
@@ -498,6 +499,16 @@ export default function RelatorioVistoriaSection({
 
       if (arquivoFinal.conteudoBase64) {
         await enviarArquivoParaServidor(arquivoFinal);
+      }
+
+      // Salva o relatório e a planilha no banco (back). Se falhar, não mostra a planilha como salva.
+      const osId = osIdDaDemanda(demandaId);
+      if (osId && respostaMl.conteudo_base64) {
+        await relatorioService.salvar(osId, payloadMl, {
+          nome: nomePlanilhaGerada,
+          base64: respostaMl.conteudo_base64,
+        });
+        registrar('relatorio.salvo', { os: osId });
       }
 
       setPlanilhaGerada({
