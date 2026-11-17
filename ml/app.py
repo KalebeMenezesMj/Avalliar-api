@@ -439,27 +439,18 @@ def consultar(q: str, k: int = 5):
     }
 
 
-def _gerar_planilha_bytes(nome: str, empresa: str, demanda: str, imovel: str, responsavel: str, template: str) -> bytes:
-    """Gera um arquivo .xlsx real em memória usando openpyxl com as abas e células mapeadas."""
+def _gerar_planilha_bytes(nome: str, empresa: str, demanda: str, imovel: str, responsavel: str, template: str, campos_json: str = "") -> bytes:
+    """Preenche o template oficial (V22/V25) em data/templates/ quando disponível."""
     import io
     import openpyxl
 
-    wb = openpyxl.Workbook()
     is_v25 = "v25" in (template or "").lower() or "v25" in (nome or "").lower()
-    ws = wb.active
-    ws.title = "DADOS DO IMÓVEL" if is_v25 else "XXX - Dados Laudo"
-
-    ws["A1"] = "AVALLIAR ML"
-    ws["B1"] = "Homogeneização — Unidades Padronizadas (V25)" if is_v25 else "Homogeneização — Unidades Isoladas (V22)"
-    ws["C1"] = f"Empresa: {empresa}"
-    ws.append(["Célula", "Campo Canônico (ML)", "Rótulo", "Valor Preenchido"])
-
     tid = "v25_unidades_padronizadas" if is_v25 else "v22_unidades_isoladas"
     valores_padrao = {
         "cliente": empresa,
         "numero_proposta": "PROP-2026-0842",
         "metodologia": "Método Comparativo Direto de Dados de Mercado",
-        "tipo_laudo": "Laudo Completo de Avaliação e Vistoria",
+        "tipo_laudo": "LAUDO COMPLETO DE AVALIAÇÃO",
         "engenheiro_responsavel": responsavel,
         "responsavel_avaliacao": responsavel,
         "fam_evolutivo": "1,00",
@@ -472,6 +463,39 @@ def _gerar_planilha_bytes(nome: str, empresa: str, demanda: str, imovel: str, re
         "idade_aparente": 8,
         "estado_conservacao": "Bom (Entre novo e regular)",
     }
+    if campos_json:
+        try:
+            extra = json.loads(campos_json)
+            if isinstance(extra, dict):
+                valores_padrao.update(extra)
+        except Exception:
+            pass
+
+    template_path = os.path.join(TEMPLATES_DIR, TEMPLATE_FILES.get(tid, TEMPLATE_FILES["v22_unidades_isoladas"]))
+    if os.path.exists(template_path):
+        ext = os.path.splitext(template_path)[1]
+        fd, out = tempfile.mkstemp(suffix=ext)
+        os.close(fd)
+        try:
+            filler.fill(template_path, valores_padrao, out)
+            recalc.preencher_cache(out)
+            with open(out, "rb") as fh:
+                return fh.read()
+        except Exception:
+            pass
+        finally:
+            if os.path.exists(out):
+                os.unlink(out)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "DADOS DO IMÓVEL" if is_v25 else "XXX - Dados Laudo"
+
+    ws["A1"] = "AVALLIAR ML"
+    ws["B1"] = "Homogeneização — Unidades Padronizadas (V25)" if is_v25 else "Homogeneização — Unidades Isoladas (V22)"
+    ws["C1"] = f"Empresa: {empresa}"
+    ws.append(["Célula", "Campo Canônico (ML)", "Rótulo", "Valor Preenchido"])
+
     for campo, (aba, coord) in templates.CELL_MAP.get(tid, {}).items():
         val = valores_padrao.get(campo, "Preenchido via ML")
         ws.append([coord, campo, f"{aba}!{coord}", str(val)])
@@ -555,6 +579,32 @@ async def upload_arquivo(
     detected_name = nome
     detected_mime = mime or "application/octet-stream"
 
+    # Suporte a envio de base64 via JSON (ideal para clientes mobile e web)
+    if "application/json" in ct.lower() or raw_body.strip().startswith(b"{"):
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+            b64_content = payload.get("conteudo_base64") or payload.get("base64") or ""
+            if b64_content:
+                file_bytes = base64.b64decode(b64_content)
+            if payload.get("id"):
+                id = payload["id"]
+            if payload.get("nome"):
+                detected_name = payload["nome"]
+            if payload.get("categoria"):
+                categoria = payload["categoria"]
+            if payload.get("empresa"):
+                empresa = payload["empresa"]
+            if payload.get("empresaId"):
+                empresaId = payload["empresaId"]
+            if payload.get("demanda"):
+                demanda = payload["demanda"]
+            if payload.get("autor"):
+                autor = payload["autor"]
+            if payload.get("mime"):
+                detected_mime = payload["mime"]
+        except Exception:
+            pass
+
     if "multipart/form-data" in ct.lower() and "boundary=" in ct:
         boundary = ct.split("boundary=")[-1].split(";")[0].strip().strip('"')
         b_token = f"--{boundary}".encode("utf-8")
@@ -594,6 +644,12 @@ async def upload_arquivo(
         "autor": autor,
         "bytes": file_bytes,
     }
+    try:
+        cache_path = os.path.join(tempfile.gettempdir(), f"uploaded_{arq_id}.bin")
+        with open(cache_path, "wb") as fch:
+            fch.write(file_bytes)
+    except Exception:
+        pass
     return {"ok": True, "id": arq_id, "nome": detected_name, "tamanho_bytes": len(file_bytes)}
 
 
@@ -608,6 +664,7 @@ def baixar_arquivo(
     imovel: str = "Imóvel Avaliado",
     responsavel: str = "Eng. Responsável",
     template: str = "",
+    campos: str = "",
 ):
     from urllib.parse import quote
 
@@ -625,9 +682,33 @@ def baixar_arquivo(
             },
         )
 
+    if id:
+        cache_path = os.path.join(tempfile.gettempdir(), f"uploaded_{id}.bin")
+        if os.path.exists(cache_path):
+            with open(cache_path, "rb") as fch:
+                file_bytes = fch.read()
+            ext = (extensao or nome.split(".")[-1] or "xlsx").lower()
+            mime_map = {
+                "pdf": "application/pdf",
+                "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
+            }
+            mime = mime_map.get(ext, "application/octet-stream")
+            clean_name = nome
+            safe_ascii = clean_name.encode("ascii", errors="ignore").decode("ascii") or "arquivo"
+            encoded = quote(clean_name)
+            return Response(
+                content=file_bytes,
+                media_type=mime,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_ascii}"; filename*=UTF-8\'\'{encoded}',
+                    "Cache-Control": "no-store",
+                },
+            )
+
     ext = (extensao or nome.split(".")[-1] or "pdf").lower()
     if ext in ("xlsx", "xlsm", "xls", "csv") or categoria == "PLANILHA":
-        content = _gerar_planilha_bytes(nome, empresa, demanda, imovel, responsavel, template)
+        content = _gerar_planilha_bytes(nome, empresa, demanda, imovel, responsavel, template, campos)
         mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         clean_name = nome if nome.lower().endswith((".xlsx", ".xlsm")) else f"{nome}.xlsx"
     else:
@@ -700,6 +781,7 @@ def visualizar_arquivo(
         )
 
     qs = urlencode({
+        "id": id,
         "nome": nome, "categoria": categoria, "extensao": extensao,
         "empresa": empresa, "demanda": demanda, "imovel": imovel,
         "responsavel": responsavel, "template": template,

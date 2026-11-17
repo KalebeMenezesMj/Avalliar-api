@@ -154,6 +154,45 @@ const HISTORICO_FALLBACK: MlRunMetric[] = [
   },
 ];
 
+// A geração no ML leva ~30 s; o limite cobre cold start sem deixar o celular esperando para sempre
+const TIMEOUT_PREENCHER_MS = 150_000;
+
+/**
+ * Chama uma rota de preenchimento e devolve a planilha OU o motivo exato da falha
+ * (HTTP status + trecho da resposta, timeout ou falha de rede), para o erro chegar à tela.
+ */
+async function chamarPreencherPlanilha(
+  rotulo: string,
+  url: string,
+  body: string,
+  timeoutMs: number = TIMEOUT_PREENCHER_MS
+): Promise<{ data?: MlPreencherResponse; erro: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const trecho = (await res.text().catch(() => '')).slice(0, 160);
+      return { erro: `${rotulo}: HTTP ${res.status}${trecho ? ` (${trecho})` : ''}` };
+    }
+    const data = (await res.json()) as MlPreencherResponse;
+    if (!data?.conteudo_base64) {
+      return { erro: `${rotulo}: resposta sem a planilha preenchida` };
+    }
+    return { data, erro: '' };
+  } catch (e: any) {
+    const motivo = e?.name === 'AbortError' ? 'tempo esgotado' : e?.message || 'falha de rede';
+    return { erro: `${rotulo}: ${motivo}` };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const mlService = {
   /**
    * 1. Health check do motor de Machine Learning na Azure
@@ -390,69 +429,38 @@ export const mlService = {
       arquivoId,
     });
 
-    // 1. Tenta direto no FastAPI de Machine Learning na Azure (:8000 / Azure Container Apps)
-    try {
-      const resDirect = await fetch(`${getMlDirectUrl()}/preencher`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payloadStr,
-      });
-      if (resDirect.ok) {
-        const data = await resDirect.json();
-        if (data && data.conteudo_base64) {
-          return data;
-        }
-      }
-    } catch {
-      // continua para a API Java na Azure
+    const falhas: string[] = [];
+
+    // 1. API Spring na Azure: injeta o CUB de SP e encaminha ao ML com as 20 abas intactas
+    // Timeout menor: se a API estiver travada, não faz o usuário esperar antes do ML direto
+    const viaApi = await chamarPreencherPlanilha(
+      'API Spring',
+      `${getBaseUrl()}/api/laudos/preencher`,
+      payloadStr,
+      60_000
+    );
+    if (viaApi.data) return viaApi.data;
+    falhas.push(viaApi.erro);
+
+    // 2. ML direto na Azure (mesmo motor, sem o passo do CUB)
+    const viaMl = await chamarPreencherPlanilha('ML na Azure', `${getMlDirectUrl()}/preencher`, payloadStr);
+    if (viaMl.data) return viaMl.data;
+    falhas.push(viaMl.erro);
+
+    // 3. Servidor local do Metro: só existe no navegador de desenvolvimento.
+    // No celular "localhost" aponta para o próprio aparelho, então não é tentado.
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
+      const viaLocal = await chamarPreencherPlanilha(
+        'servidor local',
+        `${window.location.origin}/preencher`,
+        payloadStr
+      );
+      if (viaLocal.data) return viaLocal.data;
+      falhas.push(viaLocal.erro);
     }
 
-    // 2. Tenta no backend Spring na Azure (:8080 / Azure Container Apps)
-    try {
-      const resApi = await fetch(`${getBaseUrl()}/api/laudos/preencher`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payloadStr,
-      });
-      if (resApi.ok) {
-        const data = await resApi.json();
-        if (data && data.conteudo_base64) {
-          return data;
-        }
-      }
-    } catch {
-      // continua para o fallback local
-    }
-
-    // 3. Fallback no servidor local Metro / FileServerMiddleware apenas se Azure estiver inacessível
-    try {
-      const origin =
-        Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin
-          ? window.location.origin
-          : 'http://localhost:8081';
-      const resMetro = await fetch(`${origin}/preencher`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payloadStr,
-      });
-      if (resMetro.ok) {
-        const data = await resMetro.json();
-        if (data && data.conteudo_base64) {
-          return data;
-        }
-      }
-    } catch {
-      // continua
-    }
-
-    const isV25 = templateId.includes('v25');
-    return {
-      template_id: templateId,
-      nome_arquivo: isV25
-        ? 'Homogeneização_unidades padronizadas_2026_V25_Preenchida.xlsm'
-        : 'Homogeneização_Unidades Isoladas_2025_V22_Preenchida.xlsx',
-      campos_preenchidos: Object.keys(dados).length || 11,
-    };
+    // Nunca devolve uma planilha "fantasma": se nenhuma rota gerou o arquivo, o erro sobe para a tela
+    throw new Error(`Não foi possível gerar a planilha. ${falhas.join(' | ')}`);
   },
 
   /**

@@ -4,6 +4,9 @@ import { requireOptionalNativeModule } from 'expo-modules-core';
 import { ArquivoAnexo, CategoriaArquivo } from '../services/demandaService';
 import { mlService } from '../services/mlService';
 import { AZURE_ML_URL } from '../services/api';
+// Renomeado para não sombrear o `File` global do navegador (usado no fluxo web)
+import { File as ArquivoNativo, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const DEFAULT_LAN_IP = '192.168.3.12';
 const DEFAULT_METRO_PORT = '8081';
@@ -188,8 +191,45 @@ async function resolveMobileFileServerUrl(): Promise<string> {
   return AZURE_ML_URL;
 }
 
+function decodeBase64ToBytes(b64: string): Uint8Array {
+  const clean = (b64 || '').replace(/[^A-Za-z0-9+/=]/g, '');
+  if (typeof atob === 'function') {
+    const binaryString = atob(clean);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes;
+  }
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup = new Uint8Array(256);
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+  }
+  let bufferLength = clean.length * 0.75;
+  if (clean[clean.length - 1] === '=') {
+    bufferLength--;
+    if (clean[clean.length - 2] === '=') {
+      bufferLength--;
+    }
+  }
+  const bytes = new Uint8Array(bufferLength);
+  let p = 0;
+  for (let i = 0; i < clean.length; i += 4) {
+    const encoded1 = lookup[clean.charCodeAt(i)];
+    const encoded2 = lookup[clean.charCodeAt(i + 1)];
+    const encoded3 = lookup[clean.charCodeAt(i + 2)];
+    const encoded4 = lookup[clean.charCodeAt(i + 3)];
+    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+    if (p < bufferLength) bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    if (p < bufferLength) bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+  }
+  return bytes;
+}
+
 /**
- * Envia o binário real do arquivo selecionado no celular (uri) ou PC (webFile)
+ * Envia o binário real do arquivo selecionado no celular (uri), PC (webFile) ou gerado em base64 (conteudoBase64)
  * para o servidor (/arquivos/upload), garantindo que cada arquivo enviado à empresa
  * ou a uma demanda/tarefa específica mantenha seu conteúdo original.
  */
@@ -199,10 +239,19 @@ export async function enviarArquivoParaServidor(
 ): Promise<boolean> {
   const webFile = selecionado?.webFile || arq.webFile;
   const mobileUri = selecionado?.uri || arq.uriLocal;
-  if (!webFile && !mobileUri) return false;
+  const base64Data = arq.conteudoBase64;
+  if (!webFile && !mobileUri && !base64Data) return false;
 
   try {
     const baseUrl = await resolveMobileFileServerUrl();
+    const ext = (arq.extensao || arq.nome.split('.').pop() || 'xlsx').toLowerCase();
+    const defaultMime =
+      ext === 'xlsm'
+        ? 'application/vnd.ms-excel.sheet.macroEnabled.12'
+        : ext === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'application/octet-stream';
+
     const params = new URLSearchParams({
       id: arq.id,
       nome: arq.nome,
@@ -213,16 +262,60 @@ export async function enviarArquivoParaServidor(
       tarefaId: arq.tarefaId || '',
       demanda: arq.tarefaTitulo || '',
       autor: arq.autor || '',
-      mime: selecionado?.mimeType || arq.mimeType || '',
+      mime: selecionado?.mimeType || arq.mimeType || defaultMime,
     });
 
     const uploadUrl = `${baseUrl}/arquivos/upload?${params.toString()}`;
+
+    if (base64Data) {
+      // 1. Tenta envio universal via JSON com conteudo_base64 (funciona perfeitamente em Mobile e Web)
+      try {
+        const jsonRes = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: arq.id,
+            nome: arq.nome,
+            categoria: arq.categoria,
+            empresaId: arq.empresaId,
+            empresa: arq.empresaNome || '',
+            tarefaId: arq.tarefaId,
+            demanda: arq.tarefaTitulo || '',
+            autor: arq.autor,
+            conteudo_base64: base64Data,
+            mime: defaultMime,
+          }),
+        });
+        if (jsonRes.ok) return true;
+      } catch {
+        // continua para envio binário
+      }
+
+      if (Platform.OS === 'web' && typeof Blob !== 'undefined') {
+        try {
+          const bytes = decodeBase64ToBytes(base64Data);
+          const blob = new Blob([bytes as any], { type: defaultMime });
+          const res = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': defaultMime,
+            },
+            body: blob,
+          });
+          if (res.ok) return true;
+        } catch {
+          // segue
+        }
+      }
+    }
 
     if (Platform.OS === 'web' && webFile) {
       const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': webFile.type || 'application/octet-stream',
+          'Content-Type': webFile.type || defaultMime,
         },
         body: webFile,
       });
@@ -234,7 +327,7 @@ export async function enviarArquivoParaServidor(
       formData.append('file', {
         uri: mobileUri,
         name: arq.nome,
-        type: selecionado?.mimeType || arq.mimeType || 'application/octet-stream',
+        type: selecionado?.mimeType || arq.mimeType || defaultMime,
       } as any);
 
       const res = await fetch(uploadUrl, {
@@ -244,7 +337,7 @@ export async function enviarArquivoParaServidor(
       return res.ok;
     }
   } catch {
-    // se estiver offline, mantém referência local (webFile / uriLocal)
+    // se estiver offline, mantém referência local (webFile / uriLocal / conteudoBase64)
   }
 
   return false;
@@ -349,6 +442,102 @@ function buildClientPdfBytes(
   return bytes;
 }
 
+const MIME_PLANILHA: Record<string, { mime: string; uti?: string }> = {
+  xlsx: {
+    mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    uti: 'org.openxmlformats.spreadsheetml.sheet',
+  },
+  xlsm: {
+    mime: 'application/vnd.ms-excel.sheet.macroEnabled.12',
+    uti: 'com.microsoft.excel.sheet.macroenabled.xlsm',
+  },
+  xls: { mime: 'application/vnd.ms-excel', uti: 'com.microsoft.excel.xls' },
+  csv: { mime: 'text/csv', uti: 'public.comma-separated-values-text' },
+};
+
+/**
+ * Obtém os bytes reais de uma planilha no celular, sem depender do servidor de arquivos.
+ * Ordem: conteúdo já preenchido -> arquivo enviado do aparelho -> preenchimento sob demanda no ML.
+ * Se nada disso existir, lança erro (nunca gera uma planilha genérica no lugar).
+ */
+async function obterBytesPlanilhaMobile(
+  arq: ArquivoAnexo,
+  empresaNome: string,
+  demandaTitulo: string,
+  imovelRef: string,
+  responsavel: string
+): Promise<Uint8Array> {
+  if (arq.conteudoBase64) {
+    return decodeBase64ToBytes(arq.conteudoBase64);
+  }
+  if (arq.uriLocal) {
+    return await new ArquivoNativo(arq.uriLocal).bytes();
+  }
+  if (arq.statusMl === 'PREENCHIDA_ML' || arq.templateMl) {
+    const tid =
+      arq.templateMl && arq.templateMl.includes('v25')
+        ? 'v25_unidades_padronizadas'
+        : 'v22_unidades_isoladas';
+    const dados = arq.camposExtraidosMl || {
+      cliente: empresaNome,
+      empreendimento: demandaTitulo,
+      endereco: imovelRef,
+      engenheiro_responsavel: responsavel,
+    };
+    // Lança com o motivo exato se o ML não conseguir gerar a planilha
+    const res = await mlService.preencherPlanilha(tid, dados, arq.id);
+    arq.conteudoBase64 = res.conteudo_base64;
+    return decodeBase64ToBytes(res.conteudo_base64 as string);
+  }
+  throw new Error('Esta planilha não tem conteúdo disponível neste aparelho.');
+}
+
+/** Grava a planilha em cache do app, pronta para visualizar ou compartilhar. */
+function gravarPlanilhaTemporaria(arq: ArquivoAnexo, bytes: Uint8Array): ArquivoNativo {
+  const ext = (arq.extensao || arq.nome.split('.').pop() || 'xlsx').toLowerCase();
+  const nomeFinal = arq.nome.toLowerCase().endsWith(`.${ext}`) ? arq.nome : `${arq.nome}.${ext}`;
+  const arquivo = new ArquivoNativo(Paths.cache, nomeFinal);
+  if (arquivo.exists) arquivo.delete();
+  arquivo.create();
+  return arquivo;
+}
+
+/** Visualização no celular: Quick Look do iOS (dentro do app). Se não der, abre o menu de compartilhamento. */
+async function visualizarPlanilhaMobile(
+  arq: ArquivoAnexo,
+  bytes: Uint8Array
+): Promise<'preview' | 'compartilhado'> {
+  const arquivo = gravarPlanilhaTemporaria(arq, bytes);
+  await arquivo.write(bytes);
+  if (await ArquivoNativo.canPreview(arquivo)) {
+    await ArquivoNativo.preview(arquivo);
+    return 'preview';
+  }
+  await compartilharPlanilhaMobile(arq, arquivo);
+  return 'compartilhado';
+}
+
+/** Menu de compartilhamento do sistema (iOS: "Salvar em Arquivos", "Abrir em..."). */
+async function compartilharPlanilhaMobile(arq: ArquivoAnexo, arquivo: ArquivoNativo): Promise<void> {
+  const ext = (arq.extensao || arq.nome.split('.').pop() || 'xlsx').toLowerCase();
+  const info = MIME_PLANILHA[ext] || { mime: 'application/octet-stream' };
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('O compartilhamento de arquivos não está disponível neste aparelho.');
+  }
+  await Sharing.shareAsync(arquivo.uri, {
+    mimeType: info.mime,
+    UTI: info.uti,
+    dialogTitle: arquivo.name,
+  });
+}
+
+/** Download no celular: grava o arquivo e abre o menu do sistema para salvar (iOS: "Salvar em Arquivos"). */
+async function baixarPlanilhaMobile(arq: ArquivoAnexo, bytes: Uint8Array): Promise<void> {
+  const arquivo = gravarPlanilhaTemporaria(arq, bytes);
+  await arquivo.write(bytes);
+  await compartilharPlanilhaMobile(arq, arquivo);
+}
+
 /**
  * Abre o documento diretamente em uma nova aba do navegador (tanto no celular quanto no PC).
  * Se o arquivo tiver sido enviado pelo usuário e ainda não estiver no servidor, garante o upload antes de abrir.
@@ -360,20 +549,55 @@ export async function visualizarArquivoDemanda(
   imovelRef = 'Imóvel Vistoriado',
   responsavel = 'Eng. Responsável'
 ): Promise<string> {
-  // 1. Se tem conteudoBase64 preenchido por ML, atualiza webFile com os novos bytes preenchidos
+  const isPlanilha =
+    arq.categoria === 'PLANILHA' ||
+    ['xlsx', 'xlsm', 'xls', 'csv'].includes((arq.extensao || '').toLowerCase());
+
+  // Celular: a planilha é visualizada a partir dos bytes reais (Quick Look / menu do sistema)
+  if (isPlanilha && Platform.OS !== 'web') {
+    const bytes = await obterBytesPlanilhaMobile(
+      arq,
+      empresaNome,
+      demandaTitulo,
+      imovelRef,
+      responsavel
+    );
+    const modo = await visualizarPlanilhaMobile(arq, bytes);
+    return modo === 'preview'
+      ? `Planilha aberta: ${arq.nome}`
+      : `Escolha o app para abrir a planilha: ${arq.nome}`;
+  }
+
+  if (isPlanilha && !arq.conteudoBase64) {
+    try {
+      const tid =
+        arq.templateMl && arq.templateMl.includes('v25')
+          ? 'v25_unidades_padronizadas'
+          : 'v22_unidades_isoladas';
+      const dados = arq.camposExtraidosMl || {
+        cliente: empresaNome,
+        empreendimento: demandaTitulo,
+        endereco: imovelRef,
+        engenheiro_responsavel: responsavel,
+      };
+      const res = await mlService.preencherPlanilha(tid, dados, arq.id);
+      if (res.conteudo_base64) {
+        arq.conteudoBase64 = res.conteudo_base64;
+      }
+    } catch {
+      // mantém fluxo normal
+    }
+  }
+
+  // 1. Se tem conteudoBase64 preenchido, atualiza webFile e abre/baixa a planilha real
   if (arq.conteudoBase64 && Platform.OS === 'web' && typeof Blob !== 'undefined') {
     try {
       const mime =
         arq.extensao === 'xlsm'
           ? 'application/vnd.ms-excel.sheet.macroEnabled.12'
           : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      const binaryString = atob(arq.conteudoBase64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mime });
+      const bytes = decodeBase64ToBytes(arq.conteudoBase64);
+      const blob = new Blob([bytes as any], { type: mime });
       if (typeof File !== 'undefined') {
         arq.webFile = new File([blob], arq.nome, { type: mime });
       }
@@ -387,7 +611,7 @@ export async function visualizarArquivoDemanda(
     }
   }
 
-  if (arq.uriLocal || arq.webFile) {
+  if (arq.conteudoBase64 || arq.uriLocal || arq.webFile) {
     await enviarArquivoParaServidor(arq);
   }
 
@@ -399,10 +623,6 @@ export async function visualizarArquivoDemanda(
       window.open(fileUrl, '_blank', 'noopener,noreferrer');
       return `Arquivo aberto em nova aba: ${arq.nome}`;
     }
-
-    const isPlanilha =
-      arq.categoria === 'PLANILHA' ||
-      ['xlsx', 'xlsm', 'xls', 'csv'].includes((arq.extensao || '').toLowerCase());
 
     if (!isPlanilha && typeof Blob !== 'undefined' && typeof URL !== 'undefined') {
       const pdfBytes = buildClientPdfBytes(
@@ -419,14 +639,15 @@ export async function visualizarArquivoDemanda(
     }
 
     const baseUrl = await resolveMobileFileServerUrl();
-    window.open(`${baseUrl}/arquivos/visualizar?${qs}`, '_blank', 'noopener,noreferrer');
-    return `Planilha aberta em nova aba: ${arq.nome}`;
+    window.open(`${baseUrl}/arquivos/download?${qs}`, '_blank', 'noopener,noreferrer');
+    return `Planilha aberta: ${arq.nome}`;
   }
 
   const baseUrl = await resolveMobileFileServerUrl();
-  const viewUrl = `${baseUrl}/arquivos/visualizar?${qs}`;
+  const targetEndpoint = isPlanilha ? 'download' : 'visualizar';
+  const viewUrl = `${baseUrl}/arquivos/${targetEndpoint}?${qs}`;
   await Linking.openURL(viewUrl);
-  return `Abrindo ${arq.nome} no navegador...`;
+  return `Abrindo ${arq.nome}...`;
 }
 
 /**
@@ -439,14 +660,49 @@ export async function baixarArquivoDemanda(
   imovelRef = 'Imóvel Vistoriado',
   responsavel = 'Eng. Responsável'
 ): Promise<string> {
-  if (arq.uriLocal || arq.webFile) {
+  const isPlanilha =
+    arq.categoria === 'PLANILHA' ||
+    ['xlsx', 'xlsm', 'xls', 'csv'].includes((arq.extensao || '').toLowerCase());
+
+  // Celular: grava a planilha real e abre o menu do sistema para salvar
+  if (isPlanilha && Platform.OS !== 'web') {
+    const bytes = await obterBytesPlanilhaMobile(
+      arq,
+      empresaNome,
+      demandaTitulo,
+      imovelRef,
+      responsavel
+    );
+    await baixarPlanilhaMobile(arq, bytes);
+    return `Escolha "Salvar em Arquivos" para baixar: ${arq.nome}`;
+  }
+
+  if (isPlanilha && !arq.conteudoBase64) {
+    try {
+      const tid =
+        arq.templateMl && arq.templateMl.includes('v25')
+          ? 'v25_unidades_padronizadas'
+          : 'v22_unidades_isoladas';
+      const dados = arq.camposExtraidosMl || {
+        cliente: empresaNome,
+        empreendimento: demandaTitulo,
+        endereco: imovelRef,
+        engenheiro_responsavel: responsavel,
+      };
+      const res = await mlService.preencherPlanilha(tid, dados, arq.id);
+      if (res.conteudo_base64) {
+        arq.conteudoBase64 = res.conteudo_base64;
+      }
+    } catch {
+      // continua
+    }
+  }
+
+  if (arq.conteudoBase64 || arq.uriLocal || arq.webFile) {
     await enviarArquivoParaServidor(arq);
   }
 
   const qs = buildFileQueryString(arq, empresaNome, demandaTitulo, imovelRef, responsavel);
-  const isPlanilha =
-    arq.categoria === 'PLANILHA' ||
-    ['xlsx', 'xlsm', 'xls', 'csv'].includes((arq.extensao || '').toLowerCase());
 
   if (Platform.OS !== 'web') {
     const baseUrl = await resolveMobileFileServerUrl();

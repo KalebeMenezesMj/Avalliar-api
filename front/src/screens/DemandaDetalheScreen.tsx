@@ -27,6 +27,7 @@ import FileViewerModal, {
   ArquivoDispositivoSelecionado,
 } from '../components/FileViewerModal';
 import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
+import RelatorioVistoriaSection from '../components/RelatorioVistoriaSection';
 import { AuthResponse } from '../services/authService';
 import {
   demandaService,
@@ -79,6 +80,7 @@ export default function DemandaDetalheScreen({
     }
   }, [empresa.id, empresa.nome, demandaInicial.id]);
 
+  const [abaDetalhe, setAbaDetalhe] = useState<'RELATORIO_VISTORIA' | 'ARQUIVOS'>('RELATORIO_VISTORIA');
   const [filtroCat, setFiltroCat] = useState<'TODOS' | CategoriaArquivo>('TODOS');
   const [modalAnexoAberto, setModalAnexoAberto] = useState(false);
   const [modalPreenchimentoPlanilha, setModalPreenchimentoPlanilha] = useState<{
@@ -267,27 +269,37 @@ export default function DemandaDetalheScreen({
   };
 
   const handleVisualizarArquivoNoNavegador = async (arq: ArquivoAnexo) => {
-    const msg = await visualizarArquivoDemanda(
-      arq,
-      empresa.nome,
-      demanda.titulo,
-      demanda.imovelReferencia || empresa.nome,
-      demanda.responsavel
-    );
-    setAvisoDownload(msg);
-    setTimeout(() => setAvisoDownload(null), 3500);
+    try {
+      const msg = await visualizarArquivoDemanda(
+        arq,
+        empresa.nome,
+        demanda.titulo,
+        demanda.imovelReferencia || empresa.nome,
+        demanda.responsavel
+      );
+      setAvisoDownload(msg);
+      setTimeout(() => setAvisoDownload(null), 3500);
+    } catch (e: any) {
+      setAvisoDownload(`Erro ao visualizar: ${e?.message || 'erro desconhecido'}`);
+      setTimeout(() => setAvisoDownload(null), 6000);
+    }
   };
 
   const handleBaixarArquivoDireto = async (arq: ArquivoAnexo) => {
-    const msg = await baixarArquivoDemanda(
-      arq,
-      empresa.nome,
-      demanda.titulo,
-      demanda.imovelReferencia || empresa.nome,
-      demanda.responsavel
-    );
-    setAvisoDownload(msg);
-    setTimeout(() => setAvisoDownload(null), 4000);
+    try {
+      const msg = await baixarArquivoDemanda(
+        arq,
+        empresa.nome,
+        demanda.titulo,
+        demanda.imovelReferencia || empresa.nome,
+        demanda.responsavel
+      );
+      setAvisoDownload(msg);
+      setTimeout(() => setAvisoDownload(null), 4000);
+    } catch (e: any) {
+      setAvisoDownload(`Erro ao baixar: ${e?.message || 'erro desconhecido'}`);
+      setTimeout(() => setAvisoDownload(null), 6000);
+    }
   };
 
   // Processar planilha desta demanda com Machine Learning (/reconhecer -> /extrair -> /preencher)
@@ -532,8 +544,70 @@ export default function DemandaDetalheScreen({
           </Pressable>
         </View>
 
-        {/* 4. Seção de Inserção de Arquivos da Demanda Específica */}
-        <View style={styles.filesSectionCard}>
+        {/* Seletor de Abas da Demanda: Relatório de Vistoria (IA) vs Arquivos da Demanda */}
+        <View style={styles.sectionTabsBar}>
+          <Pressable
+            style={[
+              styles.sectionTabBtn,
+              abaDetalhe === 'RELATORIO_VISTORIA' && styles.sectionTabBtnActive,
+            ]}
+            onPress={() => setAbaDetalhe('RELATORIO_VISTORIA')}
+          >
+            <MaterialCommunityIcons
+              name="clipboard-edit-outline"
+              size={17}
+              color={abaDetalhe === 'RELATORIO_VISTORIA' ? '#FFFFFF' : t.textMuted}
+            />
+            <Text
+              style={[
+                styles.sectionTabText,
+                abaDetalhe === 'RELATORIO_VISTORIA' && styles.sectionTabTextActive,
+              ]}
+            >
+              Relatório de Vistoria
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.sectionTabBtn,
+              abaDetalhe === 'ARQUIVOS' && styles.sectionTabBtnActive,
+            ]}
+            onPress={() => setAbaDetalhe('ARQUIVOS')}
+          >
+            <Ionicons
+              name="folder-open-outline"
+              size={17}
+              color={abaDetalhe === 'ARQUIVOS' ? '#FFFFFF' : t.textMuted}
+            />
+            <Text
+              style={[
+                styles.sectionTabText,
+                abaDetalhe === 'ARQUIVOS' && styles.sectionTabTextActive,
+              ]}
+            >
+              Arquivos ({arquivosDaDemanda.length})
+            </Text>
+          </Pressable>
+        </View>
+
+        {abaDetalhe === 'RELATORIO_VISTORIA' ? (
+          <RelatorioVistoriaSection
+            empresaId={empresa.id}
+            empresaNome={empresa.nome}
+            demandaId={demanda.id}
+            demandaTitulo={demanda.titulo}
+            imovelReferencia={demanda.imovelReferencia}
+            enderecoInicial={demanda.endereco}
+            responsavelPadrao={demanda.responsavel || userName}
+            onSucessoGeracao={() => {
+              recarregarDemanda();
+            }}
+          />
+        ) : (
+          <>
+            {/* 4. Seção de Inserção de Arquivos da Demanda Específica */}
+            <View style={styles.filesSectionCard}>
           <View style={styles.filesSectionHeader}>
             <View style={styles.filesSectionHeaderInfo}>
               <Text style={styles.filesSectionTitle}>
@@ -807,6 +881,8 @@ export default function DemandaDetalheScreen({
             </View>
           )}
         </View>
+          </>
+        )}
 
         <View style={{ height: 85 }} />
       </ScrollView>
@@ -1344,6 +1420,40 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     backgroundColor: '#25D366',
     flexDirection: 'row',
     gap: 8,
+  },
+  sectionTabsBar: {
+    flexDirection: 'row',
+    backgroundColor: t.cardBackground,
+    borderRadius: 14,
+    padding: 4,
+    gap: 6,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: t.cardBorder,
+  },
+  sectionTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  sectionTabBtnActive: {
+    backgroundColor: '#C61010',
+  },
+  sectionTabBtnActiveMl: {
+    backgroundColor: '#6D28D9',
+  },
+  sectionTabText: {
+    fontFamily: fonts.bold,
+    fontSize: 12.5,
+    color: t.textMuted,
+  },
+  sectionTabTextActive: {
+    color: '#FFFFFF',
   },
 
   /* Seção de Arquivos da Demanda Específica */

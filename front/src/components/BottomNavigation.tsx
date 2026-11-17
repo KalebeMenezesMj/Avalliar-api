@@ -46,7 +46,13 @@ interface BottomNavigationProps {
 }
 
 export const getBottomNavigationPadding = (bottomInset: number = 0): number => {
-  return Math.max(bottomInset + (Platform.OS === 'android' ? 10 : 8), 16);
+  // No Android, a barra de navegação nativa (3 botões: ~48dp, gestos: ~24dp) frequentemente
+  // reporta bottomInset = 0 no React Native se não estiver com edge-to-edge nativo vinculado.
+  // Garantimos no mínimo 52dp no Android para que os botões do sistema não fiquem sobrepostos.
+  if (Platform.OS === 'android') {
+    return Math.max(bottomInset + 12, 52);
+  }
+  return Math.max(bottomInset + 8, 16);
 };
 
 export const getBottomNavigationHeight = (bottomInset: number = 0): number => {

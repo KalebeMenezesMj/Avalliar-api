@@ -39,6 +39,7 @@ import FileViewerModal, {
   ArquivoDispositivoSelecionado,
 } from '../components/FileViewerModal';
 import PlanilhaPreenchimentoModal from '../components/PlanilhaPreenchimentoModal';
+import RelatorioVistoriaSection from '../components/RelatorioVistoriaSection';
 
 export type { Urgencia, TarefaDemanda };
 
@@ -116,6 +117,7 @@ export default function EmpresaDemandasScreen({
   }, [empresa.id, empresa.nome]);
 
   const [busca, setBusca] = useState('');
+  const [abaEmpresa, setAbaEmpresa] = useState<'DEMANDAS' | 'RELATORIO_VISTORIA'>('DEMANDAS');
   const [filtroUrgencia, setFiltroUrgencia] = useState<'TODAS' | Urgencia>('TODAS');
   const [filtroCatArquivo, setFiltroCatArquivo] = useState<'TODOS' | CategoriaArquivo>('TODOS');
 
@@ -335,34 +337,44 @@ export default function EmpresaDemandasScreen({
     arq: ArquivoAnexo,
     tarefaContexto?: TarefaDemanda
   ) => {
-    const msg = await visualizarArquivoDemanda(
-      arq,
-      empresa.nome,
-      tarefaContexto?.titulo,
-      tarefaContexto?.imovelReferencia,
-      tarefaContexto?.responsavel
-    );
-    setToastDownload(msg);
-    setTimeout(() => {
-      setToastDownload(null);
-    }, 3200);
+    try {
+      const msg = await visualizarArquivoDemanda(
+        arq,
+        empresa.nome,
+        tarefaContexto?.titulo,
+        tarefaContexto?.imovelReferencia,
+        tarefaContexto?.responsavel
+      );
+      setToastDownload(msg);
+      setTimeout(() => {
+        setToastDownload(null);
+      }, 3200);
+    } catch (e: any) {
+      setToastDownload(`Erro ao visualizar: ${e?.message || 'erro desconhecido'}`);
+      setTimeout(() => setToastDownload(null), 6000);
+    }
   };
 
   const handleBaixarArquivoRapido = async (
     arq: ArquivoAnexo,
     tarefaContexto?: TarefaDemanda
   ) => {
-    const msg = await baixarArquivoDemanda(
-      arq,
-      empresa.nome,
-      tarefaContexto?.titulo,
-      tarefaContexto?.imovelReferencia,
-      tarefaContexto?.responsavel
-    );
-    setToastDownload(msg);
-    setTimeout(() => {
-      setToastDownload(null);
-    }, 3200);
+    try {
+      const msg = await baixarArquivoDemanda(
+        arq,
+        empresa.nome,
+        tarefaContexto?.titulo,
+        tarefaContexto?.imovelReferencia,
+        tarefaContexto?.responsavel
+      );
+      setToastDownload(msg);
+      setTimeout(() => {
+        setToastDownload(null);
+      }, 3200);
+    } catch (e: any) {
+      setToastDownload(`Erro ao baixar: ${e?.message || 'erro desconhecido'}`);
+      setTimeout(() => setToastDownload(null), 6000);
+    }
   };
 
   const handleCriarDemanda = async () => {
@@ -777,7 +789,65 @@ export default function EmpresaDemandasScreen({
           </View>
         </View>
 
-        {/* 5. Barra de Pesquisa de Tarefas ou Arquivos da Empresa */}
+        {/* Seletor de Abas da Empresa: Demandas & Acervo vs Relatório de Vistoria */}
+        <View style={styles.sectionTabsBar}>
+          <Pressable
+            style={[
+              styles.sectionTabBtn,
+              abaEmpresa === 'DEMANDAS' && styles.sectionTabBtnActive,
+            ]}
+            onPress={() => setAbaEmpresa('DEMANDAS')}
+          >
+            <MaterialCommunityIcons
+              name="clipboard-list-outline"
+              size={17}
+              color={abaEmpresa === 'DEMANDAS' ? '#FFFFFF' : t.textMuted}
+            />
+            <Text
+              style={[
+                styles.sectionTabText,
+                abaEmpresa === 'DEMANDAS' && styles.sectionTabTextActive,
+              ]}
+            >
+              Demandas ({tarefas.length})
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.sectionTabBtn,
+              abaEmpresa === 'RELATORIO_VISTORIA' && styles.sectionTabBtnActive,
+            ]}
+            onPress={() => setAbaEmpresa('RELATORIO_VISTORIA')}
+          >
+            <MaterialCommunityIcons
+              name="clipboard-edit-outline"
+              size={17}
+              color={abaEmpresa === 'RELATORIO_VISTORIA' ? '#FFFFFF' : t.textMuted}
+            />
+            <Text
+              style={[
+                styles.sectionTabText,
+                abaEmpresa === 'RELATORIO_VISTORIA' && styles.sectionTabTextActive,
+              ]}
+            >
+              Relatório de Vistoria
+            </Text>
+          </Pressable>
+        </View>
+
+        {abaEmpresa === 'RELATORIO_VISTORIA' ? (
+          <RelatorioVistoriaSection
+            empresaId={empresa.id}
+            empresaNome={empresa.nome}
+            responsavelPadrao={userName}
+            onSucessoGeracao={() => {
+              recarregarTudoDaEmpresa();
+            }}
+          />
+        ) : (
+          <>
+            {/* 5. Barra de Pesquisa de Tarefas ou Arquivos da Empresa */}
         <View style={styles.searchContainer}>
           <Feather name="search" size={17} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
@@ -1127,6 +1197,8 @@ export default function EmpresaDemandasScreen({
             })}
           </View>
         </View>
+          </>
+        )}
 
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -1803,6 +1875,40 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
   },
   addDemandButton: {
     padding: 2,
+  },
+  sectionTabsBar: {
+    flexDirection: 'row',
+    backgroundColor: t.cardBackground,
+    borderRadius: 14,
+    padding: 4,
+    gap: 6,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: t.cardBorder,
+  },
+  sectionTabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  sectionTabBtnActive: {
+    backgroundColor: '#C61010',
+  },
+  sectionTabBtnActiveMl: {
+    backgroundColor: '#6D28D9',
+  },
+  sectionTabText: {
+    fontFamily: fonts.bold,
+    fontSize: 12.5,
+    color: t.textMuted,
+  },
+  sectionTabTextActive: {
+    color: '#FFFFFF',
   },
 
   companyBannerCard: {
