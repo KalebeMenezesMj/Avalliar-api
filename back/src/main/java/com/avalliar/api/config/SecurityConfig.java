@@ -38,6 +38,9 @@ public class SecurityConfig {
                         // Relatório de vistoria e planilha: dados de clientes, exigem token JWT (login)
                         .requestMatchers("/api/ordens-servico/*/relatorio", "/api/ordens-servico/*/relatorio/**")
                         .authenticated()
+                        // WhatsApp: conexão da Evolution API, só para usuários logados
+                        .requestMatchers("/api/whatsapp/**")
+                        .authenticated()
                         .anyRequest().permitAll())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

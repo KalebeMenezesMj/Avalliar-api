@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Platform, ScrollView, Modal, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, spacing } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage, Locale, LOCALES, LOCALE_LABELS } from '../context/LanguageContext';
 import { AuthResponse } from '../services/authService';
 import { exportarLog, limparLog } from '../services/logService';
+import { whatsappService, WhatsappStatus } from '../services/whatsappService';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -242,6 +243,40 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
   const [isNotificationsEnabled, setIsNotificationsEnabled] = React.useState(true);
   const [activeModal, setActiveModal] = React.useState<InfoModal | null>(null);
   const [mensagemLog, setMensagemLog] = React.useState<string | null>(null);
+  const [whatsAberto, setWhatsAberto] = React.useState(false);
+  const [whatsCarregando, setWhatsCarregando] = React.useState(false);
+  const [whatsDados, setWhatsDados] = React.useState<WhatsappStatus | null>(null);
+  const [whatsErro, setWhatsErro] = React.useState<string | null>(null);
+
+  const gerarQrWhatsapp = async () => {
+    setWhatsCarregando(true);
+    setWhatsErro(null);
+    try {
+      setWhatsDados(await whatsappService.conectar());
+    } catch (e: any) {
+      setWhatsErro(e?.message || 'Não foi possível gerar o QR code.');
+    } finally {
+      setWhatsCarregando(false);
+    }
+  };
+
+  const verificarWhatsapp = async () => {
+    setWhatsCarregando(true);
+    setWhatsErro(null);
+    try {
+      setWhatsDados(await whatsappService.status());
+    } catch (e: any) {
+      setWhatsErro(e?.message || 'Não foi possível verificar a conexão.');
+    } finally {
+      setWhatsCarregando(false);
+    }
+  };
+
+  const abrirWhatsapp = () => {
+    setWhatsAberto(true);
+    setWhatsDados(null);
+    gerarQrWhatsapp();
+  };
 
   const s = STRINGS[locale];
 
@@ -384,6 +419,59 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
             <Ionicons name="chevron-forward" size={18} color={themeColors.textMuted} />
           </TouchableOpacity>
         </View>
+
+        {/* WhatsApp: conecta o número pela Evolution API lendo o QR code */}
+        <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>WhatsApp</Text>
+        <View style={[styles.cardSection, { backgroundColor: themeColors.cardBackground, borderColor: themeColors.cardBorder }]}>
+          <TouchableOpacity style={[styles.settingItem, styles.firstSettingItem, styles.lastSettingItem]} onPress={abrirWhatsapp} activeOpacity={0.5}>
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="logo-whatsapp" size={22} color={NEUTRAL_ICON_COLOR} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Conectar WhatsApp</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={themeColors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        <Modal visible={whatsAberto} transparent animationType="fade" onRequestClose={() => setWhatsAberto(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 }}>
+            <View style={{ backgroundColor: themeColors.cardBackground, borderRadius: 16, padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: themeColors.text, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Conectar WhatsApp</Text>
+
+              {whatsCarregando && <ActivityIndicator size="large" color={NEUTRAL_ICON_COLOR} />}
+
+              {!whatsCarregando && whatsDados?.estado === 'CONNECTED' && (
+                <Text style={{ color: '#16A34A', fontWeight: '700', textAlign: 'center' }}>WhatsApp conectado.</Text>
+              )}
+
+              {!whatsCarregando && whatsDados?.estado !== 'CONNECTED' && whatsDados?.qrCodeBase64 && (
+                <>
+                  <Image source={{ uri: whatsDados.qrCodeBase64 }} style={{ width: 240, height: 240 }} resizeMode="contain" />
+                  <Text style={{ color: themeColors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+                    No celular: WhatsApp &gt; Aparelhos conectados &gt; Conectar um aparelho. O QR code expira em poucos segundos; gere um novo se ele vencer.
+                  </Text>
+                </>
+              )}
+
+              {!whatsCarregando && whatsDados?.estado !== 'CONNECTED' && !whatsDados?.qrCodeBase64 && whatsDados?.codigo && (
+                <Text selectable style={{ color: themeColors.text, fontSize: 20, fontWeight: '700', marginTop: 8 }}>{whatsDados.codigo}</Text>
+              )}
+
+              {whatsErro && <Text style={{ color: '#DC2626', textAlign: 'center', marginTop: 8 }}>{whatsErro}</Text>}
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <TouchableOpacity onPress={gerarQrWhatsapp} disabled={whatsCarregando} style={{ backgroundColor: '#C61010', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 }}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Gerar novo QR</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={verificarWhatsapp} disabled={whatsCarregando} style={{ borderWidth: 1, borderColor: themeColors.cardBorder, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 }}>
+                  <Text style={{ color: themeColors.text, fontWeight: '700' }}>Verificar conexão</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => setWhatsAberto(false)} style={{ marginTop: 14 }}>
+                <Text style={{ color: themeColors.textMuted }}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Diagnóstico: exporta o log do aparelho (tempos de geração de planilha, estado do app) */}
         <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>Diagnóstico</Text>
