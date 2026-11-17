@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { registrar } from './src/services/logService';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import {
   useFonts,
@@ -131,6 +133,15 @@ function Root() {
     directionRef.current = navigationDirection(prevScreenRef.current, currentScreen);
     prevScreenRef.current = currentScreen;
   }
+
+  // Diagnóstico: registra quando o app vai para segundo plano ou volta (ver Configurações > Log)
+  useEffect(() => {
+    registrar('app.iniciado');
+    const assinatura = AppState.addEventListener('change', (estado) => {
+      registrar('app.estado', { estado });
+    });
+    return () => assinatura.remove();
+  }, []);
 
   // Restaura a sessão salva (se ainda válida) antes de mostrar qualquer tela
   useEffect(() => {

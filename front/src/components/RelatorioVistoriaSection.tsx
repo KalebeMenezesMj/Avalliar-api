@@ -20,6 +20,7 @@ import {
   TarefaDemanda,
 } from '../services/demandaService';
 import { mlService } from '../services/mlService';
+import { registrar } from '../services/logService';
 import {
   visualizarArquivoDemanda,
   baixarArquivoDemanda,
@@ -247,6 +248,7 @@ export default function RelatorioVistoriaSection({
   // Salvar Relatório de Vistoria e acionar o gatilho de Machine Learning
   const handleSalvarEGerarPlanilha = async () => {
     setErroValidacao(null);
+    registrar('relatorio.gerar.clique', { plataforma: Platform.OS });
 
     if (!logradouro.trim() || !cidade.trim() || !uf.trim()) {
       setErroValidacao('Preencha o endereço completo (logradouro, cidade e UF).');
@@ -519,6 +521,7 @@ export default function RelatorioVistoriaSection({
       }
     } catch (e: any) {
       // Falha na geração (ML/API fora do ar, timeout, sem planilha): mostra o motivo na tela
+      registrar('relatorio.gerar.erro', { motivo: String(e?.message ?? e) }, 'erro');
       setErroValidacao(
         e?.message || 'Não foi possível gerar a planilha. Tente novamente em instantes.'
       );

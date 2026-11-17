@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { getBaseUrl, AZURE_ML_URL, AZURE_API_URL } from './api';
+import { registrar } from './logService';
 
 export { AZURE_ML_URL, AZURE_API_URL };
 
@@ -155,6 +156,27 @@ const TIMEOUT_PREENCHER_MS = 150_000;
  * (HTTP status + trecho da resposta, timeout ou falha de rede), para o erro chegar à tela.
  */
 async function chamarPreencherPlanilha(
+  rotulo: string,
+  url: string,
+  body: string,
+  timeoutMs: number = TIMEOUT_PREENCHER_MS
+): Promise<{ data?: MlPreencherResponse; erro: string }> {
+  const inicio = Date.now();
+  registrar('ml.rota.inicio', { rota: rotulo, timeout_ms: timeoutMs, bytes_envio: body.length });
+  const resultado = await chamarPreencherPlanilhaSemLog(rotulo, url, body, timeoutMs);
+  registrar(
+    resultado.data ? 'ml.rota.ok' : 'ml.rota.falha',
+    {
+      rota: rotulo,
+      duracao_ms: Date.now() - inicio,
+      ...(resultado.erro ? { motivo: resultado.erro } : {}),
+    },
+    resultado.data ? 'info' : 'erro'
+  );
+  return resultado;
+}
+
+async function chamarPreencherPlanilhaSemLog(
   rotulo: string,
   url: string,
   body: string,
@@ -375,6 +397,7 @@ export const mlService = {
     arquivoId?: string,
     webFile?: File
   ): Promise<MlPreencherResponse> {
+    registrar('planilha.gerar.inicio', { template: templateId, com_arquivo: !!webFile });
     if (webFile) {
       try {
         const form = new FormData();
@@ -382,10 +405,12 @@ export const mlService = {
         form.append('dados', JSON.stringify(dados));
 
         try {
+          registrar('ml.arquivo.inicio', { rota: 'ML /preencher-arquivo' });
           const resFastApi = await fetch(`${getMlDirectUrl()}/preencher-arquivo`, {
             method: 'POST',
             body: form,
           });
+          registrar('ml.arquivo.status', { rota: 'ML /preencher-arquivo', status: resFastApi.status });
           if (resFastApi.ok) {
             const data = await resFastApi.json();
             if (data && data.conteudo_base64) {
@@ -397,9 +422,14 @@ export const mlService = {
         }
 
         try {
+          registrar('ml.arquivo.inicio', { rota: 'API /api/laudos/preencher-arquivo' });
           const resSpring = await fetch(`${getBaseUrl()}/api/laudos/preencher-arquivo`, {
             method: 'POST',
             body: form,
+          });
+          registrar('ml.arquivo.status', {
+            rota: 'API /api/laudos/preencher-arquivo',
+            status: resSpring.status,
           });
           if (resSpring.ok) {
             const data = await resSpring.json();
@@ -432,12 +462,18 @@ export const mlService = {
       payloadStr,
       60_000
     );
-    if (viaApi.data) return viaApi.data;
+    if (viaApi.data) {
+      registrar('planilha.gerar.ok', { rota: 'API Spring' });
+      return viaApi.data;
+    }
     falhas.push(viaApi.erro);
 
     // 2. ML direto na Azure (mesmo motor, sem o passo do CUB)
     const viaMl = await chamarPreencherPlanilha('ML na Azure', `${getMlDirectUrl()}/preencher`, payloadStr);
-    if (viaMl.data) return viaMl.data;
+    if (viaMl.data) {
+      registrar('planilha.gerar.ok', { rota: 'ML na Azure' });
+      return viaMl.data;
+    }
     falhas.push(viaMl.erro);
 
     // 3. Servidor local do Metro: só existe no navegador de desenvolvimento.
@@ -453,6 +489,7 @@ export const mlService = {
     }
 
     // Nunca devolve uma planilha "fantasma": se nenhuma rota gerou o arquivo, o erro sobe para a tela
+    registrar('planilha.gerar.falha', { motivo: falhas.join(' | ') }, 'erro');
     throw new Error(`Não foi possível gerar a planilha. ${falhas.join(' | ')}`);
   },
 

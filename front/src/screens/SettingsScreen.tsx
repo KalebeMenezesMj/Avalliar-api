@@ -5,6 +5,7 @@ import { fonts, spacing } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage, Locale, LOCALES, LOCALE_LABELS } from '../context/LanguageContext';
 import { AuthResponse } from '../services/authService';
+import { exportarLog, limparLog } from '../services/logService';
 
 interface SettingsScreenProps {
   onBack: () => void;
@@ -240,6 +241,7 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
   const { locale, setLocale } = useLanguage();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = React.useState(true);
   const [activeModal, setActiveModal] = React.useState<InfoModal | null>(null);
+  const [mensagemLog, setMensagemLog] = React.useState<string | null>(null);
 
   const s = STRINGS[locale];
 
@@ -382,6 +384,39 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
             <Ionicons name="chevron-forward" size={18} color={themeColors.textMuted} />
           </TouchableOpacity>
         </View>
+
+        {/* Diagnóstico: exporta o log do aparelho (tempos de geração de planilha, estado do app) */}
+        <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>Diagnóstico</Text>
+        <View style={[styles.cardSection, { backgroundColor: themeColors.cardBackground, borderColor: themeColors.cardBorder }]}>
+          <TouchableOpacity
+            style={[styles.settingItem, styles.firstSettingItem, { borderBottomColor: themeColors.cardBorder }]}
+            onPress={async () => setMensagemLog(await exportarLog().catch((e) => `Falha ao exportar: ${e?.message ?? e}`))}
+            activeOpacity={0.5}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="document-text-outline" size={22} color={NEUTRAL_ICON_COLOR} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Exportar log de diagnóstico</Text>
+            </View>
+            <Ionicons name="share-outline" size={18} color={themeColors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.settingItem, styles.lastSettingItem]}
+            onPress={async () => {
+              await limparLog();
+              setMensagemLog('Log apagado.');
+            }}
+            activeOpacity={0.5}
+          >
+            <View style={styles.settingItemLeft}>
+              <Ionicons name="trash-outline" size={22} color={NEUTRAL_ICON_COLOR} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Limpar log</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        {mensagemLog && (
+          <Text style={[styles.versionText, { color: themeColors.textMuted }]}>{mensagemLog}</Text>
+        )}
 
         {onLogout && (
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
