@@ -452,10 +452,6 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
 
               {whatsCarregando && <ActivityIndicator size="large" color={NEUTRAL_ICON_COLOR} />}
 
-              {!whatsCarregando && whatsDados?.estado === 'CONNECTED' && (
-                <Text style={{ color: '#16A34A', fontWeight: '700', textAlign: 'center' }}>WhatsApp conectado.</Text>
-              )}
-
               {!whatsCarregando && whatsDados?.estado !== 'CONNECTED' && whatsDados?.qrCodeBase64 && (
                 <>
                   <Image source={{ uri: whatsDados.qrCodeBase64 }} style={{ width: 240, height: 240 }} resizeMode="contain" />
