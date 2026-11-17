@@ -61,13 +61,6 @@ export interface MlPreencherResponse {
   conteudo_base64?: string;
 }
 
-export interface MlIdadeResponse {
-  idade_aparente_anos: number;
-  arquivo: string;
-  erro_medio_referencia: number;
-  estado_sugerido: string;
-}
-
 export interface MlRagResultItem {
   texto: string;
   fonte: string;
@@ -461,53 +454,6 @@ export const mlService = {
 
     // Nunca devolve uma planilha "fantasma": se nenhuma rota gerou o arquivo, o erro sobe para a tela
     throw new Error(`Não foi possível gerar a planilha. ${falhas.join(' | ')}`);
-  },
-
-  /**
-   * 6. Estima a idade aparente do imóvel a partir de foto
-   */
-  async estimarIdadeAparente(arquivoNome: string, webFile?: File): Promise<MlIdadeResponse> {
-    if (webFile) {
-      try {
-        const form = new FormData();
-        form.append('file', webFile);
-        const res = await fetch(`${getMlDirectUrl()}/idade`, {
-          method: 'POST',
-          body: form,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const anos = Number(data.idade_aparente_anos || 12);
-          return {
-            idade_aparente_anos: anos,
-            arquivo: data.arquivo || arquivoNome,
-            erro_medio_referencia: 4.2,
-            estado_sugerido:
-              anos <= 5
-                ? 'Novo / Ótimo (Fator 1.00)'
-                : anos <= 15
-                ? 'Bom (Fator Ross-Heidecke 0.92)'
-                : 'Regular / Necessita reparos simples (Fator 0.80)',
-          };
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    const hash = arquivoNome.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    const anos = 6 + (hash % 18);
-    return {
-      idade_aparente_anos: anos,
-      arquivo: arquivoNome,
-      erro_medio_referencia: 4.2,
-      estado_sugerido:
-        anos <= 8
-          ? 'Bom / Conservado (Fator Ross-Heidecke 0.95)'
-          : anos <= 16
-          ? 'Regular / Conservação Normal (Fator 0.86)'
-          : 'Reparos Simples Recomendados (Fator 0.75)',
-    };
   },
 
   /**

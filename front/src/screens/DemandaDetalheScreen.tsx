@@ -37,7 +37,7 @@ import {
   CategoriaArquivo,
   Urgencia,
 } from '../services/demandaService';
-import { mlService, MlIdadeResponse } from '../services/mlService';
+import { mlService } from '../services/mlService';
 
 interface DemandaDetalheScreenProps {
   empresa: EmpresaDemanda;
@@ -106,9 +106,6 @@ export default function DemandaDetalheScreen({
     base64?: string;
     nomeArquivoSaida?: string;
   } | null>(null);
-
-  const [idadeAparente, setIdadeAparente] = useState<MlIdadeResponse | null>(null);
-  const [estimandoIdade, setEstimandoIdade] = useState(false);
 
   // Estados para Visualização e Download de Arquivos da Demanda
   const [arquivoEmVisualizacao, setArquivoEmVisualizacao] =
@@ -308,33 +305,6 @@ export default function DemandaDetalheScreen({
       visivel: true,
       arquivo: arq,
     });
-  };
-
-  // Estimar idade aparente do imóvel desta demanda via foto (/idade)
-  const handleEstimarIdadeFotoVistoria = () => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e: any) => {
-        const file = e?.target?.files?.[0];
-        if (!file) return;
-        setEstimandoIdade(true);
-        try {
-          const res = await mlService.estimarIdadeAparente(file.name, file);
-          setIdadeAparente(res);
-        } finally {
-          setEstimandoIdade(false);
-        }
-      };
-      input.click();
-    } else {
-      setEstimandoIdade(true);
-      mlService
-        .estimarIdadeAparente(`Foto_Vistoria_${sufixoImovel}.jpg`)
-        .then((res) => setIdadeAparente(res))
-        .finally(() => setEstimandoIdade(false));
-    }
   };
 
   const handleBaixarPlanilhaPreenchida = async () => {
@@ -837,50 +807,6 @@ export default function DemandaDetalheScreen({
           )}
         </View>
 
-        {/* 5. Recurso ML na Vistoria da Demanda: Estimar Idade Aparente por Foto do Imóvel (/idade) */}
-        <View style={styles.mlVistoriaCard}>
-          <View style={styles.mlVistoriaHeader}>
-            <View style={styles.mlVistoriaIconBox}>
-              <MaterialCommunityIcons name="camera-iris" size={22} color="#6D28D9" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.mlVistoriaTitle}>
-                IA na Vistoria • Idade Aparente do Imóvel
-              </Text>
-              <Text style={styles.mlVistoriaSub}>
-                Envie uma foto da vistoria desta demanda para estimar a idade aparente (`/idade`)
-              </Text>
-            </View>
-            <Pressable
-              style={styles.mlVistoriaBtn}
-              onPress={handleEstimarIdadeFotoVistoria}
-              disabled={estimandoIdade}
-            >
-              {estimandoIdade ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
-                  <Text style={styles.mlVistoriaBtnText}>Analisar Foto</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-
-          {idadeAparente && (
-            <View style={styles.idadeResultBox}>
-              <Text style={styles.idadeResultMain}>
-                Idade Aparente Estimada:{' '}
-                <Text style={{ color: '#6D28D9' }}>
-                  {idadeAparente.idade_aparente_anos} anos
-                </Text>
-              </Text>
-              <Text style={styles.idadeResultSub}>
-                {idadeAparente.estado_sugerido} • Arquivo: {idadeAparente.arquivo}
-              </Text>
-            </View>
-          )}
-        </View>
           </>
         )}
 
@@ -1721,72 +1647,6 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
   deleteBtn: {
     marginLeft: 'auto',
     padding: 5,
-  },
-
-  /* Card IA Idade Aparente na Demanda */
-  mlVistoriaCard: {
-    backgroundColor: t.cardBackground,
-    borderRadius: 18,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: t.purpleSoftBorder,
-  },
-  mlVistoriaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  mlVistoriaIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: t.purpleSoftBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mlVistoriaTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 13.5,
-    color: t.text,
-  },
-  mlVistoriaSub: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: t.textMuted,
-    marginTop: 1,
-  },
-  mlVistoriaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#6D28D9',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 9,
-  },
-  mlVistoriaBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: '#FFFFFF',
-  },
-  idadeResultBox: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: t.purpleSoftBackground,
-    borderWidth: 1,
-    borderColor: t.purpleSoftBorder,
-  },
-  idadeResultMain: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: t.text,
-  },
-  idadeResultSub: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: t.textSecondary,
-    marginTop: 2,
   },
 
   /* Modais */

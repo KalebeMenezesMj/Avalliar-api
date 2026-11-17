@@ -41,7 +41,6 @@ import {
   MlHealthResponse,
   MlRunMetric,
   MlRagResultItem,
-  MlIdadeResponse,
 } from '../services/mlService';
 
 interface PainelScreenProps {
@@ -114,15 +113,6 @@ export default function PainelScreen({
   const [queryRag, setQueryRag] = useState('Tabela R8N Sao Paulo');
   const [resultadosRag, setResultadosRag] = useState<MlRagResultItem[]>([]);
   const [buscandoRag, setBuscandoRag] = useState(false);
-
-  // Estimador de idade aparente (/idade)
-  const [resultadoIdade, setResultadoIdade] = useState<MlIdadeResponse | null>({
-    idade_aparente_anos: 11.5,
-    arquivo: 'Fachada_Edificio_VilaMariana.jpg',
-    erro_medio_referencia: 4.2,
-    estado_sugerido: 'Regular / Conservação Normal (Fator Ross-Heidecke 0.86)',
-  });
-  const [estimandoIdade, setEstimandoIdade] = useState(false);
 
   const atualizarDadosPainel = () => {
     setMetricasDemandas(demandaService.obterMetricasDashboard());
@@ -203,33 +193,6 @@ export default function PainelScreen({
       });
       atualizarDadosPainel();
       handleExecutarPipelineMl(novoArq);
-    }
-  };
-
-  // Estimar idade aparente por foto (/idade)
-  const handleSelecionarFotoIdade = () => {
-    if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e: any) => {
-        const file = e?.target?.files?.[0];
-        if (!file) return;
-        setEstimandoIdade(true);
-        try {
-          const res = await mlService.estimarIdadeAparente(file.name, file);
-          setResultadoIdade(res);
-        } finally {
-          setEstimandoIdade(false);
-        }
-      };
-      input.click();
-    } else {
-      setEstimandoIdade(true);
-      mlService
-        .estimarIdadeAparente(`Vistoria_Fachada_${Math.floor(100 + Math.random() * 900)}.jpg`)
-        .then((res) => setResultadoIdade(res))
-        .finally(() => setEstimandoIdade(false));
     }
   };
 
@@ -712,44 +675,6 @@ export default function PainelScreen({
               </View>
             </View>
 
-            {/* C. Idade aparente por foto */}
-            <View style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>Idade aparente por foto</Text>
-                  <Text style={styles.cardSubtitle}>
-                    Estima a idade aparente do imóvel para o cálculo de Ross-Heidecke
-                  </Text>
-                </View>
-                <Pressable
-                  style={styles.purpleActionBtn}
-                  onPress={handleSelecionarFotoIdade}
-                  disabled={estimandoIdade}
-                >
-                  <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
-                  <Text style={styles.purpleActionBtnText}>Analisar foto</Text>
-                </Pressable>
-              </View>
-
-              {resultadoIdade && (
-                <View style={styles.idadeResultCard}>
-                  <View style={styles.idadeCircle}>
-                    <Text style={styles.idadeNumber}>{resultadoIdade.idade_aparente_anos}</Text>
-                    <Text style={styles.idadeUnit}>anos</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.idadeFileLabel} numberOfLines={1}>
-                      {resultadoIdade.arquivo}
-                    </Text>
-                    <Text style={styles.idadeEstadoText}>{resultadoIdade.estado_sugerido}</Text>
-                    <Text style={styles.idadeErroRef}>
-                      Erro médio em validação cruzada: ±{resultadoIdade.erro_medio_referencia} anos
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
-
             {/* D. Consulta RAG BM25 */}
             <View style={styles.card}>
               <CardHeader
@@ -1207,52 +1132,6 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 11,
     color: '#FFFFFF',
-  },
-  idadeResultCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: t.purpleSoftBackground,
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: t.purpleSoftBorder,
-  },
-  idadeCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: ML,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  idadeNumber: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
-    color: '#FFFFFF',
-  },
-  idadeUnit: {
-    fontFamily: fonts.regular,
-    fontSize: 9.5,
-    color: '#EDE9FE',
-  },
-  idadeFileLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: t.text,
-  },
-  idadeEstadoText: {
-    fontFamily: fonts.semibold,
-    fontSize: 11.5,
-    color: t.purpleSoftText,
-    marginTop: 2,
-  },
-  idadeErroRef: {
-    fontFamily: fonts.regular,
-    fontSize: 10,
-    color: t.textMuted,
-    marginTop: 2,
   },
   ragSearchRow: {
     flexDirection: 'row',
