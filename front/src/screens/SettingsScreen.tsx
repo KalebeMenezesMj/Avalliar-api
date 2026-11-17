@@ -247,12 +247,16 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
   const [whatsCarregando, setWhatsCarregando] = React.useState(false);
   const [whatsDados, setWhatsDados] = React.useState<WhatsappStatus | null>(null);
   const [whatsErro, setWhatsErro] = React.useState<string | null>(null);
+  const [whatsMensagem, setWhatsMensagem] = React.useState<string | null>(null);
 
   const gerarQrWhatsapp = async () => {
     setWhatsCarregando(true);
     setWhatsErro(null);
     try {
-      setWhatsDados(await whatsappService.conectar());
+      setWhatsMensagem(null);
+      const d = await whatsappService.conectar();
+      setWhatsDados(d);
+      if (d.estado === 'CONNECTED') setWhatsMensagem('WhatsApp já está conectado.');
     } catch (e: any) {
       setWhatsErro(e?.message || 'Não foi possível gerar o QR code.');
     } finally {
@@ -263,8 +267,17 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
   const verificarWhatsapp = async () => {
     setWhatsCarregando(true);
     setWhatsErro(null);
+    setWhatsMensagem(null);
     try {
-      setWhatsDados(await whatsappService.status());
+      const s = await whatsappService.status();
+      if (s.estado === 'CONNECTED') {
+        setWhatsDados({ estado: 'CONNECTED' });
+        setWhatsMensagem('WhatsApp conectado com sucesso.');
+      } else {
+        // Mantém o QR code atual: a verificação não gera um novo
+        setWhatsDados((anterior) => ({ ...anterior, estado: s.estado }));
+        setWhatsMensagem(`Ainda não conectado (situação: ${s.estado}). Escaneie o QR code ou gere um novo.`);
+      }
     } catch (e: any) {
       setWhatsErro(e?.message || 'Não foi possível verificar a conexão.');
     } finally {
@@ -456,6 +469,11 @@ const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: Settin
                 <Text selectable style={{ color: themeColors.text, fontSize: 20, fontWeight: '700', marginTop: 8 }}>{whatsDados.codigo}</Text>
               )}
 
+              {whatsMensagem && (
+                <Text style={{ color: whatsDados?.estado === 'CONNECTED' ? '#16A34A' : themeColors.textMuted, fontWeight: '700', textAlign: 'center', marginTop: 8 }}>
+                  {whatsMensagem}
+                </Text>
+              )}
               {whatsErro && <Text style={{ color: '#DC2626', textAlign: 'center', marginTop: 8 }}>{whatsErro}</Text>}
 
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>

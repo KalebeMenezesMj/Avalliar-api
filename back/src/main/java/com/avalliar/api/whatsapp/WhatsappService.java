@@ -98,12 +98,18 @@ public class WhatsappService {
         }
     }
 
+    /** Traduz o estado da Evolution (open, connecting, close) para o padrão do app. */
     private static String estadoDe(Map<?, ?> resposta) {
         if (resposta == null) return "DESCONHECIDO";
         Object instance = resposta.get("instance");
-        if (instance instanceof Map<?, ?> m && m.get("state") != null) return String.valueOf(m.get("state"));
-        if (resposta.get("state") != null) return String.valueOf(resposta.get("state"));
-        return "DESCONHECIDO";
+        Object bruto = instance instanceof Map<?, ?> m ? m.get("state") : resposta.get("state");
+        if (bruto == null) return "DESCONHECIDO";
+        return switch (String.valueOf(bruto).toLowerCase()) {
+            case "open" -> "CONNECTED";
+            case "connecting" -> "CONNECTING";
+            case "close" -> "CLOSE";
+            default -> String.valueOf(bruto).toUpperCase();
+        };
     }
 
     private static String qrCodeDe(Map<?, ?> resposta) {
