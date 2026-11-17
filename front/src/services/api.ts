@@ -33,6 +33,25 @@ export function definirTokenAutenticacao(token: string | null): void {
   tokenAutenticacao = token || null;
 }
 
+/**
+ * Baixa um arquivo binário da API (com o token) e devolve o conteúdo em base64.
+ */
+export async function requestBase64(endpoint: string): Promise<string> {
+  const response = await fetch(`${getBaseUrl()}${endpoint}`, {
+    headers: tokenAutenticacao ? { Authorization: `Bearer ${tokenAutenticacao}` } : {},
+  });
+  if (!response.ok) {
+    throw new Error(`Não foi possível baixar o arquivo (Status: ${response.status})`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  let binario = '';
+  const TAMANHO_BLOCO = 0x8000;
+  for (let i = 0; i < bytes.length; i += TAMANHO_BLOCO) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + TAMANHO_BLOCO));
+  }
+  return btoa(binario);
+}
+
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint}`;

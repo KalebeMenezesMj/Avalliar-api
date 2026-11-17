@@ -38,6 +38,7 @@ import {
   Urgencia,
 } from '../services/demandaService';
 import { mlService } from '../services/mlService';
+import { relatorioService, osIdDaDemanda } from '../services/relatorioService';
 
 interface DemandaDetalheScreenProps {
   empresa: EmpresaDemanda;
@@ -265,8 +266,16 @@ export default function DemandaDetalheScreen({
     recarregarDemanda();
   };
 
-  const handleVisualizarArquivoNoNavegador = async (arq: ArquivoAnexo) => {
+  // Planilha salva no servidor: baixa o conteúdo (com o token) antes de abrir ou baixar
+  const completarArquivoSalvo = async (arq: ArquivoAnexo): Promise<ArquivoAnexo> => {
+    if (!arq.id.startsWith('rel-') || arq.conteudoBase64 || !osIdDemanda) return arq;
+    const conteudoBase64 = await relatorioService.baixarPlanilhaBase64(osIdDemanda);
+    return { ...arq, conteudoBase64 };
+  };
+
+  const handleVisualizarArquivoNoNavegador = async (arqOriginal: ArquivoAnexo) => {
     try {
+      const arq = await completarArquivoSalvo(arqOriginal);
       const msg = await visualizarArquivoDemanda(
         arq,
         empresa.nome,
@@ -282,8 +291,9 @@ export default function DemandaDetalheScreen({
     }
   };
 
-  const handleBaixarArquivoDireto = async (arq: ArquivoAnexo) => {
+  const handleBaixarArquivoDireto = async (arqOriginal: ArquivoAnexo) => {
     try {
+      const arq = await completarArquivoSalvo(arqOriginal);
       const msg = await baixarArquivoDemanda(
         arq,
         empresa.nome,
@@ -322,7 +332,54 @@ export default function DemandaDetalheScreen({
     await handleBaixarArquivoDireto(planilhaAlvo);
   };
 
-  const arquivosDaDemanda = demanda.arquivos || [];
+  // Planilha salva do relatório de vistoria (no servidor): aparece na lista de arquivos da demanda
+  const [planilhaSalva, setPlanilhaSalva] = useState<ArquivoAnexo | null>(null);
+  const osIdDemanda = osIdDaDemanda(demanda.id);
+
+  useEffect(() => {
+    if (!osIdDemanda) {
+      setPlanilhaSalva(null);
+      return;
+    }
+    let cancelado = false;
+    relatorioService
+      .buscar(osIdDemanda)
+      .then((rel) => {
+        if (cancelado) return;
+        if (!rel || !rel.temPlanilha) {
+          setPlanilhaSalva(null);
+          return;
+        }
+        const nome = rel.planilhaNome || 'planilha.xlsx';
+        const extensao = (nome.split('.').pop() || 'xlsx').toLowerCase();
+        const kb = rel.planilhaTamanhoBytes
+          ? `${Math.max(1, Math.round(rel.planilhaTamanhoBytes / 1024))} KB`
+          : '';
+        setPlanilhaSalva({
+          id: `rel-${osIdDemanda}`,
+          nome,
+          categoria: 'PLANILHA',
+          extensao,
+          tamanho: kb,
+          dataUpload: rel.atualizadoEm,
+          autor: 'Relatório de vistoria',
+          tarefaId: demanda.id,
+          statusMl: 'PREENCHIDA_ML',
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+      })
+      .catch(() => {
+        if (!cancelado) setPlanilhaSalva(null);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [osIdDemanda, demanda.id]);
+
+  const arquivosDaDemanda = useMemo(
+    () => (planilhaSalva ? [planilhaSalva, ...(demanda.arquivos || [])] : demanda.arquivos || []),
+    [planilhaSalva, demanda.arquivos]
+  );
 
   const arquivosFiltrados = useMemo(() => {
     if (filtroCat === 'TODOS') return arquivosDaDemanda;

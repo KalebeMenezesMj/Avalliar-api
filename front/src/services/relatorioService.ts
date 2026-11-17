@@ -1,4 +1,4 @@
-import { request } from './api';
+import { request, requestBase64 } from './api';
 
 /**
  * Relatório de vistoria salvo no banco, ligado à OS. A demanda do app guarda o id da OS
@@ -40,6 +40,11 @@ export const relatorioService = {
         planilhaBase64: planilha?.base64,
       }),
     });
+  },
+
+  /** Baixa a planilha salva da OS, em base64 (para abrir ou compartilhar). */
+  async baixarPlanilhaBase64(osId: number): Promise<string> {
+    return requestBase64(`/api/ordens-servico/${osId}/relatorio/planilha`);
   },
 
   /** Busca o relatório salvo da OS. Devolve null se ainda não existe. */
