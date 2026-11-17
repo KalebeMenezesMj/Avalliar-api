@@ -70,8 +70,8 @@ export default function PainelScreen({
   onSelectEmpresa,
   activeTab = 'painel',
 }: PainelScreenProps) {
-  const { colors: t } = useTheme();
-  const styles = makeStyles(t);
+  const { colors: t, isDarkMode } = useTheme();
+  const styles = makeStyles(t, isDarkMode);
   const insets = useSafeAreaInsets();
   const navPaddingBottom = getBottomNavigationPadding(insets.bottom);
   const userName = currentUser?.nome || 'Linux da Silva';
@@ -231,7 +231,7 @@ export default function PainelScreen({
   // Base das métricas gerais: um item por vistoriador
   const itensResponsaveis = m.porResponsavel.map((r) => ({
     id: r.nome,
-    label: r.nome,
+    label: r.nome?.trim() && r.nome.trim() !== '—' ? r.nome : 'Não atribuído',
     concluidas: r.concluidas,
     pendentes: r.pendentes,
     total: r.total,
@@ -806,7 +806,19 @@ export default function PainelScreen({
 }
 
 /* ---------- Estilos ---------- */
-const makeStyles = (t: ThemeColors) => StyleSheet.create({
+const makeStyles = (t: ThemeColors, isDark: boolean) => {
+  // Sombra suave apenas no tema claro — no escuro o border já separa o card.
+  const softShadow = isDark
+    ? {}
+    : {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+      };
+
+  return StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: t.brandRed,
@@ -966,6 +978,7 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: t.cardBorder,
+    ...softShadow,
   },
   kpiIconBox: {
     width: 34,
@@ -977,7 +990,8 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
   },
   kpiValue: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 24,
+    letterSpacing: 0.2,
     color: t.text,
   },
   kpiLabel: {
@@ -995,6 +1009,7 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: t.cardBorder,
     marginBottom: spacing.md,
+    ...softShadow,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -1281,4 +1296,5 @@ const makeStyles = (t: ThemeColors) => StyleSheet.create({
     fontSize: 13.5,
     color: '#FFFFFF',
   },
-});
+  });
+};
