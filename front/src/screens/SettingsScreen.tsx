@@ -235,7 +235,7 @@ const STRINGS: Record<Locale, SettingsStrings> = {
   },
 };
 
-const SettingsScreen = ({ onBack, currentUser, onLogout }: SettingsScreenProps) => {
+const SettingsScreen = ({ onBack, currentUser, onLogout, onEditProfile }: SettingsScreenProps) => {
   const { isDarkMode, toggleDarkMode, colors: themeColors } = useTheme();
   const { locale, setLocale } = useLanguage();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = React.useState(true);
