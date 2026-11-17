@@ -46,22 +46,35 @@ public class FotoStorage {
     }
 
     public String salvar(Long vistoriaId, String nomeArquivo, byte[] conteudo) {
-        String caminho = vistoriaId + "/" + nomeArquivo;
+        return salvarEm(String.valueOf(vistoriaId), nomeArquivo, conteudo);
+    }
+
+    /**
+     * Grava um arquivo numa pasta do compartilhamento (ex.: {@code relatorios/12}).
+     * Devolve o caminho relativo, que é o que se guarda no banco.
+     */
+    public String salvarEm(String pasta, String nomeArquivo, byte[] conteudo) {
+        if (pasta == null || pasta.isBlank() || pasta.contains("..") || pasta.startsWith("/")
+                || nomeArquivo == null || nomeArquivo.isBlank() || nomeArquivo.contains("/")
+                || nomeArquivo.contains("..")) {
+            throw new IllegalArgumentException("Nome de arquivo inválido");
+        }
+        String caminho = pasta + "/" + nomeArquivo;
         if (compartilhamento != null) {
-            ShareDirectoryClient pasta = compartilhamento.getDirectoryClient(String.valueOf(vistoriaId));
-            pasta.createIfNotExists();
-            ShareFileClient arquivo = pasta.getFileClient(nomeArquivo);
+            ShareDirectoryClient diretorio = compartilhamento.getDirectoryClient(pasta);
+            diretorio.createIfNotExists();
+            ShareFileClient arquivo = diretorio.getFileClient(nomeArquivo);
             arquivo.create(conteudo.length);
             arquivo.uploadRange(new ByteArrayInputStream(conteudo), conteudo.length);
             return caminho;
         }
         try {
-            Path pasta = raizLocal.resolve(String.valueOf(vistoriaId));
-            Files.createDirectories(pasta);
-            Files.write(pasta.resolve(nomeArquivo), conteudo);
+            Path diretorio = raizLocal.resolve(pasta);
+            Files.createDirectories(diretorio);
+            Files.write(diretorio.resolve(nomeArquivo), conteudo);
             return caminho;
         } catch (IOException e) {
-            throw new UncheckedIOException("Falha ao gravar a foto", e);
+            throw new UncheckedIOException("Falha ao gravar o arquivo", e);
         }
     }
 

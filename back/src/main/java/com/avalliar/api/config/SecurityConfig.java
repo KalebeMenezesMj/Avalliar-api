@@ -35,6 +35,9 @@ public class SecurityConfig {
                         // Fotos da vistoria são dados de clientes: exigem token JWT (login)
                         .requestMatchers("/api/fotos/**", "/api/vistorias/*/fotos", "/api/vistorias/*/fotos/**")
                         .authenticated()
+                        // Relatório de vistoria e planilha: dados de clientes, exigem token JWT (login)
+                        .requestMatchers("/api/ordens-servico/*/relatorio", "/api/ordens-servico/*/relatorio/**")
+                        .authenticated()
                         .anyRequest().permitAll())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
