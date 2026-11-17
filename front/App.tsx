@@ -21,6 +21,7 @@ import NovaDemandaScreen from './src/screens/NovaDemandaScreen';
 import PainelScreen from './src/screens/PainelScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen'; // Import new screen
 import { TabType } from './src/components/BottomNavigation';
 import ScreenTransition from './src/components/ScreenTransition';
 import TabsCarousel from './src/components/TabsCarousel';
@@ -45,13 +46,14 @@ export type CurrentScreen =
   | 'settings'
   | 'nova-demanda'
   | 'listar-demandas'
-  | 'usuarios';
+  | 'usuarios'
+  | 'edit-profile'; // Added edit-profile screen
 
 // Telas autônomas (fora do app logado): trocam por transição própria.
 const AUTH_SCREENS: CurrentScreen[] = ['welcome', 'login', 'register'];
 
 // Telas "empurradas" sobre as abas: entram por cima e revelam o carrossel ao sair.
-const OVERLAY_SCREENS: CurrentScreen[] = ['empresa-demandas', 'demanda-detalhe', 'nova-demanda', 'usuarios'];
+const OVERLAY_SCREENS: CurrentScreen[] = ['empresa-demandas', 'demanda-detalhe', 'nova-demanda', 'usuarios', 'edit-profile']; // Added edit-profile
 
 // Colunas fixas do carrossel, na ordem física da barra inferior.
 const COLUMN_SCREENS: CurrentScreen[] = ['painel', 'home', 'demandas', 'configuracoes'];
@@ -91,6 +93,7 @@ const SCREEN_DEPTH: Record<CurrentScreen, number> = {
   usuarios: 1,
   'nova-demanda': 2,
   'empresa-demandas': 2,
+  'edit-profile': 2, // Added depth for edit-profile
   'demanda-detalhe': 3,
 };
 
@@ -329,6 +332,15 @@ function Root() {
             onBack={() => handleNavigate('home')}
             currentUser={currentUser}
             onLogout={handleLogout}
+            onEditProfile={() => setCurrentScreen('edit-profile')} // Added navigation to EditProfileScreen
+          />
+        );
+
+      case 'edit-profile':
+        return (
+          <EditProfileScreen
+            onBack={() => setCurrentScreen('configuracoes')}
+            currentUser={currentUser}
           />
         );
 

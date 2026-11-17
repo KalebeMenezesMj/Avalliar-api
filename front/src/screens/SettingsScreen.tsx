@@ -10,6 +10,7 @@ interface SettingsScreenProps {
   onBack: () => void;
   currentUser?: AuthResponse | null;
   onLogout?: () => void;
+  onEditProfile?: () => void; // Added for profile editing navigation
 }
 
 type InfoModal = 'idioma' | 'sobre' | 'privacidade' | 'ajuda';
@@ -247,7 +248,9 @@ const SettingsScreen = ({ onBack, currentUser, onLogout }: SettingsScreenProps) 
   };
 
   const handleEditProfile = () => {
-    console.log('Navegar para Editar Perfil');
+    if (onEditProfile) {
+      onEditProfile();
+    }
   };
 
   const handleLogout = () => {
