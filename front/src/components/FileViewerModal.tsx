@@ -492,13 +492,55 @@ async function obterBytesPlanilhaMobile(
   throw new Error('Esta planilha não tem conteúdo disponível neste aparelho.');
 }
 
-/** Grava a planilha em cache do app, pronta para visualizar ou compartilhar. */
-function gravarPlanilhaTemporaria(arq: ArquivoAnexo, bytes: Uint8Array): ArquivoNativo {
+/**
+ * Confere que os bytes são de uma planilha antes de gravar.
+ * xlsx/xlsm são arquivos ZIP: sempre começam com a assinatura PK\x03\x04.
+ */
+function validarBytesPlanilha(arq: ArquivoAnexo, bytes: Uint8Array): void {
+  const ext = (arq.extensao || arq.nome.split('.').pop() || 'xlsx').toLowerCase();
+  if (bytes.byteLength === 0) {
+    throw new Error('A planilha chegou vazia ao aparelho.');
+  }
+  if (['xlsx', 'xlsm'].includes(ext)) {
+    const assinatura = [0x50, 0x4b, 0x03, 0x04];
+    if (!assinatura.every((b, i) => bytes[i] === b)) {
+      const inicio = Array.from(bytes.slice(0, 8))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join(' ');
+      throw new Error(
+        `O conteúdo recebido não é uma planilha válida (${bytes.byteLength} bytes, início: ${inicio}).`
+      );
+    }
+  }
+}
+
+/**
+ * Grava a planilha em cache do app e relê o arquivo para comparar com os bytes originais.
+ * Escreve um ArrayBuffer exato (sem depender da conversão de TypedArray), e só devolve o
+ * arquivo se a cópia gravada for idêntica. Assim, corrupção vira erro explícito.
+ */
+async function gravarPlanilhaTemporaria(arq: ArquivoAnexo, bytes: Uint8Array): Promise<ArquivoNativo> {
+  validarBytesPlanilha(arq, bytes);
   const ext = (arq.extensao || arq.nome.split('.').pop() || 'xlsx').toLowerCase();
   const nomeFinal = arq.nome.toLowerCase().endsWith(`.${ext}`) ? arq.nome : `${arq.nome}.${ext}`;
   const arquivo = new ArquivoNativo(Paths.cache, nomeFinal);
   if (arquivo.exists) arquivo.delete();
   arquivo.create();
+
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+  await arquivo.write(buffer);
+
+  const relidos = await arquivo.bytes();
+  const iguais =
+    relidos.byteLength === bytes.byteLength && relidos.every((b, i) => b === bytes[i]);
+  if (!iguais) {
+    throw new Error(
+      `Falha ao gravar a planilha no aparelho (esperado ${bytes.byteLength} bytes, gravado ${relidos.byteLength}).`
+    );
+  }
   return arquivo;
 }
 
@@ -507,8 +549,7 @@ async function visualizarPlanilhaMobile(
   arq: ArquivoAnexo,
   bytes: Uint8Array
 ): Promise<'preview' | 'compartilhado'> {
-  const arquivo = gravarPlanilhaTemporaria(arq, bytes);
-  await arquivo.write(bytes);
+  const arquivo = await gravarPlanilhaTemporaria(arq, bytes);
   if (await ArquivoNativo.canPreview(arquivo)) {
     await ArquivoNativo.preview(arquivo);
     return 'preview';
@@ -533,8 +574,7 @@ async function compartilharPlanilhaMobile(arq: ArquivoAnexo, arquivo: ArquivoNat
 
 /** Download no celular: grava o arquivo e abre o menu do sistema para salvar (iOS: "Salvar em Arquivos"). */
 async function baixarPlanilhaMobile(arq: ArquivoAnexo, bytes: Uint8Array): Promise<void> {
-  const arquivo = gravarPlanilhaTemporaria(arq, bytes);
-  await arquivo.write(bytes);
+  const arquivo = await gravarPlanilhaTemporaria(arq, bytes);
   await compartilharPlanilhaMobile(arq, arquivo);
 }
 
