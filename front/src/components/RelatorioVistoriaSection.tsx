@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -139,6 +139,53 @@ export default function RelatorioVistoriaSection({
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [acaoPlanilhaEmAndamento, setAcaoPlanilhaEmAndamento] = useState(false);
   const [relatorioSalvoInfo, setRelatorioSalvoInfo] = useState<string | null>(null);
+  // Só salva o rascunho depois de carregar o relatório existente (evita sobrescrever com valores padrão)
+  const podeSalvarRef = useRef(false);
+  const ultimoRascunhoRef = useRef<string | null>(null);
+
+  // Rascunho automático: cada alteração do formulário é salva no servidor (com atraso de 1,5 s)
+  const formularioJson = JSON.stringify({
+    tipologia,
+    cep,
+    tipoEndereco,
+    logradouro,
+    numero,
+    complemento,
+    bairro,
+    cidade,
+    uf,
+    areaPrivativa,
+    areaComum,
+    areaTotal,
+    dormitorios,
+    suites,
+    banheiros,
+    vagas,
+    proponente,
+    corretor,
+    contato,
+    numeroProposta,
+    dataVistoria,
+  });
+
+  useEffect(() => {
+    const osId = osIdDaDemanda(demandaId);
+    if (!osId || !podeSalvarRef.current) return;
+    if (formularioJson === ultimoRascunhoRef.current) return;
+    const timer = setTimeout(() => {
+      relatorioService
+        .salvar(osId, { formulario: JSON.parse(formularioJson) })
+        .then(() => {
+          ultimoRascunhoRef.current = formularioJson;
+          setRelatorioSalvoInfo(`Rascunho salvo às ${new Date().toLocaleTimeString('pt-BR')}`);
+          registrar('relatorio.rascunho.salvo', { os: osId });
+        })
+        .catch((erro) =>
+          registrar('relatorio.rascunho.erro', { motivo: String(erro?.message ?? erro) }, 'erro')
+        );
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [formularioJson, demandaId]);
 
   // Ao abrir a demanda, recarrega o relatório salvo no servidor e preenche o formulário
   useEffect(() => {
@@ -148,7 +195,12 @@ export default function RelatorioVistoriaSection({
     relatorioService
       .buscar(osId)
       .then((rel) => {
-        if (cancelado || !rel) return;
+        if (cancelado) return;
+        if (!rel) {
+          // Ainda não há relatório salvo para esta OS: a partir daqui o rascunho pode ser salvo
+          podeSalvarRef.current = true;
+          return;
+        }
         const f = (rel.dados?.formulario ?? {}) as Record<string, string | undefined>;
         const aplicar = (valor: string | undefined, definir: (v: string) => void) => {
           if (typeof valor === 'string') definir(valor);
@@ -178,6 +230,7 @@ export default function RelatorioVistoriaSection({
         setRelatorioSalvoInfo(
           `${rel.planilhaNome ? `Planilha ${rel.planilhaNome}` : 'Relatório'} salvo em ${quando}`
         );
+        podeSalvarRef.current = true;
       })
       .catch((erro) => registrar('relatorio.carregar.erro', { motivo: String(erro?.message ?? erro) }, 'erro'));
     return () => {
