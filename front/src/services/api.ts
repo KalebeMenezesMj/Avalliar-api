@@ -26,6 +26,13 @@ export interface ApiError {
   message: string;
 }
 
+// Token JWT da sessão atual: enviado em todas as requisições (rotas protegidas exigem Bearer)
+let tokenAutenticacao: string | null = null;
+
+export function definirTokenAutenticacao(token: string | null): void {
+  tokenAutenticacao = token || null;
+}
+
 export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint}`;
@@ -33,6 +40,7 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
+    ...(tokenAutenticacao ? { Authorization: `Bearer ${tokenAutenticacao}` } : {}),
     ...(options.headers as Record<string, string> | undefined),
   };
 

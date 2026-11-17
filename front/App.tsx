@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import {
@@ -25,6 +25,8 @@ import { TabType } from './src/components/BottomNavigation';
 import ScreenTransition from './src/components/ScreenTransition';
 import TabsCarousel from './src/components/TabsCarousel';
 import { AuthResponse } from './src/services/authService';
+import { definirTokenAutenticacao } from './src/services/api';
+import { carregarSessao, salvarSessao, limparSessao } from './src/services/sessionStorage';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 
@@ -109,31 +111,42 @@ function Root() {
     Poppins_700Bold_Italic,
   });
 
-  // Usuário autenticado inicial para demonstração
-  const [currentUser, setCurrentUser] = useState<AuthResponse | null>({
-    nome: 'Linux da Silva',
-    email: 'linux.silva@fatec.sp.gov.br',
-    role: 'GESTOR',
-    token: '',
-  });
+  // Sem usuário por padrão: o app só entra depois de cadastro e login (ou sessão salva válida)
+  const [currentUser, setCurrentUser] = useState<AuthResponse | null>(null);
+  const [sessaoCarregada, setSessaoCarregada] = useState(false);
 
-  const [currentScreen, setCurrentScreen] = useState<CurrentScreen>('home');
+  const [currentScreen, setCurrentScreen] = useState<CurrentScreen>('welcome');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [empresaAtiva, setEmpresaAtiva] = useState<EmpresaDemanda | null>(null);
   const [demandaAtiva, setDemandaAtiva] = useState<TarefaDemanda | null>(null);
 
   // Direção da próxima transição (forward = entra da direita, back = da esquerda).
   // Calculada no próprio render para os wrappers já montarem com o valor certo.
-  const prevScreenRef = useRef<CurrentScreen>('home');
+  const prevScreenRef = useRef<CurrentScreen>('welcome');
   const directionRef = useRef<'forward' | 'back'>('forward');
   if (prevScreenRef.current !== currentScreen) {
     directionRef.current = navigationDirection(prevScreenRef.current, currentScreen);
     prevScreenRef.current = currentScreen;
   }
 
-  if (!fontsLoaded) return null;
+  // Restaura a sessão salva (se ainda válida) antes de mostrar qualquer tela
+  useEffect(() => {
+    carregarSessao().then((sessao) => {
+      if (sessao) {
+        definirTokenAutenticacao(sessao.token);
+        setCurrentUser(sessao);
+        setActiveTab('home');
+        setCurrentScreen('home');
+      }
+      setSessaoCarregada(true);
+    });
+  }, []);
+
+  if (!fontsLoaded || !sessaoCarregada) return null;
 
   const handleLoginSuccess = (user: AuthResponse) => {
+    definirTokenAutenticacao(user.token);
+    salvarSessao(user);
     setCurrentUser(user);
     setActiveTab('home');
     setCurrentScreen('home');
@@ -144,6 +157,8 @@ function Root() {
   };
 
   const handleLogout = () => {
+    definirTokenAutenticacao(null);
+    limparSessao();
     setCurrentUser(null);
     setCurrentScreen('welcome');
   };
