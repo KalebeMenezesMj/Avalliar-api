@@ -16,6 +16,27 @@ const url = require('url');
 const UPLOAD_DIR = path.join(__dirname, '.uploaded_files');
 const INDEX_FILE = path.join(UPLOAD_DIR, 'index.json');
 
+// Diagnóstico local: cópia de cada planilha preenchida e servida, com tamanho e sha256,
+// para descobrir onde o arquivo é cortado. Fica fora do git (pasta diagnostico/).
+const DIAG_DIR = path.join(__dirname, '..', 'diagnostico');
+function registrarDiagnostico(evento, info, buffer) {
+  try {
+    fs.mkdirSync(DIAG_DIR, { recursive: true });
+    const quando = new Date().toISOString();
+    const meta = { evento, quando, ...info };
+    if (buffer) {
+      meta.tamanho_bytes = buffer.length;
+      meta.sha256 = require('crypto').createHash('sha256').update(buffer).digest('hex');
+      const nome = `${quando.replace(/[:.]/g, '-')}_${evento}.xlsx`;
+      fs.writeFileSync(path.join(DIAG_DIR, nome), buffer);
+      meta.copia = nome;
+    }
+    fs.appendFileSync(path.join(DIAG_DIR, 'log.jsonl'), JSON.stringify(meta) + '\n', 'utf8');
+  } catch (_e) {
+    // o diagnóstico nunca pode derrubar a requisição
+  }
+}
+
 // Garante pasta de armazenamento de arquivos enviados
 try {
   if (!fs.existsSync(UPLOAD_DIR)) {
@@ -803,6 +824,7 @@ function attachFileServerMiddleware(middleware) {
           const arquivoId = body.arquivoId || (parsedUrl.query && parsedUrl.query.arquivoId);
 
           let resultado = null;
+          let via = null;
 
           // A. Tenta primeiro proxy para FastAPI (:8000) se estiver ativo
           try {
@@ -817,6 +839,7 @@ function attachFileServerMiddleware(middleware) {
             clearTimeout(to);
             if (faRes.ok) {
               resultado = await faRes.json();
+              via = 'fastapi-local';
             }
           } catch (_e) {
             // Continua para o executor Python local embutido
@@ -851,6 +874,7 @@ function attachFileServerMiddleware(middleware) {
               const lines = proc.stdout.trim().split('\n');
               const lastLine = lines[lines.length - 1];
               resultado = JSON.parse(lastLine);
+              via = 'cli-python';
             } else {
               throw new Error(
                 (proc.stderr && proc.stderr.trim()) ||
@@ -860,6 +884,20 @@ function attachFileServerMiddleware(middleware) {
           }
 
           // C. Se vinculado a um arquivoId do acervo, atualiza imediatamente os bytes em disco e no store
+          if (resultado && resultado.conteudo_base64) {
+            registrarDiagnostico(
+              'preencher',
+              {
+                via,
+                template_id: templateId,
+                arquivo_id: arquivoId || null,
+                campos_dados: Object.keys(dados),
+                base64_chars: resultado.conteudo_base64.length,
+                avisos: resultado.avisos || null,
+              },
+              Buffer.from(resultado.conteudo_base64, 'base64')
+            );
+          }
           if (arquivoId && resultado && resultado.conteudo_base64) {
             const fileBuf = Buffer.from(resultado.conteudo_base64, 'base64');
             const existing = uploadedFilesStore.get(arquivoId) || {};
@@ -1025,7 +1063,20 @@ function attachFileServerMiddleware(middleware) {
     // 4. Download Real no Celular e Web (/arquivos/download)
     if (pathname === '/arquivos/download') {
       const meta = parseMetaFromQuery(parsedUrl.query || {});
+      const ehPlanilha =
+        ['xlsx', 'xlsm', 'xls', 'csv'].includes(meta.extensao) || meta.categoria === 'PLANILHA';
+      const armazenada = meta.id ? uploadedFilesStore.get(meta.id) : null;
+      const temConteudo =
+        !!armazenada && (!!armazenada.buffer || (!!armazenada.filePath && fs.existsSync(armazenada.filePath)));
+      // Nunca gerar planilha de exemplo: sem o preenchimento salvo, não há o que baixar.
+      if (ehPlanilha && !temConteudo) {
+        registrarDiagnostico('download-recusado', { id: meta.id || null, nome: meta.nome, motivo: 'sem preenchimento salvo' }, null);
+        res.writeHead(409, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, error: 'Planilha sem preenchimento salvo: rode o preenchimento ML antes de baixar.' }));
+        return;
+      }
       const { buffer, mime, filename } = getFileBinaryAndMime(meta);
+      registrarDiagnostico('download', { id: meta.id || null, nome: filename, categoria: meta.categoria || null }, ehPlanilha ? buffer : null);
       const safeAsciiName = filename.replace(/[^\x20-\x7E]/g, '_');
       const encodedName = encodeURIComponent(filename);
 

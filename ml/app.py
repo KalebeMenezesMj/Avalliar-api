@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
+import diagnostico
 import fill as filler
 import recalc
 import templates
@@ -169,6 +170,7 @@ def preencher(req: PreencherRequest):
     if not os.path.exists(template_path):
         raise HTTPException(503, "Template não está no servidor (verifique TEMPLATES_BLOB); não é gerada planilha sintética.")
 
+    dados_recebidos = json.loads(json.dumps(req.dados, default=str))
     avisos = _resolver_amostras(req.dados)
     ext = os.path.splitext(TEMPLATE_FILES[req.template_id])[1]
     avisos += _ajustar_valor(req.dados, template_path, ext)
@@ -182,14 +184,22 @@ def preencher(req: PreencherRequest):
         if aviso_calc:
             avisos.append(aviso_calc)
         with open(out, "rb") as fh:
-            b64 = base64.b64encode(fh.read()).decode("ascii")
+            raw = fh.read()
+        diagnostico.registrar(
+            "preencher",
+            {"template_id": tid, "dados": dados_recebidos, "avisos": avisos, "campos_preenchidos": len(escritos)},
+            raw,
+        )
         return {
             "template_id": tid,
             "nome_arquivo": TEMPLATE_FILES[req.template_id],
             "campos_preenchidos": len(escritos),
-            "conteudo_base64": b64,
+            "conteudo_base64": base64.b64encode(raw).decode("ascii"),
             "avisos": avisos,
         }
+    except Exception as e:
+        diagnostico.registrar("preencher-erro", {"template_id": req.template_id, "dados": dados_recebidos, "erro": repr(e)})
+        raise
     finally:
         os.unlink(out)
 
@@ -349,8 +359,11 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
     if ext not in (".xlsx", ".xlsm"):
         raise HTTPException(400, "Envie um arquivo .xlsx ou .xlsm")
 
+    dados_recebidos = json.loads(json.dumps(valores, default=str))
     avisos = _resolver_amostras(valores)
     entrada = _salvar_upload(file)
+    with open(entrada, "rb") as fh:
+        diagnostico.registrar("entrada", {"nome": nome, "dados": dados_recebidos}, fh.read())
     avisos += _ajustar_valor(valores, entrada, ext)
     fd, out = tempfile.mkstemp(suffix=ext)
     os.close(fd)
@@ -367,14 +380,22 @@ def preencher_arquivo(file: UploadFile = File(...), dados: str = Form("{}")):
         if aviso_calc:
             avisos.append(aviso_calc)
         with open(out, "rb") as fh:
-            b64 = base64.b64encode(fh.read()).decode("ascii")
+            raw = fh.read()
+        diagnostico.registrar(
+            "preencher-arquivo",
+            {"template_id": tid, "nome": nome, "dados": dados_recebidos, "avisos": avisos, "campos_preenchidos": len(escritos)},
+            raw,
+        )
         return {
             "template_id": tid,
             "nome_arquivo": nome,
             "campos_preenchidos": len(escritos),
-            "conteudo_base64": b64,
+            "conteudo_base64": base64.b64encode(raw).decode("ascii"),
             "avisos": avisos,
         }
+    except Exception as e:
+        diagnostico.registrar("preencher-arquivo-erro", {"nome": nome, "dados": dados_recebidos, "erro": repr(e)})
+        raise
     finally:
         os.unlink(entrada)
         os.unlink(out)
@@ -437,79 +458,6 @@ def consultar(q: str, k: int = 5):
             for c, s in resultados
         ],
     }
-
-
-def _gerar_planilha_bytes(nome: str, empresa: str, demanda: str, imovel: str, responsavel: str, template: str, campos_json: str = "") -> bytes:
-    """Preenche o template oficial (V22/V25) em data/templates/ quando disponível."""
-    import io
-    import openpyxl
-
-    is_v25 = "v25" in (template or "").lower() or "v25" in (nome or "").lower()
-    tid = "v25_unidades_padronizadas" if is_v25 else "v22_unidades_isoladas"
-    valores_padrao = {
-        "cliente": empresa,
-        "numero_proposta": "PROP-2026-0842",
-        "metodologia": "Método Comparativo Direto de Dados de Mercado",
-        "tipo_laudo": "LAUDO COMPLETO DE AVALIAÇÃO",
-        "engenheiro_responsavel": responsavel,
-        "responsavel_avaliacao": responsavel,
-        "fam_evolutivo": "1,00",
-        "uf": "SP",
-        "cidade": "São Paulo",
-        "endereco": imovel,
-        "empreendimento": demanda,
-        "area_privativa": 124.5,
-        "area_total": 162.8,
-        "idade_aparente": 8,
-        "estado_conservacao": "Bom (Entre novo e regular)",
-    }
-    if campos_json:
-        try:
-            extra = json.loads(campos_json)
-            if isinstance(extra, dict):
-                valores_padrao.update(extra)
-        except Exception:
-            pass
-
-    template_path = os.path.join(TEMPLATES_DIR, TEMPLATE_FILES.get(tid, TEMPLATE_FILES["v22_unidades_isoladas"]))
-    if os.path.exists(template_path):
-        ext = os.path.splitext(template_path)[1]
-        fd, out = tempfile.mkstemp(suffix=ext)
-        os.close(fd)
-        try:
-            filler.fill(template_path, valores_padrao, out)
-            recalc.preencher_cache(out)
-            with open(out, "rb") as fh:
-                return fh.read()
-        except Exception:
-            pass
-        finally:
-            if os.path.exists(out):
-                os.unlink(out)
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "DADOS DO IMÓVEL" if is_v25 else "XXX - Dados Laudo"
-
-    ws["A1"] = "AVALLIAR ML"
-    ws["B1"] = "Homogeneização — Unidades Padronizadas (V25)" if is_v25 else "Homogeneização — Unidades Isoladas (V22)"
-    ws["C1"] = f"Empresa: {empresa}"
-    ws.append(["Célula", "Campo Canônico (ML)", "Rótulo", "Valor Preenchido"])
-
-    for campo, (aba, coord) in templates.CELL_MAP.get(tid, {}).items():
-        val = valores_padrao.get(campo, "Preenchido via ML")
-        ws.append([coord, campo, f"{aba}!{coord}", str(val)])
-
-    ws2 = wb.create_sheet("HOMOGENEIZACAO")
-    ws2.append(["Amostra", "Fonte", "Área (m²)", "Valor Homogeneizado (R$/m²)"])
-    ws2.append(["Amostra 01", "VivaReal", 120.0, "R$ 9.333,33"])
-    ws2.append(["Amostra 02", "VivaReal", 98.0, "R$ 9.693,88"])
-    ws2.append(["Amostra 03", "VivaReal", 140.0, "R$ 9.142,86"])
-    ws2.append(["Referência CUB/R8-N", "SINDUSCON-SP", 1.0, "R$ 2.387,12"])
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    return buf.getvalue()
 
 
 def _gerar_pdf_bytes(nome: str, categoria: str, empresa: str, demanda: str, imovel: str, responsavel: str) -> bytes:
@@ -708,9 +656,8 @@ def baixar_arquivo(
 
     ext = (extensao or nome.split(".")[-1] or "pdf").lower()
     if ext in ("xlsx", "xlsm", "xls", "csv") or categoria == "PLANILHA":
-        content = _gerar_planilha_bytes(nome, empresa, demanda, imovel, responsavel, template, campos)
-        mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        clean_name = nome if nome.lower().endswith((".xlsx", ".xlsm")) else f"{nome}.xlsx"
+        # Nunca inventar planilha: sem o arquivo salvo (id) não há o que baixar.
+        raise HTTPException(409, "Planilha sem preenchimento salvo: rode o preenchimento ML antes de baixar.")
     else:
         content = _gerar_pdf_bytes(nome, categoria, empresa, demanda, imovel, responsavel)
         mime = "application/pdf"

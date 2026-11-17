@@ -824,8 +824,10 @@ export async function baixarArquivoDemanda(
           }
           return `Planilha preenchida via IA baixada: ${arq.nome}`;
         }
-      } catch {
-        // usa fallback de arquivo original ou download do servidor abaixo
+      } catch (erro) {
+        // Planilha não preenchida e sem resultado do ML: não baixar um arquivo genérico
+        const motivo = erro instanceof Error ? erro.message : 'erro desconhecido';
+        return `Não foi possível preencher a planilha: ${motivo}`;
       }
     }
 
