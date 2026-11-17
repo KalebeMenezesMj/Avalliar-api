@@ -572,7 +572,27 @@ async function compartilharPlanilhaMobile(arq: ArquivoAnexo, arquivo: ArquivoNat
   });
 }
 
-/** Download no celular: grava o arquivo e abre o menu do sistema para salvar (iOS: "Salvar em Arquivos"). */
+// Trava: impede duas ações de planilha ao mesmo tempo (o expo-sharing no Android rejeita a segunda chamada)
+let acaoPlanilhaEmAndamento = false;
+
+async function executarAcaoPlanilhaMobile<T>(acao: () => Promise<T>): Promise<T> {
+  if (acaoPlanilhaEmAndamento) {
+    throw new Error('Aguarde: outra ação com a planilha ainda está em andamento.');
+  }
+  acaoPlanilhaEmAndamento = true;
+  try {
+    return await acao();
+  } catch (e: any) {
+    if (String(e?.message || e).includes('Another share request')) {
+      throw new Error('Feche o menu de compartilhamento que está aberto e tente novamente.');
+    }
+    throw e;
+  } finally {
+    acaoPlanilhaEmAndamento = false;
+  }
+}
+
+/** Download no celular: grava o arquivo e abre o menu do sistema para salvar. */
 async function baixarPlanilhaMobile(arq: ArquivoAnexo, bytes: Uint8Array): Promise<void> {
   const arquivo = await gravarPlanilhaTemporaria(arq, bytes);
   await compartilharPlanilhaMobile(arq, arquivo);
@@ -595,17 +615,19 @@ export async function visualizarArquivoDemanda(
 
   // Celular: a planilha é visualizada a partir dos bytes reais (Quick Look / menu do sistema)
   if (isPlanilha && Platform.OS !== 'web') {
-    const bytes = await obterBytesPlanilhaMobile(
-      arq,
-      empresaNome,
-      demandaTitulo,
-      imovelRef,
-      responsavel
-    );
-    const modo = await visualizarPlanilhaMobile(arq, bytes);
-    return modo === 'preview'
-      ? `Planilha aberta: ${arq.nome}`
-      : `Escolha o app para abrir a planilha: ${arq.nome}`;
+    return executarAcaoPlanilhaMobile(async () => {
+      const bytes = await obterBytesPlanilhaMobile(
+        arq,
+        empresaNome,
+        demandaTitulo,
+        imovelRef,
+        responsavel
+      );
+      const modo = await visualizarPlanilhaMobile(arq, bytes);
+      return modo === 'preview'
+        ? `Planilha aberta: ${arq.nome}`
+        : `Escolha o app para abrir a planilha: ${arq.nome}`;
+    });
   }
 
   if (isPlanilha && !arq.conteudoBase64) {
@@ -706,15 +728,17 @@ export async function baixarArquivoDemanda(
 
   // Celular: grava a planilha real e abre o menu do sistema para salvar
   if (isPlanilha && Platform.OS !== 'web') {
-    const bytes = await obterBytesPlanilhaMobile(
-      arq,
-      empresaNome,
-      demandaTitulo,
-      imovelRef,
-      responsavel
-    );
-    await baixarPlanilhaMobile(arq, bytes);
-    return `Escolha "Salvar em Arquivos" para baixar: ${arq.nome}`;
+    return executarAcaoPlanilhaMobile(async () => {
+      const bytes = await obterBytesPlanilhaMobile(
+        arq,
+        empresaNome,
+        demandaTitulo,
+        imovelRef,
+        responsavel
+      );
+      await baixarPlanilhaMobile(arq, bytes);
+      return `Escolha onde salvar a planilha: ${arq.nome}`;
+    });
   }
 
   if (isPlanilha && !arq.conteudoBase64) {

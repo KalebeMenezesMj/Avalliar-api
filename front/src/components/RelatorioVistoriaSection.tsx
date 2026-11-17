@@ -135,6 +135,7 @@ export default function RelatorioVistoriaSection({
   const [erroValidacao, setErroValidacao] = useState<string | null>(null);
   const [avisoFeedback, setAvisoFeedback] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [acaoPlanilhaEmAndamento, setAcaoPlanilhaEmAndamento] = useState(false);
   const [planilhaGerada, setPlanilhaGerada] = useState<{
     arquivo: ArquivoAnexo;
     templateNome: string;
@@ -528,7 +529,9 @@ export default function RelatorioVistoriaSection({
 
   const handleVisualizarPlanilha = async () => {
     if (!planilhaGerada) return;
+    if (acaoPlanilhaEmAndamento) return;
     setErroAcao(null);
+    setAcaoPlanilhaEmAndamento(true);
     try {
       const msg = await visualizarArquivoDemanda(
         planilhaGerada.arquivo,
@@ -541,12 +544,16 @@ export default function RelatorioVistoriaSection({
       setTimeout(() => setAvisoFeedback(null), 4000);
     } catch (e: any) {
       setErroAcao(`Não foi possível visualizar a planilha: ${e?.message || 'erro desconhecido'}`);
+    } finally {
+      setAcaoPlanilhaEmAndamento(false);
     }
   };
 
   const handleBaixarPlanilha = async () => {
     if (!planilhaGerada) return;
+    if (acaoPlanilhaEmAndamento) return;
     setErroAcao(null);
+    setAcaoPlanilhaEmAndamento(true);
     try {
       const msg = await baixarArquivoDemanda(
         planilhaGerada.arquivo,
@@ -559,6 +566,8 @@ export default function RelatorioVistoriaSection({
       setTimeout(() => setAvisoFeedback(null), 4000);
     } catch (e: any) {
       setErroAcao(`Não foi possível baixar a planilha: ${e?.message || 'erro desconhecido'}`);
+    } finally {
+      setAcaoPlanilhaEmAndamento(false);
     }
   };
 
@@ -634,12 +643,20 @@ export default function RelatorioVistoriaSection({
           )}
 
           <View style={styles.generatedActionsRow}>
-            <Pressable style={styles.viewBtn} onPress={handleVisualizarPlanilha}>
+            <Pressable
+              style={[styles.viewBtn, acaoPlanilhaEmAndamento && { opacity: 0.5 }]}
+              onPress={handleVisualizarPlanilha}
+              disabled={acaoPlanilhaEmAndamento}
+            >
               <Ionicons name="eye-outline" size={18} color="#FFFFFF" />
               <Text style={styles.viewBtnText}>Visualizar Planilha</Text>
             </Pressable>
 
-            <Pressable style={styles.downloadBtn} onPress={handleBaixarPlanilha}>
+            <Pressable
+              style={[styles.downloadBtn, acaoPlanilhaEmAndamento && { opacity: 0.5 }]}
+              onPress={handleBaixarPlanilha}
+              disabled={acaoPlanilhaEmAndamento}
+            >
               <Ionicons name="download-outline" size={18} color="#15803D" />
               <Text style={styles.downloadBtnText}>
                 Baixar (.{planilhaGerada.arquivo.extensao || 'xlsx'})
