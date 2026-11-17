@@ -350,17 +350,6 @@ export default function PainelScreen({
             <Ionicons name="chevron-back" size={20} color={t.accentRed} />
           </Pressable>
 
-          <View style={{ flex: 1 }}>
-            <SegmentedControl
-              options={[
-                { key: 'OPERACIONAL', label: 'Demandas', icon: 'checkmark-done-outline' },
-                { key: 'MACHINE_LEARNING', label: 'Inteligência (IA)', icon: 'hardware-chip-outline' },
-              ]}
-              value={secaoAtiva}
-              onChange={setSecaoAtiva}
-              activeColor={isML ? ML : BRAND}
-            />
-          </View>
         </View>
 
         {/* Hero: resumo global */}
