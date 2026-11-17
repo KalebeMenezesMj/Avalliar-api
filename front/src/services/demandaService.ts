@@ -483,13 +483,33 @@ const dataCurta = (iso?: string | null): string =>
   iso ? new Date(iso).toLocaleDateString('pt-BR') : '';
 
 /**
+ * A API roda no Azure com escala a zero: a primeira requisição depois de um tempo
+ * parada responde 503 ("App port is not ready"). Tenta de novo antes de desistir,
+ * senão a tela cai nos dados de exemplo.
+ */
+const comNovasTentativas = async <T>(fn: () => Promise<T>, tentativas = 4): Promise<T> => {
+  let ultimoErro: unknown;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      return await fn();
+    } catch (erro) {
+      ultimoErro = erro;
+      if (i < tentativas - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000 * (i + 1)));
+      }
+    }
+  }
+  throw ultimoErro;
+};
+
+/**
  * Carrega clientes e ordens de serviço do banco e preenche as estruturas
- * que as telas já leem. Retorna false se não houver dados do banco.
+ * que as telas já leem. Lança erro se o banco não respondeu.
  */
 const carregarDoBanco = async (): Promise<boolean> => {
   const [clientes, ordens] = await Promise.all([
-    userService.listarClientes(),
-    request<OrdemServicoApi[]>('/api/ordens-servico'),
+    comNovasTentativas(() => userService.listarClientes()),
+    comNovasTentativas(() => request<OrdemServicoApi[]>('/api/ordens-servico')),
   ]);
 
   empresasDinamicas.length = 0;
